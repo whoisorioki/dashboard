@@ -1,15 +1,22 @@
-# In api/routes.py
 from fastapi import APIRouter
 from starlette.concurrency import run_in_threadpool
 import polars as pl
-from services.data_processing import heavy_polars_transform
+from backend.services.data_processing import heavy_polars_transform
+from backend.services.sales_data import fetch_sales_data
 
-router = APIRouter()
+router = APIRouter(prefix="/api")
+
+
+@router.get("/health")
+async def health_check():
+    """Health check endpoint for the API."""
+    return {"status": "ok"}
 
 
 @router.get("/process-data")
 async def process_data_endpoint():
-    # Assume 'raw_df' is a Polars DataFrame fetched from Druid
+    """Sample endpoint demonstrating data processing with Polars."""
+    # Create a sample DataFrame
     raw_df = pl.DataFrame(
         {
             "sales_employee": ["Alice", "Bob", "Alice", "Bob"],
@@ -23,3 +30,37 @@ async def process_data_endpoint():
 
     # The event loop was free to handle other requests during the transformation
     return processed_df.to_dicts()
+
+
+@router.get("/sales")
+async def get_sales(
+    start_date: str,
+    end_date: str,
+    item_codes: str | None = None,
+    sales_employees: str | None = None,
+    customer_names: str | None = None,
+):
+    """
+    Get sales data for the specified time range and filters.
+
+    Args:
+        start_date: Start date in ISO format (YYYY-MM-DD)
+        end_date: End date in ISO format (YYYY-MM-DD)
+        item_codes: Comma-separated list of item codes
+        sales_employees: Comma-separated list of sales employee names
+        customer_names: Comma-separated list of customer names
+    """
+    # Convert comma-separated strings to lists
+    item_codes_list = item_codes.split(",") if item_codes else None
+    sales_employees_list = sales_employees.split(",") if sales_employees else None
+    customer_names_list = customer_names.split(",") if customer_names else None
+
+    df = await fetch_sales_data(
+        start_date=start_date,
+        end_date=end_date,
+        item_codes=item_codes_list,
+        sales_employees=sales_employees_list,
+        customer_names=customer_names_list,
+    )
+
+    return df.to_dicts()
