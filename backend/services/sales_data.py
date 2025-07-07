@@ -3,6 +3,7 @@ from starlette.concurrency import run_in_threadpool
 from typing import Optional, List, Dict, Any
 from backend.core.druid_client import druid_conn
 from pydruid.utils.filters import Dimension
+from fastapi import HTTPException
 
 
 async def fetch_sales_data(
@@ -44,7 +45,7 @@ async def fetch_sales_data(
             )
         if customer_names:
             filters.append(
-                {"type": "in", "dimension": "ocname", "values": customer_names}
+                {"type": "in", "dimension": "ocrname", "values": customer_names}
             )
 
         if not filters:
@@ -58,39 +59,49 @@ async def fetch_sales_data(
     def _query_druid() -> List[Dict[str, Any]]:
         """Execute the synchronous Druid query in a thread pool"""
         if druid_conn.client is None:
-            raise RuntimeError(
-                "Druid client is not initialized. Make sure the FastAPI app is running with the lifespan context manager."
+            raise HTTPException(
+                status_code=503,
+                detail="Druid client is not initialized. Please check the Druid connection.",
             )
 
-        druid_filter = _build_filter()
+        try:
+            druid_filter = _build_filter()
 
-        query = druid_conn.client.scan(
-            datasource="sales_data",
-            granularity="all",
-            intervals=f"{start_date}/{end_date}",
-            filter=druid_filter,
-            columns=[
-                "__time",
-                "itemcode",
-                "description",
-                "ocname",
-                "a.sales_employee",
-                "quantity",
-                "price",
-                "total",
-            ],
-        )
-        # The raw result is a list of dictionaries within the query object
-        # The actual events are nested in the response
-        if query.result and "events" in query.result:
-            return query.result["events"]
-        return []
+            query = druid_conn.client.scan(
+                datasource="sales_data",
+                granularity="all",
+                intervals=f"{start_date}/{end_date}",
+                filter=druid_filter,
+                columns=[
+                    "__time",
+                    "itemcode",
+                    "description",
+                    "ocrname",
+                    "a.sales_employee",
+                    "quantity",
+                    "price",
+                    "total",
+                ],
+            )
+            # The raw result is a list of dictionaries within the query object
+            # The actual events are nested in the response
+            if query.result and "events" in query.result:
+                return query.result["events"]
+            return []
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error connecting to Druid: {str(e)}. Please check the Druid cluster status.",
+            )
 
     # Execute the synchronous pydruid call in a thread pool
     sales_data_dicts = await run_in_threadpool(_query_druid)
 
     if not sales_data_dicts:
-        return pl.DataFrame()  # Return empty DataFrame if no data
+        raise HTTPException(
+            status_code=404,
+            detail="No sales data found for the specified date range and filters.",
+        )
 
     # Directly construct Polars DataFrame from the list of dictionaries
     sales_df = pl.from_dicts(sales_data_dicts)
@@ -100,10 +111,16 @@ async def fetch_sales_data(
         {
             "__time": "timestamp",
             "itemcode": "itemCode",
-            "ocname": "customerName",
+            "ocrname": "customerName",
             "a.sales_employee": "salesEmployee",
-            "total": "lineTotal",
+            # Keep 'total' as is to match KPI service expectations
         }
     )
+
+    # Convert string timestamp to datetime
+    if "timestamp" in sales_df.columns:
+        sales_df = sales_df.with_columns(
+            pl.col("timestamp").str.to_date("%Y-%m-%d").alias("timestamp")
+        )
 
     return sales_df

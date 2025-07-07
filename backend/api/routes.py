@@ -3,6 +3,7 @@ from starlette.concurrency import run_in_threadpool
 import polars as pl
 from backend.services.data_processing import heavy_polars_transform
 from backend.services.sales_data import fetch_sales_data
+from backend.core.druid_client import druid_conn
 
 router = APIRouter(prefix="/api")
 
@@ -11,6 +12,23 @@ router = APIRouter(prefix="/api")
 async def health_check():
     """Health check endpoint for the API."""
     return {"status": "ok"}
+
+
+@router.get("/health/druid")
+async def druid_health_check():
+    """Health check endpoint specifically for Druid connectivity."""
+    is_connected = await run_in_threadpool(druid_conn.is_connected)
+    return {
+        "druid_status": "connected" if is_connected else "disconnected",
+        "is_available": is_connected,
+    }
+
+
+@router.get("/druid/datasources")
+async def get_druid_datasources():
+    """Get list of available Druid datasources."""
+    datasources = await run_in_threadpool(druid_conn.get_available_datasources)
+    return {"datasources": datasources, "count": len(datasources)}
 
 
 @router.get("/process-data")

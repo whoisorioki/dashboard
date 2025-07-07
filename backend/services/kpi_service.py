@@ -40,7 +40,7 @@ def get_product_performance(df: pl.DataFrame, n: int = 5) -> dict:
     Identifies the top and bottom N performing products by total sales.
     """
     product_sales = (
-        df.group_by(["itemcode", "description"])
+        df.group_by(["itemCode", "description"])
         .agg(pl.sum("total").alias("total_sales"))
         .sort("total_sales", descending=True)
     )
@@ -70,7 +70,10 @@ def create_branch_product_heatmap_data(df: pl.DataFrame) -> pl.DataFrame:
     )
 
     heatmap_df = df_with_product_line.pivot(
-        values="total", index="ocname", on="product_line", aggregate_function="sum"
+        values="total",
+        index="customerName",
+        on="product_line",
+        aggregate_function="sum",
     ).fill_null(0)
 
     return heatmap_df
@@ -82,12 +85,12 @@ def calculate_employee_quota_attainment(
     """
     Calculates sales per employee and their quota attainment percentage.
     """
-    employee_sales = df.group_by("a.sales_employee").agg(
+    employee_sales = df.group_by("salesEmployee").agg(
         pl.sum("total").alias("total_sales")
     )
 
     performance_df = (
-        employee_sales.join(quotas_df, on="a.sales_employee", how="left")
+        employee_sales.join(quotas_df, on="salesEmployee", how="left")
         .with_columns(
             ((pl.col("total_sales") / pl.col("quota")) * 100)
             .round(2)
@@ -104,7 +107,7 @@ def calculate_avg_deal_size_per_rep(df: pl.DataFrame) -> pl.DataFrame:
     Calculates the average sale value for each employee.
     """
     avg_deal_size = (
-        df.group_by("a.sales_employee")
+        df.group_by("salesEmployee")
         .agg(pl.mean("total").round(2).alias("average_deal_size"))
         .sort("average_deal_size", descending=True)
     )
