@@ -1,80 +1,186 @@
-# Sales Dashboard
+# Sales Analytics Dashboard
 
-A high-performance analytics dashboard backend built with FastAPI, Polars, Apache Druid, and Strawberry GraphQL.
+A full-stack dashboard application for visualizing sales data, featuring a React Material-UI frontend and a FastAPI backend with Apache Druid.
 
 ## Architecture
 
+- **Frontend**: React + TypeScript with Material-UI and Recharts
 - **Backend**: FastAPI with Python 3.12+
 - **Data Processing**: Polars for high-performance DataFrame operations
 - **Analytics Database**: Apache Druid for real-time analytics
 - **APIs**: Both REST and GraphQL endpoints
-- **Data Visualization**: KPI calculations and structured data for frontend consumption
+- **Data Visualization**: Interactive charts and KPI cards
+
+## Project Structure
+
+- `frontend/`: React + TypeScript frontend built with Material-UI and Recharts
+- `backend/`: Python FastAPI backend serving analytics data
+
+## Setup and Installation
+
+### Backend Setup
+
+1. Navigate to the root directory
+2. Activate the virtual environment:
+   ```
+   .\.venv\Scripts\activate  # Windows
+   source .venv/bin/activate  # Linux/macOS
+   ```
+3. Install backend dependencies:
+   ```
+   pip install -r backend/requirements.txt
+   ```
+
+### Frontend Setup
+
+1. Navigate to the frontend directory:
+   ```
+   cd frontend
+   ```
+2. Install frontend dependencies:
+   ```
+   npm install
+   ```
+
+## Quick Start (Recommended)
+
+We've created a comprehensive system manager script for easy deployment:
+
+```powershell
+# Start both backend and frontend services
+.\start-system.ps1 -Both
+
+# Check system status
+.\start-system.ps1 -Status
+
+# Run connection tests
+.\start-system.ps1 -Test
+```
+
+For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+## Running the Application
+
+### Quick Start
+
+We've provided convenient scripts to start both the backend and frontend servers:```
+
+```
+
+1. **For the backend:**
+   ```
+   .\start-backend.ps1  # Windows PowerShell
+   ```
+   This script will:
+   - Create a virtual environment if it doesn't exist
+   - Install required dependencies
+   - Activate the virtual environment
+   - Start the FastAPI server at http://localhost:8000
+
+2. **For the frontend:**
+   ```
+   .\start-frontend.ps1  # Windows PowerShell
+   ```
+   This script will:
+   - Install node dependencies if needed
+   - Start the Vite development server
+   - Open http://localhost:5173 in your browser
+
+3. Open your browser and navigate to `http://localhost:5173` if it doesn't open automatically
+
+### Manual Start
+
+If you prefer to start the services manually:
+
+#### Backend Server
+1. Activate the virtual environment:
+   ```
+   .\.venv\Scripts\activate  # Windows
+   ```
+2. Navigate to the backend directory:
+   ```
+   cd backend
+   ```
+3. Start the FastAPI server:
+   ```
+   uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+
+#### Frontend Development Server
+1. Navigate to the frontend directory:
+   ```
+   cd frontend
+   ```
+2. Start the Vite development server:
+   ```
+   npm run dev
+   ```
+
+## Prerequisites
+
+1. **Druid Cluster**: Ensure Apache Druid is running (port 8888)
+2. **Python 3.12+**: Required for backend
+3. **Node.js 18+**: Required for frontend
 
 ## Features
 
-- 🚀 High-performance data processing with Polars
-- 📊 Advanced KPI calculations (growth, targets, performance metrics)
-- 🔄 Real-time data from Apache Druid
-- 🌐 REST and GraphQL APIs
-- 📈 Ready for dashboard frontend integration
-- 🐋 Docker-based Druid cluster
+- Real-time data visualization with charts and KPI cards
+- Dark/light theme switching
+- Date range filtering
+- Mock data mode for development without backend
+- Responsive design for desktop and mobile views
+
+## API Endpoints
+
+- `/api/kpis/monthly-sales-growth`: Monthly sales data over time
+- `/api/kpis/sales-target-attainment`: Sales target achievement data
+- `/api/kpis/product-performance`: Top/bottom performing products
+- `/api/kpis/branch-product-heatmap`: Heat map of sales by branch and product
 
 ## Project Structure
 
 ```
-backend/
-├── api/                    # API layer
-│   ├── routes.py          # REST endpoints
-│   ├── kpi_routes.py      # KPI-specific endpoints
-│   └── schema.py          # GraphQL schema
-├── core/                  # Core infrastructure
-│   └── druid_client.py    # Druid connection management
-├── services/              # Business logic
-│   ├── sales_data.py      # Data fetching and processing
-│   ├── kpi_service.py     # KPI calculations
-│   └── data_processing.py # Data transformation utilities
-├── models/                # Data models (future use)
-├── druid/                 # Druid cluster configuration
-│   └── distribution/docker/
-│       └── docker-compose.yml
-├── requirements.txt       # Python dependencies
-├── .env.example          # Environment template
-└── main.py               # FastAPI application entry point
+.
+├── frontend/                # React frontend
+│   ├── src/
+│   │   ├── components/      # Reusable UI components
+│   │   ├── context/         # React contexts
+│   │   ├── hooks/           # Custom React hooks
+│   │   ├── pages/           # Page components
+│   │   └── theme/           # Material UI theme config
+│   └── public/              # Static assets
+│
+├── backend/
+│   ├── api/                 # API layer
+│   │   ├── routes.py        # REST endpoints
+│   │   ├── kpi_routes.py    # KPI-specific endpoints
+│   │   └── schema.py        # GraphQL schema
+│   ├── core/                # Core infrastructure
+│   │   └── druid_client.py  # Druid connection management
+│   ├── services/            # Business logic
+│   │   ├── sales_data.py    # Data fetching
+│   │   ├── kpi_service.py   # KPI calculations
+│   │   └── data_processing.py # Data transformation
+│   └── models/              # Data models
+│
+├── .venv/                   # Python virtual environment
+├── start-backend.ps1        # Backend startup script
+└── start-frontend.ps1       # Frontend startup script
 ```
 
-## Quick Start
+## Technologies Used
 
-### 1. Clone Repository
-```bash
-git clone <repository-url>
-cd Sales-Dashboard
-```
+### Frontend
+- React with TypeScript
+- Material UI for components
+- Recharts for data visualization
+- SWR for data fetching
 
-### 2. Setup Environment
-```bash
-cd backend
-cp .env.example .env
-# Edit .env if needed
-```
-
-### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Start Druid Cluster
-```bash
-cd druid/distribution/docker
-docker-compose up -d
-```
-
-Wait for all services to be healthy (check `docker-compose ps`).
-
-### 5. Start FastAPI Server
-```bash
-cd ../../..  # Back to backend/
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
+### Backend
+- FastAPI
+- Polars for data processing
+- Apache Druid for data storage
+- GraphQL support
 
 ## API Endpoints
 

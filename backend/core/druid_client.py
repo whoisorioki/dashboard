@@ -13,7 +13,7 @@ load_dotenv()
 DRUID_BROKER_HOST = os.getenv("DRUID_BROKER_HOST", "localhost")
 DRUID_BROKER_PORT = int(os.getenv("DRUID_BROKER_PORT", 8888))
 # Update this to match your actual datasource name
-DRUID_DATASOURCE = os.getenv("DRUID_DATASOURCE", "sales_data")
+DRUID_DATASOURCE = os.getenv("DRUID_DATASOURCE", "sales_analytics")
 
 
 class DruidConnection:
@@ -26,16 +26,37 @@ class DruidConnection:
         if self.client is None:
             return False
 
-        try:
-            # Try to query datasources through the router, which we know works
-            import requests
+        import time
+        import requests
+        import json
 
-            url = f"http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}/druid/v2/datasources"
-            response = requests.get(url, timeout=10)
-            return response.status_code == 200 and len(response.json()) > 0
-        except Exception as e:
-            print(f"Druid connection test failed: {e}")
-            return False
+        for attempt in range(3):
+            try:
+                # Try to query datasources through the router, which we know works
+                url = f"http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}/druid/v2/datasources"
+                print(
+                    f"Testing Druid connection with URL: {url} (Attempt {attempt + 1})"
+                )
+                response = requests.get(url, timeout=10)
+                print(
+                    f"Druid connection test response: {response.status_code} - {response.text}"
+                )
+                if response.status_code == 200:
+                    try:
+                        datasources = response.json()
+                        print(f"Datasources found: {datasources}")
+                        if len(datasources) > 0:
+                            return True
+                    except json.JSONDecodeError:
+                        print("Error decoding JSON from response")
+            except Exception as e:
+                print(f"Druid connection test failed: {e}")
+
+            if attempt < 2:
+                print("Retrying in 5 seconds...")
+                time.sleep(5)
+
+        return False
 
     def get_available_datasources(self) -> list:
         """Get list of available datasources."""
@@ -75,12 +96,12 @@ async def lifespan(app: FastAPI):
 
         # Test the connection
         if druid_conn.is_connected():
-            print("✓ Druid connection verified successfully")
+            print("Druid connection verified successfully")
         else:
-            print("⚠ Warning: Druid connection could not be verified")
+            print("Warning: Druid connection could not be verified")
 
     except Exception as e:
-        print(f"✗ Error initializing Druid client: {e}")
+        print(f"Error initializing Druid client: {e}")
         druid_conn.client = None
 
     yield

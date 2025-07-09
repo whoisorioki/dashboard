@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sales Analytics Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      .error-container {
+        padding: 20px;
+        margin: 20px;
+        border: 1px solid #f44336;
+        background-color: #ffebee;
+        border-radius: 4px;
+      }
+      .error-title {
+        color: #d32f2f;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      .error-message {
+        font-family: monospace;
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <div id="error-display"></div>
+    <script>
+      window.addEventListener('error', function(event) {
+        const errorDisplay = document.getElementById('error-display');
+        errorDisplay.innerHTML = `
+          <div class="error-container">
+            <div class="error-title">Error Loading Application:</div>
+            <div class="error-message">${event.error?.stack || event.message}</div>
+          </div>
+        `;
+      });
+    </script>
+    <!-- <script type="module" src="/src/debug.tsx"></script> -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
