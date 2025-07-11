@@ -6,15 +6,15 @@ import { ThemeContextProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 import { FilterProvider } from './context/FilterContext'
-import Dashboard from './pages/Dashboard'
-import Sales from './pages/Sales'
-import Products from './pages/Products'
-import Branches from './pages/Branches'
 import MainLayout from './components/layout/MainLayout'
 import ProtectedRoute from './components/ProtectedRoute'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import ExecutiveSummary from './pages/ExecutiveSummary'
+import PerformanceDeepDive from './pages/PerformanceDeepDive'
+import ProfitabilityAnalysis from './pages/ProfitabilityAnalysis'
+import AlertsDiagnostics from './pages/AlertsDiagnostics'
 
 // Create a client
 const queryClient = new QueryClient({
@@ -44,11 +44,11 @@ function App() {
                       <ProtectedRoute>
                         <MainLayout>
                           <Routes>
-                            <Route path="/" element={<Navigate to="/overview" replace />} />
-                            <Route path="/overview" element={<Dashboard />} />
-                            <Route path="/sales" element={<Sales />} />
-                            <Route path="/products" element={<Products />} />
-                            <Route path="/branches" element={<Branches />} />
+                            <Route path="/" element={<Navigate to="/summary" replace />} />
+                            <Route path="/summary" element={<ExecutiveSummary />} />
+                            <Route path="/performance" element={<PerformanceDeepDive />} />
+                            <Route path="/profitability" element={<ProfitabilityAnalysis />} />
+                            <Route path="/diagnostics" element={<AlertsDiagnostics />} />
                           </Routes>
                         </MainLayout>
                       </ProtectedRoute>

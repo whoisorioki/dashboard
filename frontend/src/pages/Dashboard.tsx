@@ -10,7 +10,7 @@ import {
 import { format } from 'date-fns'
 import PageHeader from '../components/PageHeader'
 import KpiCard from '../components/KpiCard'
-import MonthlySalesTrendChart from '../components/MonthlySalesTrendChart'
+import TrendChart from '../components/TrendChart'
 import ProductPerformanceChart from '../components/ProductPerformanceChart'
 import BranchProductHeatmap from '../components/BranchProductHeatmap'
 import QuotaAttainmentGauge from '../components/QuotaAttainmentGauge'
@@ -178,7 +178,11 @@ const Dashboard = () => {
 
                 <Grid item xs={12} md={6} xl={8}>
                     <Box sx={{ height: '400px' }}>
-                        <MonthlySalesTrendChart
+                        <TrendChart
+                            endpoint="/kpis/monthly-sales-growth"
+                            chartTitle="Monthly Sales Trend"
+                            yAxisLabel="Sales"
+                            dataKey="sales"
                             startDate={startDate}
                             endDate={endDate}
                             branch={selectedBranch !== 'all' ? selectedBranch : undefined}

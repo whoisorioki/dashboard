@@ -2,9 +2,10 @@ import os
 from contextlib import asynccontextmanager
 from typing import Optional
 from dotenv import load_dotenv
-
+from supabase import create_client, Client
 from fastapi import FastAPI, HTTPException
 from pydruid.client import PyDruid
+from backend.core import clients
 
 # Load environment variables from .env file
 load_dotenv()
@@ -28,32 +29,19 @@ class DruidConnection:
 
         import time
         import requests
-        import json
 
         for attempt in range(3):
             try:
-                # Try to query datasources through the router, which we know works
-                url = f"http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}/druid/v2/datasources"
-                print(
-                    f"Testing Druid connection with URL: {url} (Attempt {attempt + 1})"
-                )
+                # Check for the presence of the Druid router status endpoint
+                url = f"http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}/status"
                 response = requests.get(url, timeout=10)
-                print(
-                    f"Druid connection test response: {response.status_code} - {response.text}"
-                )
                 if response.status_code == 200:
-                    try:
-                        datasources = response.json()
-                        print(f"Datasources found: {datasources}")
-                        if len(datasources) > 0:
-                            return True
-                    except json.JSONDecodeError:
-                        print("Error decoding JSON from response")
-            except Exception as e:
-                print(f"Druid connection test failed: {e}")
+                    return True
+            except requests.RequestException:
+                # Silently ignore connection errors and retry
+                pass
 
             if attempt < 2:
-                print("Retrying in 5 seconds...")
                 time.sleep(5)
 
         return False
@@ -82,28 +70,47 @@ druid_conn = DruidConnection()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    FastAPI lifespan manager to initialize and close the Druid client.
-    This ensures the client is created once at startup.
+    FastAPI lifespan manager to initialize and close external connections.
+    This ensures clients are created once at startup.
     """
-    print("Initializing Druid client...")
+    print("Initializing services...")
+    supabase_initialized = False
+    druid_initialized = False
+
+    # Initialize Supabase client
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+    if SUPABASE_URL and SUPABASE_SERVICE_KEY:
+        try:
+            clients.supabase_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+            supabase_initialized = True
+        except Exception as e:
+            print(f"Error: Failed to initialize Supabase client: {e}")
+
+    # Initialize Druid client
     try:
         druid_conn.client = PyDruid(
             url=f"http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}", endpoint="druid/v2"
         )
-        print(
-            f"Druid client initialized for broker at {DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}"
-        )
-
-        # Test the connection
         if druid_conn.is_connected():
-            print("Druid connection verified successfully")
-        else:
-            print("Warning: Druid connection could not be verified")
-
+            druid_initialized = True
     except Exception as e:
         print(f"Error initializing Druid client: {e}")
-        druid_conn.client = None
+
+    # Print consolidated status message
+    if supabase_initialized and druid_initialized:
+        print(
+            f"Services initiated successfully at http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}"
+        )
+    else:
+        if not supabase_initialized:
+            print("Error: Supabase client failed to initialize.")
+        if not druid_initialized:
+            print("Error: Druid connection failed.")
 
     yield
-    print("Closing Druid client resources.")
+
+    # Clean up resources
+    print("Closing service connections.")
+    clients.supabase_client = None
     druid_conn.client = None

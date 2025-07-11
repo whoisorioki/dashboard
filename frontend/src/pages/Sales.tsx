@@ -34,7 +34,7 @@ import {
 import { format } from 'date-fns'
 import PageHeader from '../components/PageHeader'
 import KpiCard from '../components/KpiCard'
-import MonthlySalesTrendChart from '../components/MonthlySalesTrendChart'
+import TrendChart from '../components/TrendChart'
 import { useApi } from '../hooks/useDynamicApi'
 import { useFilters } from '../context/FilterContext'
 import { SalesPerformanceData, RevenueSummaryData } from '../types/api'
@@ -201,17 +201,16 @@ const Sales = () => {
 
                 {/* Sales Trend Chart */}
                 <Grid item xs={12} lg={8}>
-                    <Card>
-                        <CardContent>
-                            <Typography variant="h6" gutterBottom>
-                                Monthly Sales Trend
-                            </Typography>
-                            <MonthlySalesTrendChart
-                                startDate={startDate}
-                                endDate={endDate}
-                            />
-                        </CardContent>
-                    </Card>
+                    <TrendChart
+                        endpoint="/kpis/monthly-sales-growth"
+                        chartTitle="Monthly Sales Trend"
+                        yAxisLabel="Sales"
+                        dataKey="sales"
+                        startDate={startDate}
+                        endDate={endDate}
+                        branch={selectedBranch !== 'all' ? selectedBranch : undefined}
+                        productLine={selectedProductLine !== 'all' ? selectedProductLine : undefined}
+                    />
                 </Grid>
 
                 {/* Top Performers Summary */}
@@ -223,13 +222,13 @@ const Sales = () => {
                             </Typography>
                             <Stack spacing={2}>
                                 {sortedSalesData.slice(0, 5).map((employee, index) => (
-                                    <Box key={employee.sales_employee} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Box key={employee.SalesPerson} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                                         <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
                                             {index + 1}
                                         </Avatar>
                                         <Box sx={{ flexGrow: 1 }}>
                                             <Typography variant="body2" fontWeight="medium">
-                                                {employee.sales_employee}
+                                                {employee.SalesPerson}
                                             </Typography>
                                             <Typography variant="caption" color="text.secondary">
                                                 {formatNumber(employee.transaction_count)} transactions
@@ -268,16 +267,16 @@ const Sales = () => {
                                     <TableBody>
                                         {sortedSalesData.map((employee, index) => (
                                             <TableRow
-                                                key={employee.sales_employee}
+                                                key={employee.SalesPerson}
                                                 sx={{ '&:nth-of-type(odd)': { backgroundColor: 'action.hover' } }}
                                             >
                                                 <TableCell component="th" scope="row">
                                                     <Stack direction="row" spacing={1} alignItems="center">
                                                         <Avatar sx={{ width: 24, height: 24, bgcolor: 'secondary.main' }}>
-                                                            {employee.sales_employee.charAt(0)}
+                                                            {employee.SalesPerson.charAt(0)}
                                                         </Avatar>
                                                         <Typography variant="body2" fontWeight="medium">
-                                                            {employee.sales_employee}
+                                                            {employee.SalesPerson}
                                                         </Typography>
                                                     </Stack>
                                                 </TableCell>

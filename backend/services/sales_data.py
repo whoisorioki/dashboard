@@ -1,7 +1,12 @@
 import polars as pl
 from starlette.concurrency import run_in_threadpool
 from typing import Optional, List, Dict, Any
-from backend.core.druid_client import druid_conn, DRUID_DATASOURCE
+from backend.core.druid_client import (
+    druid_conn,
+    DRUID_DATASOURCE,
+    DRUID_BROKER_HOST,
+    DRUID_BROKER_PORT,
+)
 from fastapi import HTTPException
 import requests
 import json
@@ -306,3 +311,68 @@ async def fetch_raw_sales_data(
     )
 
     return raw_sales_df
+
+
+async def _get_distinct_values(dimension: str) -> List[str]:
+    """
+    Helper function to fetch distinct values for a given dimension from Druid.
+    """
+
+    def _query_druid_distinct() -> List[str]:
+        try:
+            query = {
+                "queryType": "select",
+                "dataSource": DRUID_DATASOURCE,
+                "dimensions": [dimension],
+                "metrics": [],
+                "pagingSpec": {"pagingIdentifiers": {}, "threshold": 1000},
+                "granularity": "all",
+                "intervals": ["1900-01-01T00:00:00.000Z/3000-01-01T00:00:00.000Z"],
+            }
+            url = f"http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}/druid/v2/"
+            headers = {"Content-Type": "application/json"}
+            response = requests.post(url, json=query, headers=headers, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            # Extract the dimension values from the result
+            values = [
+                event["event"][dimension]
+                for event in data[0]["result"]["events"]
+                if dimension in event["event"]
+            ]
+            return sorted(list(set(values)))
+        except requests.exceptions.RequestException as e:
+            logger.error(
+                f"Error querying Druid for distinct values of {dimension}: {e}"
+            )
+            raise HTTPException(
+                status_code=503,
+                detail=f"Could not connect to data source for {dimension}.",
+            )
+        except Exception as e:
+            logger.error(
+                f"An unexpected error occurred while fetching distinct {dimension}: {e}"
+            )
+            raise HTTPException(status_code=500, detail="An internal error occurred.")
+
+    return await run_in_threadpool(_query_druid_distinct)
+
+
+async def get_distinct_branches() -> List[str]:
+    """Fetches a distinct list of branch names."""
+    return await _get_distinct_values("Branch")
+
+
+async def get_distinct_product_lines() -> List[str]:
+    """Fetches a distinct list of product lines."""
+    return await _get_distinct_values("ProductLine")
+
+
+async def get_distinct_sales_persons() -> List[str]:
+    """Fetches a distinct list of sales persons."""
+    return await _get_distinct_values("SalesPerson")
+
+
+async def get_distinct_item_names() -> List[str]:
+    """Fetches a distinct list of item names."""
+    return await _get_distinct_values("ItemName")

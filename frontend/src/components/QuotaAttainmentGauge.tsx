@@ -5,9 +5,9 @@ import ReactECharts from 'echarts-for-react'
 import type { EChartsOption } from 'echarts'
 import { useApi } from '../hooks/useDynamicApi'
 import { TargetAttainmentData } from '../types/api'
-import ChartSkeleton from './skeletons/ChartSkeleton'
-import ChartErrorState from './states/ChartErrorState'
-import ChartEmptyState from './states/ChartEmptyState'
+import CardSkeleton from './system/CardSkeleton'
+import ErrorState from './system/ErrorState'
+import EmptyState from './system/EmptyState'
 
 interface QuotaAttainmentGaugeProps {
     startDate: string | null
@@ -39,7 +39,7 @@ const QuotaAttainmentGauge: React.FC<QuotaAttainmentGaugeProps> = ({
                     <Typography variant="h5" gutterBottom>
                         Quota Attainment
                     </Typography>
-                    <ChartSkeleton />
+                    <CardSkeleton />
                 </CardContent>
             </Card>
         )
@@ -52,7 +52,7 @@ const QuotaAttainmentGauge: React.FC<QuotaAttainmentGaugeProps> = ({
                     <Typography variant="h5" gutterBottom>
                         Quota Attainment
                     </Typography>
-                    <ChartErrorState
+                    <ErrorState
                         errorMessage="Failed to load quota attainment data"
                         onRetry={mutate}
                     />
@@ -68,9 +68,13 @@ const QuotaAttainmentGauge: React.FC<QuotaAttainmentGaugeProps> = ({
                     <Typography variant="h5" gutterBottom>
                         Quota Attainment
                     </Typography>
-                    <ChartEmptyState
+                    <EmptyState
                         message="No Quota Data Available"
-                        subtitle="Unable to calculate quota attainment. Check if target and sales data are available."
+                        actionText="Clear Filters"
+                        onAction={() => {
+                            // This should be handled by a global state manager
+                            console.log('Clearing filters...')
+                        }}
                     />
                 </CardContent>
             </Card>

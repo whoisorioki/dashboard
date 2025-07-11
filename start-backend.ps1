@@ -25,6 +25,18 @@ catch {
     exit 1
 }
 
+# Load environment variables from backend/.env
+$envFile = ".\backend\.env"
+if (Test-Path $envFile) {
+    Get-Content $envFile | ForEach-Object {
+        if ($_ -match "^\s*([\w.-]+)\s*=\s*(.*)") {
+            $key = $matches[1]
+            $value = $matches[2].Trim('"')
+            [System.Environment]::SetEnvironmentVariable($key, $value)
+        }
+    }
+}
+
 # Navigate to the project root
 Set-Location $currentDir
 

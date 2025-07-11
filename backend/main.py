@@ -1,7 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
-from dotenv import load_dotenv
+
+import dotenv
 from backend.api.routes import router
 from backend.api.kpi_routes import router as kpi_router
 from backend.api.auth_routes import router as auth_router
@@ -9,9 +10,11 @@ from backend.api.data_quality_routes import router as data_quality_router
 from backend.api.schema import schema
 from backend.core.druid_client import lifespan
 from strawberry.fastapi import GraphQLRouter
+from backend.api.error_handling import add_error_handlers
 
-# Load environment variables
-load_dotenv()
+
+# Explicitly load .env from backend directory
+dotenv.load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # Get configuration from environment variables
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
@@ -28,6 +31,9 @@ app = FastAPI(
     version="1.0.0",
     debug=DEBUG,
 )
+
+# Add custom error handlers
+add_error_handlers(app)
 
 # Configure CORS origins based on environment
 allowed_origins = [FRONTEND_URL]

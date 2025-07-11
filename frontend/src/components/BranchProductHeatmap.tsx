@@ -3,9 +3,9 @@ import { HelpOutline as HelpOutlineIcon } from '@mui/icons-material'
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from 'recharts'
 import { useApi } from '../hooks/useDynamicApi'
 import { BranchProductHeatmapData } from '../types/api'
-import ChartSkeleton from './skeletons/ChartSkeleton'
-import ChartErrorState from './states/ChartErrorState'
-import ChartEmptyState from './states/ChartEmptyState'
+import CardSkeleton from './system/CardSkeleton'
+import ErrorState from './system/ErrorState'
+import EmptyState from './system/EmptyState'
 
 interface BranchProductHeatmapProps {
   startDate: string | null
@@ -34,7 +34,7 @@ const BranchProductHeatmap: React.FC<BranchProductHeatmapProps> = ({
           <Typography variant="h5" gutterBottom>
             Branch-Product Sales Heatmap
           </Typography>
-          <ChartSkeleton />
+          <CardSkeleton />
         </CardContent>
       </Card>
     )
@@ -47,7 +47,7 @@ const BranchProductHeatmap: React.FC<BranchProductHeatmapProps> = ({
           <Typography variant="h5" gutterBottom>
             Branch-Product Sales Heatmap
           </Typography>
-          <ChartErrorState
+          <ErrorState
             errorMessage="Failed to load heatmap data"
             onRetry={mutate}
           />
@@ -63,9 +63,13 @@ const BranchProductHeatmap: React.FC<BranchProductHeatmapProps> = ({
           <Typography variant="h5" gutterBottom>
             Branch-Product Sales Heatmap
           </Typography>
-          <ChartEmptyState
+          <EmptyState
             message="No Branch-Product Data Available"
-            subtitle="There are no sales records by branch and product for the selected time period. Try adjusting your date range or ensure sales data is properly recorded across branches."
+            actionText="Clear Filters"
+            onAction={() => {
+              // This should be handled by a global state manager
+              console.log('Clearing filters...')
+            }}
           />
         </CardContent>
       </Card>

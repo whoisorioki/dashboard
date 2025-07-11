@@ -1,7 +1,9 @@
 import { Card, CardContent, Typography, Box, Tooltip, alpha, keyframes, IconButton } from '@mui/material'
 import { HelpOutline as HelpOutlineIcon } from '@mui/icons-material'
 import { useTheme } from '@mui/material/styles'
-import KpiCardSkeleton from './skeletons/KpiCardSkeleton'
+import CardSkeleton from './system/CardSkeleton'
+import EmptyState from './system/EmptyState'
+import ErrorState from './system/ErrorState'
 
 // Animation for the card hover effect
 const floatAnimation = keyframes`
@@ -22,9 +24,11 @@ interface KpiCardProps {
   icon: React.ReactElement
   tooltipText: string
   isLoading: boolean
+  error?: string | null
   trend?: 'up' | 'down' | 'neutral'
   trendValue?: string
   color?: 'primary' | 'success' | 'warning' | 'error' | 'info'
+  onRetry?: () => void
 }
 
 const KpiCard: React.FC<KpiCardProps> = ({
@@ -33,14 +37,24 @@ const KpiCard: React.FC<KpiCardProps> = ({
   icon,
   tooltipText,
   isLoading,
+  error,
   trend = 'neutral',
   trendValue,
-  color = 'primary'
+  color = 'primary',
+  onRetry,
 }) => {
   const theme = useTheme()
 
   if (isLoading) {
-    return <KpiCardSkeleton />
+    return <CardSkeleton />
+  }
+
+  if (error) {
+    return <ErrorState errorMessage={error} onRetry={onRetry || (() => { })} />
+  }
+
+  if (value === null || value === undefined || value === '') {
+    return <EmptyState message="No data available for this metric." />
   }
 
   const getColorPalette = () => {

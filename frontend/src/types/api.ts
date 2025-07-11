@@ -97,3 +97,13 @@ export interface RevenueSummaryData {
   unique_branches: number;  // Unique branch count
   unique_employees: number; // Unique employee count
 }
+
+// Profitability Types
+export interface ProfitSummaryData {
+  total_revenue: number;
+  net_revenue: number;
+  gross_profit: number;
+  gross_margin: number;
+  total_transactions: number;
+  average_transaction: number;
+}

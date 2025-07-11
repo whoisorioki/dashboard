@@ -29,6 +29,10 @@ import {
     Person as PersonIcon,
     DarkMode as DarkModeIcon,
     LightMode as LightModeIcon,
+    BarChart as BarChartIcon,
+    Insights as InsightsIcon,
+    MonetizationOn as MonetizationOnIcon,
+    NotificationImportant as NotificationImportantIcon,
 } from '@mui/icons-material';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -51,7 +55,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [showTour, setShowTour] = useState(false);
     const { isDarkMode, toggleTheme } = useTheme();
-    const { user, signOut } = useAuth();
+    const { user, logout } = useAuth();
 
     // Check if user has completed the tour
     React.useEffect(() => {
@@ -74,7 +78,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     };
 
     const handleLogout = async () => {
-        await signOut();
+        await logout();
         handleUserMenuClose();
     };
 
@@ -86,16 +90,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     };
 
     const navItems = [
-        { text: 'Overview', icon: <DashboardIcon />, path: '/overview' },
-        { text: 'Sales', icon: <SalesIcon />, path: '/sales' },
-        { text: 'Products', icon: <ProductsIcon />, path: '/products' },
-        { text: 'Branches', icon: <RegionsIcon />, path: '/branches' },
+        { text: 'Executive Summary', icon: <BarChartIcon />, path: '/summary' },
+        { text: 'Performance Deep Dive', icon: <InsightsIcon />, path: '/performance' },
+        { text: 'Profitability Analysis', icon: <MonetizationOnIcon />, path: '/profitability' },
+        { text: 'Alerts & Diagnostics', icon: <NotificationImportantIcon />, path: '/diagnostics' },
     ];
 
     const getActiveTab = () => {
         const currentPath = location.pathname;
         const activeItem = navItems.find(item => item.path === currentPath);
-        return activeItem ? activeItem.text : 'Overview';
+        return activeItem ? activeItem.text : 'Executive Summary';
     };
 
     const activeTab = getActiveTab();

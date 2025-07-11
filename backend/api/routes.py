@@ -5,9 +5,15 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from backend.services.data_processing import heavy_polars_transform
-from backend.services.sales_data import fetch_sales_data
+from backend.services.sales_data import (
+    fetch_sales_data,
+    get_distinct_branches,
+    get_distinct_product_lines,
+    get_distinct_sales_persons,
+    get_distinct_item_names,
+)
 from backend.core.druid_client import druid_conn
-from backend.api.auth_routes import verify_token
+from backend.api.auth_routes import require_role, verify_token
 from backend.services.user_activity import log_user_activity
 
 # Import user analytics service
@@ -80,14 +86,14 @@ async def druid_health_check():
     }
 
 
-@router.get("/druid/datasources")
+@router.get("/druid/datasources", dependencies=[Depends(require_role(["admin"]))])
 async def get_druid_datasources():
     """Get list of available Druid datasources."""
     datasources = await run_in_threadpool(druid_conn.get_available_datasources)
     return {"datasources": datasources, "count": len(datasources)}
 
 
-@router.get("/process-data")
+@router.get("/process-data", dependencies=[Depends(require_role(["admin"]))])
 async def process_data_endpoint():
     """Sample endpoint demonstrating data processing with Polars using real business data."""
     # Create a sample DataFrame using the exact Druid schema with realistic multi-brand data
@@ -137,19 +143,18 @@ async def process_data_endpoint():
     return processed_df.to_dicts()
 
 
-@router.get("/sales", dependencies=[Depends(verify_token)])
+@router.get("/sales", dependencies=[Depends(require_role(["admin", "user"]))])
 async def get_sales(
+    request: Request,
     start_date: str,
     end_date: str,
     item_names: str | None = None,
     sales_persons: str | None = None,
     branch_names: str | None = None,
-    ignore_mock_data: bool = False,
-    current_user: dict = Depends(verify_token),  # Ensure current_user is available
-    request: Request = Depends(),  # Add Request dependency
+    current_user: dict = Depends(verify_token),
 ):
     """
-    Get sales data for the specified time range and filters.
+    Fetches sales data from Druid based on specified filters.
 
     Args:
         start_date: Start date in ISO format (YYYY-MM-DD)
@@ -157,14 +162,32 @@ async def get_sales(
         item_names: Comma-separated list of item names
         sales_persons: Comma-separated list of sales employee names
         branch_names: Comma-separated list of branch names
-        ignore_mock_data: Whether to filter out mock data from Druid results
     """
+    # Log user activity for fetching sales data
+    user_id = current_user.get("id")
+    if user_id:
+        log_details = {
+            "start_date": start_date,
+            "end_date": end_date,
+            "item_names": item_names,
+            "sales_persons": sales_persons,
+            "branch_names": branch_names,
+        }
+        log_user_activity(
+            user_id=user_id,
+            action="fetch_sales_data",
+            details=log_details,
+            user_agent=request.headers.get("User-Agent"),
+            ip_address=getattr(request.client, "host", None),
+        )
+
     # Convert comma-separated strings to lists
     item_names_list = item_names.split(",") if item_names else None
     sales_persons_list = sales_persons.split(",") if sales_persons else None
     branch_names_list = branch_names.split(",") if branch_names else None
 
-    df = await fetch_sales_data(
+    # Await the async function directly
+    sales_df = await fetch_sales_data(
         start_date=start_date,
         end_date=end_date,
         item_names=item_names_list,
@@ -172,36 +195,83 @@ async def get_sales(
         branch_names=branch_names_list,
     )
 
+    return sales_df.to_dicts()
+
+
+@router.get("/branches", dependencies=[Depends(require_role(["admin", "user"]))])
+async def get_branches(current_user: dict = Depends(verify_token)):
+    """
+    Fetches a distinct list of branch names from the sales data.
+    Accessible by: admin, user
+    """
     # Log user activity
     user_id = current_user.get("id")
     if user_id:
-        client_ip = getattr(request.client, "host", None)
-        user_agent = request.headers.get("User-Agent")
         log_user_activity(
             user_id=user_id,
-            action="fetch_sales_data",
-            details={
-                "start_date": start_date,
-                "end_date": end_date,
-                "item_names": item_names,
-                "sales_persons": sales_persons,
-                "branch_names": branch_names,
-                "ignore_mock_data": ignore_mock_data,
-            },
-            user_agent=user_agent,
-            ip_address=client_ip,
+            action="get_branches",
+            user_agent=None,  # Request object not available
+            ip_address=None,
         )
+    branches = await get_distinct_branches()
+    return {"branches": branches}
 
-    # Filter out mock data if requested
-    if ignore_mock_data and not df.is_empty():
-        # Filter out obvious mock data patterns (this would need to be customized based on actual mock data patterns)
-        df = df.filter(
-            ~pl.col("ItemName").str.contains("mock", literal=False)
-            & ~pl.col("ItemName").str.contains("test", literal=False)
-            & ~pl.col("Branch").str.contains("test", literal=False)
+
+@router.get("/product-lines", dependencies=[Depends(require_role(["admin", "user"]))])
+async def get_product_lines(current_user: dict = Depends(verify_token)):
+    """
+    Fetches a distinct list of product lines from the sales data.
+    Accessible by: admin, user
+    """
+    # Log user activity
+    user_id = current_user.get("id")
+    if user_id:
+        log_user_activity(
+            user_id=user_id,
+            action="get_product_lines",
+            user_agent=None,  # Request object not available
+            ip_address=None,
         )
+    product_lines = await get_distinct_product_lines()
+    return {"product_lines": product_lines}
 
-    return df.to_dicts()
+
+@router.get("/sales-persons", dependencies=[Depends(require_role(["admin", "user"]))])
+async def get_sales_persons(current_user: dict = Depends(verify_token)):
+    """
+    Fetches a distinct list of sales persons from the sales data.
+    Accessible by: admin, user
+    """
+    # Log user activity
+    user_id = current_user.get("id")
+    if user_id:
+        log_user_activity(
+            user_id=user_id,
+            action="get_sales_persons",
+            user_agent=None,  # Request object not available
+            ip_address=None,
+        )
+    sales_persons = await get_distinct_sales_persons()
+    return {"sales_persons": sales_persons}
+
+
+@router.get("/item-names", dependencies=[Depends(require_role(["admin", "user"]))])
+async def get_item_names(current_user: dict = Depends(verify_token)):
+    """
+    Fetches a distinct list of item names from the sales data.
+    Accessible by: admin, user
+    """
+    # Log user activity
+    user_id = current_user.get("id")
+    if user_id:
+        log_user_activity(
+            user_id=user_id,
+            action="get_item_names",
+            user_agent=None,  # Request object not available
+            ip_address=None,
+        )
+    item_names = await get_distinct_item_names()
+    return {"item_names": item_names}
 
 
 @router.get("/data-range", dependencies=[Depends(verify_token)])

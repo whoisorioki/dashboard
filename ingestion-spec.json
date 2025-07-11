@@ -1,0 +1,87 @@
+{
+    "type": "index_parallel",
+    "spec": {
+        "ioConfig": {
+            "type": "index_parallel",
+            "inputSource": {
+                "type": "sql",
+                "database": {
+                    "type": "postgresql",
+                    "connectorConfig": {
+                        "connectURI": "jdbc:postgresql://192.168.1.30:5432/DataCentral",
+                        "user": "DataReader",
+                        "password": "Security@321"
+                    }
+                },
+                "sqls": [
+                    "SELECT \\"DocDate\\", \\"ProductLine\\", \\"ItemGroup\\", \\"Branch\\", \\"SalesPerson\\", \\"AcctName\\", \\"ItemName\\", \\"CardName\\", \\"DocType\\", \\"SalesAmount\\", \\"SalesQty\\", \\"CostOfSales\\" FROM \\"Sales\\" ORDER BY \\"DocDate\\" DESC LIMIT 500000"
+                ]
+            },
+            "inputFormat": {
+                "type": "json"
+            }
+        },
+        "dataSchema": {
+            "dataSource": "sales_analytics",
+            "timestampSpec": {
+                "column": "DocDate",
+                "format": "yyyy-MM-dd'T'HH:mm:ss"
+            },
+            "dimensionsSpec": {
+                "dimensions": [
+                    "ProductLine",
+                    "ItemGroup",
+                    "Branch",
+                    "SalesPerson",
+                    "AcctName",
+                    "ItemName",
+                    "CardName",
+                    "DocType"
+                ]
+            },
+            "metricsSpec": [
+                {
+                    "name": "grossRevenue",
+                    "type": "doubleSum",
+                    "fieldName": "SalesAmount"
+                },
+                {
+                    "name": "returnsValue",
+                    "type": "doubleSum",
+                    "fieldName": "SalesAmount"
+                },
+                {
+                    "name": "unitsSold",
+                    "type": "doubleSum",
+                    "fieldName": "SalesQty"
+                },
+                {
+                    "name": "unitsReturned",
+                    "type": "doubleSum",
+                    "fieldName": "SalesQty"
+                },
+                {
+                    "name": "totalCost",
+                    "type": "doubleSum",
+                    "fieldName": "CostOfSales"
+                },
+                {
+                    "name": "lineItemCount",
+                    "type": "count"
+                }
+            ],
+            "granularitySpec": {
+                "type": "uniform",
+                "segmentGranularity": "DAY",
+                "queryGranularity": "NONE",
+                "rollup": true
+            }
+        },
+        "tuningConfig": {
+            "type": "index_parallel",
+            "partitionsSpec": {
+                "type": "dynamic"
+            }
+        }
+    }
+}

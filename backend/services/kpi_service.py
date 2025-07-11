@@ -3,6 +3,46 @@ import numpy as np
 from typing import Dict, List
 
 
+def add_profitability_columns(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Adds core profitability metrics to the DataFrame.
+    - netRevenue = grossRevenue - returnsValue
+    - grossProfit = netRevenue - totalCost
+    - grossMargin = (grossProfit / netRevenue) * 100
+    """
+    if df.is_empty():
+        return df.with_columns(
+            [
+                pl.lit(0.0).alias("netRevenue"),
+                pl.lit(0.0).alias("grossProfit"),
+                pl.lit(0.0).alias("grossMargin"),
+            ]
+        )
+
+    return df.with_columns(
+        [
+            (pl.col("grossRevenue") - pl.col("returnsValue")).alias("netRevenue"),
+            (
+                (pl.col("grossRevenue") - pl.col("returnsValue")) - pl.col("totalCost")
+            ).alias("grossProfit"),
+            (
+                pl.when(pl.col("grossRevenue") - pl.col("returnsValue") != 0)
+                .then(
+                    (
+                        (
+                            (pl.col("grossRevenue") - pl.col("returnsValue"))
+                            - pl.col("totalCost")
+                        )
+                        / (pl.col("grossRevenue") - pl.col("returnsValue"))
+                    )
+                    * 100
+                )
+                .otherwise(0.0)
+            ).alias("grossMargin"),
+        ]
+    )
+
+
 def calculate_monthly_sales_growth(df: pl.DataFrame) -> List[Dict]:
     """
     Calculates monthly sales totals and returns in frontend format.
@@ -10,6 +50,14 @@ def calculate_monthly_sales_growth(df: pl.DataFrame) -> List[Dict]:
     """
     if df.is_empty():
         return []
+
+    # Ensure __time is treated as a datetime column
+    df = df.with_columns(pl.col("__time").cast(pl.Datetime))
+
+    # --- Debugging Print Statement ---
+    print("Schema after casting __time:", df.schema)
+    print("__time dtype after casting:", df.schema.get("__time"))
+    # ----------------------------------
 
     monthly_sales = (
         df.group_by_dynamic("__time", every="1mo")
@@ -116,6 +164,43 @@ def create_branch_product_heatmap_data(df: pl.DataFrame) -> pl.DataFrame:
     )
 
     return heatmap_df
+
+
+def create_sales_funnel_data(df: pl.DataFrame) -> List[Dict]:
+    """
+    Generates data for a sales funnel based on transaction counts.
+    """
+    if df.is_empty():
+        return []
+
+    # Define funnel stages based on logical progression
+    total_transactions = df.shape[0]
+
+    # Stage 1: All transactions are potential leads
+    leads = total_transactions
+
+    # Stage 2: Qualified leads (e.g., sales greater than a certain amount)
+    qualified_df = df.filter(pl.col("grossRevenue") > 500)
+    qualified_leads = qualified_df.shape[0]
+
+    # Stage 3: High-value transactions (e.g., sales of 'Units')
+    high_value_df = qualified_df.filter(pl.col("ItemGroup") == "Units")
+    high_value_leads = high_value_df.shape[0]
+
+    # Stage 4: Repeat customers (this is a simulation, a real implementation would need customer history)
+    # For simulation, let's assume a fraction of high-value leads are repeat customers
+    repeat_customers = (
+        high_value_df.group_by("CardName").count().filter(pl.col("count") > 1).shape[0]
+    )
+
+    funnel_data = [
+        {"name": "Total Interactions", "value": leads},
+        {"name": "Qualified Leads", "value": qualified_leads},
+        {"name": "High-Value Deals", "value": high_value_leads},
+        {"name": "Repeat Business", "value": repeat_customers},
+    ]
+
+    return funnel_data
 
 
 def calculate_employee_quota_attainment(
@@ -324,33 +409,161 @@ def get_product_analytics(df: pl.DataFrame) -> pl.DataFrame:
 
 def calculate_revenue_summary(df: pl.DataFrame) -> dict:
     """
-    Calculate overall revenue summary metrics.
+    Calculate overall revenue summary metrics, including profitability.
+    Assumes profitability columns have been added.
     """
     if df.is_empty():
         return {
             "total_revenue": 0.0,
+            "net_revenue": 0.0,
+            "gross_profit": 0.0,
+            "gross_margin": 0.0,
             "total_transactions": 0,
             "average_transaction": 0.0,
-            "unique_products": 0,
-            "unique_branches": 0,
-            "unique_employees": 0,
         }
 
     total_revenue = float(df.select(pl.sum("grossRevenue")).item())
+    net_revenue = float(df.select(pl.sum("netRevenue")).item())
+    gross_profit = float(df.select(pl.sum("grossProfit")).item())
     total_transactions = df.height
-    unique_products = df.select(pl.n_unique("ItemName")).item()
-    unique_branches = df.select(pl.n_unique("Branch")).item()
-    unique_employees = df.select(pl.n_unique("SalesPerson")).item()
+
+    # Recalculate overall margin, don't average the averages
+    gross_margin = (gross_profit / net_revenue) * 100 if net_revenue != 0 else 0.0
 
     average_transaction = (
-        total_revenue / total_transactions if total_transactions > 0 else 0.0
+        net_revenue / total_transactions if total_transactions > 0 else 0.0
     )
 
     return {
         "total_revenue": round(total_revenue, 2),
+        "net_revenue": round(net_revenue, 2),
+        "gross_profit": round(gross_profit, 2),
+        "gross_margin": round(gross_margin, 2),
         "total_transactions": total_transactions,
         "average_transaction": round(average_transaction, 2),
-        "unique_products": unique_products,
-        "unique_branches": unique_branches,
-        "unique_employees": unique_employees,
     }
+
+
+def calculate_margin_trends(df: pl.DataFrame) -> List[Dict]:
+    """
+    Calculates monthly margin trends.
+    Assumes profitability columns have been added.
+    """
+    if df.is_empty():
+        return []
+
+    monthly_margins = (
+        df.group_by_dynamic("__time", every="1mo")
+        .agg(
+            [
+                pl.sum("grossProfit").alias("monthly_profit"),
+                pl.sum("netRevenue").alias("monthly_net_revenue"),
+            ]
+        )
+        .with_columns(
+            ((pl.col("monthly_profit") / pl.col("monthly_net_revenue")) * 100).alias(
+                "monthly_margin"
+            )
+        )
+        .sort("__time")
+    )
+
+    return [
+        {
+            "date": row["__time"].strftime("%Y-%m-%d"),
+            "margin": round(row["monthly_margin"], 2),
+        }
+        for row in monthly_margins.to_dicts()
+    ]
+
+
+def calculate_profitability_by_dimension(
+    df: pl.DataFrame, dimension: str
+) -> pl.DataFrame:
+    """
+    Calculates profitability metrics grouped by a given dimension.
+    Assumes profitability columns have been added.
+    """
+    if df.is_empty():
+        return pl.DataFrame()
+
+    return (
+        df.group_by(dimension)
+        .agg(
+            [
+                pl.sum("grossRevenue").alias("total_revenue"),
+                pl.sum("netRevenue").alias("net_revenue"),
+                pl.sum("grossProfit").alias("gross_profit"),
+            ]
+        )
+        .with_columns(
+            ((pl.col("gross_profit") / pl.col("net_revenue")) * 100).alias(
+                "gross_margin"
+            )
+        )
+        .sort("gross_profit", descending=True)
+    )
+
+
+def get_returns_analysis(df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Analyzes product returns, showing return value as a percentage of revenue
+    and returned units as a percentage of units sold.
+    """
+    if df.is_empty():
+        return pl.DataFrame()
+
+    returns_df = (
+        df.group_by("ItemName")
+        .agg(
+            [
+                pl.sum("grossRevenue").alias("total_revenue"),
+                pl.sum("returnsValue").alias("total_returns_value"),
+                pl.sum("unitsSold").alias("total_units_sold"),
+                pl.sum("unitsReturned").alias("total_units_returned"),
+            ]
+        )
+        .with_columns(
+            [
+                (pl.col("total_returns_value") / pl.col("total_revenue") * 100)
+                .round(2)
+                .fill_nan(0)
+                .alias("returns_value_pct"),
+                (pl.col("total_units_returned") / pl.col("total_units_sold") * 100)
+                .round(2)
+                .fill_nan(0)
+                .alias("units_returned_pct"),
+            ]
+        )
+        .filter(pl.col("total_returns_value") > 0)
+        .sort("total_returns_value", descending=True)
+    )
+
+    return returns_df
+
+
+def get_top_customers(df: pl.DataFrame, n: int = 10) -> pl.DataFrame:
+    """
+    Identifies the top N customers by total sales.
+    """
+    if df.is_empty():
+        return pl.DataFrame()
+
+    customer_sales = (
+        df.group_by("CardName")
+        .agg(
+            [
+                pl.sum("grossRevenue").alias("total_revenue"),
+                pl.count().alias("transaction_count"),
+            ]
+        )
+        .with_columns(
+            (pl.col("total_revenue") / pl.col("transaction_count"))
+            .round(2)
+            .alias("average_purchase_value")
+        )
+        .sort("total_revenue", descending=True)
+        .head(n)
+    )
+
+    return customer_sales

@@ -1,33 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
-from typing import Optional, Union
-import os
+from typing import Optional, Union, List
 from datetime import datetime
-from supabase import create_client, Client
-import json
-from dotenv import load_dotenv
 from backend.services.user_analytics import user_analytics
 from backend.services.user_activity import log_user_activity
-
-# Load environment variables from the backend .env file
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
-
-# Initialize Supabase client
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_KEY = os.getenv(
-    "SUPABASE_SERVICE_KEY"
-)  # Service role key for backend operations
-
-supabase_client: Union[Client, None] = None
-if SUPABASE_URL and SUPABASE_SERVICE_KEY:
-    try:
-        supabase_client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-    except Exception as e:
-        print(f"Failed to initialize Supabase client: {e}")
-        supabase_client = None
-else:
-    print("Warning: Supabase credentials not configured. Auth endpoints will not work.")
+from backend.core.clients import supabase_client
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 security = HTTPBearer()
@@ -54,7 +32,7 @@ class UserProfile(BaseModel):
 async def verify_token(
     credentials: HTTPAuthorizationCredentials = Depends(security),
 ) -> dict:
-    """Verify Supabase JWT token"""
+    """Verify Supabase JWT token and enrich with user role."""
     if not supabase_client:
         raise HTTPException(
             status_code=500, detail="Authentication service not configured"
@@ -72,6 +50,13 @@ async def verify_token(
             if hasattr(user_response.user, "model_dump")
             else dict(user_response.user)
         )
+
+        # Extract and add role to the user dictionary
+        user_metadata = user_dict.get("user_metadata", {})
+        user_dict["role"] = user_metadata.get(
+            "role", "user"
+        )  # Default to 'user' if not set
+
         return user_dict
     except Exception as e:
         raise HTTPException(
@@ -79,10 +64,25 @@ async def verify_token(
         )
 
 
+def require_role(allowed_roles: List[str]):
+    """
+    Dependency to check if the current user has one of the allowed roles.
+    """
+
+    def role_checker(current_user: dict = Depends(verify_token)):
+        user_role = current_user.get("role")
+        if user_role not in allowed_roles:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Access denied. Required role(s): {', '.join(allowed_roles)}",
+            )
+        return current_user
+
+    return role_checker
+
+
 @router.post("/logout")
-async def logout_user(
-    current_user: dict = Depends(verify_token), request: Request = Depends()
-):
+async def logout_user(request: Request, current_user: dict = Depends(verify_token)):
     """Logout a user"""
     if not supabase_client:
         raise HTTPException(
@@ -156,7 +156,7 @@ async def track_user_activity(activity: UserActivity, request: Request):
 
 @router.get("/profile")
 async def get_user_profile(
-    current_user: dict = Depends(verify_token), request: Request = Depends()
+    request: Request, current_user: dict = Depends(verify_token)
 ):
     """Get current user's profile"""
 
@@ -176,20 +176,16 @@ async def get_user_profile(
         id=current_user["id"],
         email=current_user["email"],
         full_name=current_user.get("user_metadata", {}).get("full_name"),
-        role=current_user.get("user_metadata", {}).get("role", "user"),
+        role=current_user.get("role", "user"),
         created_at=current_user["created_at"],
     )
 
 
 @router.get("/users")
-async def list_users(current_user: dict = Depends(verify_token)):
+async def list_users(current_user: dict = Depends(require_role(["admin"]))):
     """List all users (admin only)"""
 
-    # Check if user is admin
-    user_role = current_user.get("user_metadata", {}).get("role", "user")
-    if user_role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-
+    # Role check is now handled by the dependency
     if not supabase_client:
         raise HTTPException(
             status_code=500, detail="Authentication service not configured"
@@ -205,15 +201,11 @@ async def list_users(current_user: dict = Depends(verify_token)):
 
 @router.put("/users/{user_id}/role")
 async def update_user_role(
-    user_id: str, role: str, current_user: dict = Depends(verify_token)
+    user_id: str, role: str, current_user: dict = Depends(require_role(["admin"]))
 ):
     """Update user role (admin only)"""
 
-    # Check if current user is admin
-    user_role = current_user.get("user_metadata", {}).get("role", "user")
-    if user_role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
-
+    # Role check is now handled by the dependency
     if not supabase_client:
         raise HTTPException(
             status_code=500, detail="Authentication service not configured"
