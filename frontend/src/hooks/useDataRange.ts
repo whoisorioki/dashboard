@@ -1,61 +1,64 @@
-import { useState, useEffect } from 'react'
-import { useApi } from './useDynamicApi'
+import { useState, useEffect } from "react";
+import { useDataRangeQuery } from "./generated/graphql";
+import { graphqlClient } from "../graphqlClient";
 
 interface DataRangeResult {
-  minDate: Date | null
-  maxDate: Date | null
-  isLoading: boolean
-  error: unknown
+  minDate: Date | null;
+  maxDate: Date | null;
+  isLoading: boolean;
+  error: unknown;
 }
 
 interface DruidDataRange {
-  earliest_date: string
-  latest_date: string
-  total_records: number
+  earliest_date: string;
+  latest_date: string;
+  total_records: number;
 }
 
 export const useDataRange = (): DataRangeResult => {
-  const [minDate, setMinDate] = useState<Date | null>(null)
-  const [maxDate, setMaxDate] = useState<Date | null>(null)
+  const [minDate, setMinDate] = useState<Date | null>(null);
+  const [maxDate, setMaxDate] = useState<Date | null>(null);
 
   // Fetch the data range from Druid
-  const { data, error, isLoading } = useApi<DruidDataRange[]>('/data-range')
+  const { data, error, isLoading } = useDataRangeQuery({
+    client: graphqlClient,
+  });
 
   useEffect(() => {
-    if (data && data.length > 0) {
-      const range = data[0]
+    if (data && data.dataRange && data.dataRange.length > 0) {
+      const range = data.dataRange[0];
       try {
         // Parse the ISO date strings from Druid
-        const earliest = new Date(range.earliest_date)
-        const latest = new Date(range.latest_date)
-        
+        const earliest = new Date(range.earliest_date);
+        const latest = new Date(range.latest_date);
+
         // Validate dates
         if (!isNaN(earliest.getTime()) && !isNaN(latest.getTime())) {
-          setMinDate(earliest)
-          setMaxDate(latest)
+          setMinDate(earliest);
+          setMaxDate(latest);
         }
       } catch (err) {
-        console.error('Error parsing dates from data range:', err)
+        console.error("Error parsing dates from data range:", err);
         // Fallback to hardcoded dates if parsing fails
-        setMinDate(new Date('2023-01-01'))
-        setMaxDate(new Date('2025-06-01'))
+        setMinDate(new Date("2023-01-01"));
+        setMaxDate(new Date("2025-06-01"));
       }
     }
-  }, [data])
+  }, [data]);
 
   // Fallback to hardcoded dates if API fails
   useEffect(() => {
     if (error || (!isLoading && !data)) {
-      console.warn('Using fallback dates due to API error:', error)
-      setMinDate(new Date('2023-01-01'))
-      setMaxDate(new Date('2025-06-01'))
+      console.warn("Using fallback dates due to API error:", error);
+      setMinDate(new Date("2023-01-01"));
+      setMaxDate(new Date("2025-06-01"));
     }
-  }, [error, isLoading, data])
+  }, [error, isLoading, data]);
 
   return {
     minDate,
     maxDate,
     isLoading,
-    error
-  }
-}
+    error,
+  };
+};

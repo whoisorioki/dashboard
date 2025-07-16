@@ -1,0 +1,2 @@
+# This file ensures the 'queries' directory is tracked by git.
+# Place your .graphql query files here for GraphQL codegen. 

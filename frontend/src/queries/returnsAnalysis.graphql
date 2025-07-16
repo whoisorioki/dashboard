@@ -1,0 +1,24 @@
+query ReturnsAnalysis(
+  $startDate: String
+  $endDate: String
+  $itemNames: [String!]
+  $salesPersons: [String!]
+  $branchNames: [String!]
+  $branch: String
+  $productLine: String
+  $mockData: Boolean
+) {
+  returnsAnalysis(
+    startDate: $startDate
+    endDate: $endDate
+    itemNames: $itemNames
+    salesPersons: $salesPersons
+    branchNames: $branchNames
+    branch: $branch
+    productLine: $productLine
+    mockData: $mockData
+  ) {
+    reason
+    count
+  }
+}

@@ -4,19 +4,10 @@ import polars as pl
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
-from backend.services.data_processing import heavy_polars_transform
 from backend.services.sales_data import fetch_sales_data
 from backend.core.druid_client import druid_conn
-from backend.api.auth_routes import verify_token
-from backend.services.user_activity import log_user_activity
 
-# Import user analytics service
-try:
-    from backend.services.user_analytics import user_analytics
-except ImportError:
-    user_analytics = None
-
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api", tags=["sales"])
 
 
 # Pydantic model for user activity
@@ -31,7 +22,6 @@ class UserActivity(BaseModel):
 @router.post("/user-activity")
 async def track_user_activity(activity: UserActivity, request: Request):
     """Track user activity for analytics - stores in Druid"""
-
     # Get real IP address
     client_ip = (
         getattr(request.client, "host", "unknown") if request.client else "unknown"
@@ -52,14 +42,8 @@ async def track_user_activity(activity: UserActivity, request: Request):
         "session_id": request.headers.get("X-Session-ID"),  # Can be added by frontend
     }
 
-    # Send to Druid via analytics service if available
-    if user_analytics:
-        try:
-            await user_analytics.track_user_session(activity_data)
-        except Exception as e:
-            print(f"Failed to track user session in Druid: {e}")
-    else:
-        print(f"User activity tracked (no analytics service): {activity_data}")
+    # Log activity (analytics service removed)
+    print(f"User activity tracked: {activity_data}")
 
     return {"status": "success", "message": "Activity tracked"}
 
@@ -87,66 +71,15 @@ async def get_druid_datasources():
     return {"datasources": datasources, "count": len(datasources)}
 
 
-@router.get("/process-data")
-async def process_data_endpoint():
-    """Sample endpoint demonstrating data processing with Polars using real business data."""
-    # Create a sample DataFrame using the exact Druid schema with realistic multi-brand data
-    raw_df = pl.DataFrame(
-        {
-            "__time": [
-                "2024-01-01T10:00:00Z",
-                "2024-01-01T11:00:00Z",
-                "2024-01-01T12:00:00Z",
-                "2024-01-01T13:00:00Z",
-            ],
-            "itemcode": ["3W6D000214", "SZN5161030", "PART3421", "SERV001"],
-            "dscription": [
-                "PIAGGIO APE DIESEL",
-                "WIRING HARNESS ES",
-                "ENGINE OIL",
-                "MAINTENANCE SERVICE",
-            ],
-            "ocrname": [
-                "Mombasa trading",
-                "Nakuru trading",
-                "Thika",
-                "Nanyuki",
-            ],
-            "sales_employee": [
-                "John Mwangi",
-                "Mary Wanjiku",
-                "Walk In Customers-Showroom",
-                "Peter Ochieng",
-            ],
-            "item_group_name": ["Units", "Parts", "Parts", "Services"],
-            "product_line": ["Piaggio", "TVS", "Piaggio", "TVS"],
-            "qty": [1.0, 2.0, -1.0, 1.0],  # Include a return (negative qty)
-            "line_total": [
-                450000.0,
-                1500.0,
-                -800.0,
-                5000.0,
-            ],  # Negative line_total for return
-        }
-    )
-
-    # Offload the blocking, CPU-bound work to the thread pool
-    processed_df = await run_in_threadpool(heavy_polars_transform, raw_df)
-
-    # The event loop was free to handle other requests during the transformation
-    return processed_df.to_dicts()
-
-
-@router.get("/sales", dependencies=[Depends(verify_token)])
+@router.get("/sales")
 async def get_sales(
     start_date: str,
     end_date: str,
+    request: Request,
     item_names: str | None = None,
     sales_persons: str | None = None,
     branch_names: str | None = None,
     ignore_mock_data: bool = False,
-    current_user: dict = Depends(verify_token),  # Ensure current_user is available
-    request: Request = Depends(),  # Add Request dependency
 ):
     """
     Get sales data for the specified time range and filters.
@@ -172,26 +105,6 @@ async def get_sales(
         branch_names=branch_names_list,
     )
 
-    # Log user activity
-    user_id = current_user.get("id")
-    if user_id:
-        client_ip = getattr(request.client, "host", None)
-        user_agent = request.headers.get("User-Agent")
-        log_user_activity(
-            user_id=user_id,
-            action="fetch_sales_data",
-            details={
-                "start_date": start_date,
-                "end_date": end_date,
-                "item_names": item_names,
-                "sales_persons": sales_persons,
-                "branch_names": branch_names,
-                "ignore_mock_data": ignore_mock_data,
-            },
-            user_agent=user_agent,
-            ip_address=client_ip,
-        )
-
     # Filter out mock data if requested
     if ignore_mock_data and not df.is_empty():
         # Filter out obvious mock data patterns (this would need to be customized based on actual mock data patterns)
@@ -204,7 +117,7 @@ async def get_sales(
     return df.to_dicts()
 
 
-@router.get("/data-range", dependencies=[Depends(verify_token)])
+@router.get("/data-range")
 async def get_data_range():
     """Get the earliest and latest dates available in the dataset"""
     import requests

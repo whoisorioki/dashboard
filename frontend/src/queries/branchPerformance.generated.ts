@@ -1,0 +1,51 @@
+import * as Types from '../types/graphql';
+
+import { GraphQLClient } from 'graphql-request';
+import { RequestInit } from 'graphql-request/dist/types.dom';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+
+function fetcher<TData, TVariables extends { [key: string]: any }>(client: GraphQLClient, query: string, variables?: TVariables, requestHeaders?: RequestInit['headers']) {
+  return async (): Promise<TData> => client.request({
+    document: query,
+    variables,
+    requestHeaders
+  });
+}
+export type BranchPerformanceQueryVariables = Types.Exact<{
+  startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+}>;
+
+
+export type BranchPerformanceQuery = { __typename?: 'Query', branchPerformance: Array<{ __typename?: 'BranchPerformance', branch: string, totalSales: number, transactionCount: number, averageSale: number, uniqueCustomers: number, uniqueProducts: number }> };
+
+
+
+export const BranchPerformanceDocument = `
+    query BranchPerformance($startDate: String, $endDate: String) {
+  branchPerformance(startDate: $startDate, endDate: $endDate) {
+    branch
+    totalSales
+    transactionCount
+    averageSale
+    uniqueCustomers
+    uniqueProducts
+  }
+}
+    `;
+
+export const useBranchPerformanceQuery = <
+      TData = BranchPerformanceQuery,
+      TError = unknown
+    >(
+      client: GraphQLClient,
+      variables?: BranchPerformanceQueryVariables,
+      options?: UseQueryOptions<BranchPerformanceQuery, TError, TData>,
+      headers?: RequestInit['headers']
+    ) => {
+    
+    return useQuery<BranchPerformanceQuery, TError, TData>(
+      variables === undefined ? ['BranchPerformance'] : ['BranchPerformance', variables],
+      fetcher<BranchPerformanceQuery, BranchPerformanceQueryVariables>(client, BranchPerformanceDocument, variables, headers),
+      options
+    )};

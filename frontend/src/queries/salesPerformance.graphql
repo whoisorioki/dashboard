@@ -1,0 +1,11 @@
+# Sales Performance Query
+query SalesPerformance($startDate: String, $endDate: String) {
+  salesPerformance(startDate: $startDate, endDate: $endDate) {
+    salesPerson
+    totalSales
+    transactionCount
+    averageSale
+    uniqueBranches
+    uniqueProducts
+  }
+}

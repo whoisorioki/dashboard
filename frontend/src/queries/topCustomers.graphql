@@ -1,0 +1,27 @@
+query TopCustomers(
+  $startDate: String
+  $endDate: String
+  $branch: String
+  $n: Int
+  $itemNames: [String!]
+  $salesPersons: [String!]
+  $branchNames: [String!]
+  $productLine: String
+  $mockData: Boolean
+) {
+  topCustomers(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    n: $n
+    itemNames: $itemNames
+    salesPersons: $salesPersons
+    branchNames: $branchNames
+    productLine: $productLine
+    mockData: $mockData
+  ) {
+    acctName
+    salesAmount
+    grossProfit
+  }
+}

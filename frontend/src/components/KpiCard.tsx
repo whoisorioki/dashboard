@@ -1,30 +1,45 @@
-import { Card, CardContent, Typography, Box, Tooltip, alpha, keyframes, IconButton } from '@mui/material'
-import { HelpOutline as HelpOutlineIcon } from '@mui/icons-material'
-import { useTheme } from '@mui/material/styles'
-import KpiCardSkeleton from './skeletons/KpiCardSkeleton'
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Tooltip,
+  alpha,
+  keyframes,
+  IconButton,
+} from "@mui/material";
+import { HelpOutline as HelpOutlineIcon } from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
+import KpiCardSkeleton from "./skeletons/KpiCardSkeleton";
+import { useState, useEffect } from "react";
 
 // Animation for the card hover effect
 const floatAnimation = keyframes`
   0% { transform: translateY(0px); }
   100% { transform: translateY(-6px); }
-`
+`;
 
 // Animation for the icon
 const pulseAnimation = keyframes`
   0% { transform: scale(1); }
   50% { transform: scale(1.05); }
   100% { transform: scale(1); }
-`
+`;
 
 interface KpiCardProps {
-  title: string
-  value: string | number
-  icon: React.ReactElement
-  tooltipText: string
-  isLoading: boolean
-  trend?: 'up' | 'down' | 'neutral'
-  trendValue?: string
-  color?: 'primary' | 'success' | 'warning' | 'error' | 'info'
+  title: string;
+  value: string | number;
+  icon: React.ReactElement;
+  tooltipText: string;
+  isLoading: boolean;
+  trend?: "up" | "down" | "neutral";
+  trendValue?: string;
+  color?: "primary" | "success" | "warning" | "error" | "info";
+  metricKey?: string;
+  onClick?: () => void;
+  editableTarget?: boolean;
+  targetValue?: number | string;
+  onTargetEdit?: (val: number | string) => void;
 }
 
 const KpiCard: React.FC<KpiCardProps> = ({
@@ -33,57 +48,99 @@ const KpiCard: React.FC<KpiCardProps> = ({
   icon,
   tooltipText,
   isLoading,
-  trend = 'neutral',
+  trend = "neutral",
   trendValue,
-  color = 'primary'
+  color = "primary",
+  metricKey,
+  onClick,
+  editableTarget = false,
+  targetValue,
+  onTargetEdit,
 }) => {
-  const theme = useTheme()
+  const theme = useTheme();
+  const [editing, setEditing] = useState(false);
+  const [editValue, setEditValue] = useState(targetValue);
+
+  useEffect(() => {
+    setEditValue(targetValue);
+  }, [targetValue]);
 
   if (isLoading) {
-    return <KpiCardSkeleton />
+    return <KpiCardSkeleton />;
   }
 
   const getColorPalette = () => {
     switch (color) {
-      case 'success': return theme.palette.success
-      case 'warning': return theme.palette.warning
-      case 'error': return theme.palette.error
-      case 'info': return theme.palette.info
-      default: return theme.palette.primary
+      case "success":
+        return theme.palette.success;
+      case "warning":
+        return theme.palette.warning;
+      case "error":
+        return theme.palette.error;
+      case "info":
+        return theme.palette.info;
+      default:
+        return theme.palette.primary;
     }
-  }
+  };
 
-  const colorPalette = getColorPalette()
+  const colorPalette = getColorPalette();
+
+  // Accessibility: ARIA label for card
+  const ariaLabel = `${title}: ${value}`;
 
   return (
     <Card
       sx={{
-        height: '100%',
-        position: 'relative',
-        overflow: 'hidden',
-        background: `linear-gradient(135deg, ${alpha(colorPalette.main, 0.08)} 0%, ${alpha(colorPalette.main, 0.03)} 100%)`,
+        height: "100%",
+        position: "relative",
+        overflow: "hidden",
+        background: `linear-gradient(135deg, ${alpha(
+          colorPalette.main,
+          0.08
+        )} 0%, ${alpha(colorPalette.main, 0.03)} 100%)`,
         border: `1px solid ${alpha(colorPalette.main, 0.12)}`,
         borderRadius: 3,
-        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-        '&::before': {
+        transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        cursor: onClick ? "pointer" : "default",
+        outline: "none",
+        "&:focus": {
+          boxShadow: onClick
+            ? `0 0 0 3px ${alpha(colorPalette.main, 0.3)}`
+            : undefined,
+        },
+        "&::before": {
           content: '""',
-          position: 'absolute',
+          position: "absolute",
           top: 0,
           left: 0,
           right: 0,
-          height: '3px',
+          height: "3px",
           background: `linear-gradient(90deg, ${colorPalette.main}, ${colorPalette.light})`,
-          transform: 'scaleX(0)',
-          transformOrigin: 'left',
-          transition: 'transform 0.3s ease',
+          transform: "scaleX(0)",
+          transformOrigin: "left",
+          transition: "transform 0.3s ease",
         },
-        '&:hover': {
+        "&:hover": {
           animation: `${floatAnimation} 0.3s ease-out forwards`,
-          boxShadow: `0 12px 32px ${alpha(colorPalette.main, 0.25)}, 0 2px 8px ${alpha(colorPalette.main, 0.1)}`,
+          boxShadow: `0 12px 32px ${alpha(
+            colorPalette.main,
+            0.25
+          )}, 0 2px 8px ${alpha(colorPalette.main, 0.1)}`,
           border: `1px solid ${alpha(colorPalette.main, 0.3)}`,
-          '&::before': {
-            transform: 'scaleX(1)',
+          "&::before": {
+            transform: "scaleX(1)",
           },
+        },
+      }}
+      tabIndex={onClick ? 0 : -1}
+      aria-label={ariaLabel}
+      role="button"
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onClick();
         }
       }}
     >
@@ -92,23 +149,64 @@ const KpiCard: React.FC<KpiCardProps> = ({
         <IconButton
           size="small"
           sx={{
-            position: 'absolute',
+            position: "absolute",
             top: 8,
-            right: 8,
+            right: editableTarget ? 40 : 8,
             zIndex: 1,
             color: alpha(colorPalette.main, 0.6),
-            '&:hover': {
+            "&:hover": {
               color: colorPalette.main,
               backgroundColor: alpha(colorPalette.main, 0.1),
             },
           }}
+          aria-label={`Help: ${title}`}
         >
           <HelpOutlineIcon fontSize="small" />
         </IconButton>
       </Tooltip>
+      {/* Inline edit icon for Target Attainment */}
+      {editableTarget && !editing && (
+        <Tooltip title="Edit sales target" arrow>
+          <IconButton
+            size="small"
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              zIndex: 1,
+              color: alpha(colorPalette.main, 0.6),
+            }}
+            aria-label="Edit sales target"
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditing(true);
+            }}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path
+                d="M3 17.25V21h3.75l11.06-11.06-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"
+                fill="currentColor"
+              />
+            </svg>
+          </IconButton>
+        </Tooltip>
+      )}
       <CardContent sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mb: 2,
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center" }}>
             <Box
               sx={{
                 p: 1.5,
@@ -116,27 +214,31 @@ const KpiCard: React.FC<KpiCardProps> = ({
                 backgroundColor: alpha(colorPalette.main, 0.12),
                 color: colorPalette.main,
                 mr: 1.5,
-                position: 'relative',
-                '&:hover': {
+                position: "relative",
+                "&:hover": {
                   animation: `${pulseAnimation} 0.6s ease-in-out infinite`,
                 },
-                '&::after': {
+                "&::after": {
                   content: '""',
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  width: '100%',
-                  height: '100%',
-                  background: `radial-gradient(circle, ${alpha(colorPalette.main, 0.2)} 0%, transparent 70%)`,
-                  transform: 'translate(-50%, -50%)',
-                  borderRadius: '50%',
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  width: "100%",
+                  height: "100%",
+                  background: `radial-gradient(circle, ${alpha(
+                    colorPalette.main,
+                    0.2
+                  )} 0%, transparent 70%)`,
+                  transform: "translate(-50%, -50%)",
+                  borderRadius: "50%",
                   opacity: 0,
-                  transition: 'opacity 0.3s ease',
+                  transition: "opacity 0.3s ease",
                 },
-                '&:hover::after': {
+                "&:hover::after": {
                   opacity: 1,
                 },
               }}
+              aria-label={`${title} icon`}
             >
               {icon}
             </Box>
@@ -145,9 +247,9 @@ const KpiCard: React.FC<KpiCardProps> = ({
               sx={{
                 fontWeight: 600,
                 color: theme.palette.text.secondary,
-                fontSize: '0.875rem',
-                textTransform: 'uppercase',
-                letterSpacing: 0.5
+                fontSize: "0.875rem",
+                textTransform: "uppercase",
+                letterSpacing: 0.5,
               }}
             >
               {title}
@@ -157,31 +259,95 @@ const KpiCard: React.FC<KpiCardProps> = ({
             <Typography
               variant="caption"
               sx={{
-                color: trend === 'up' ? theme.palette.success.main :
-                  trend === 'down' ? theme.palette.error.main :
-                    theme.palette.text.secondary,
+                color:
+                  trend === "up"
+                    ? theme.palette.success.main
+                    : trend === "down"
+                    ? theme.palette.error.main
+                    : theme.palette.text.secondary,
                 fontWeight: 600,
-                fontSize: '0.75rem'
+                fontSize: "0.75rem",
               }}
+              aria-label={`Trend: ${trendValue}`}
             >
               {trendValue}
             </Typography>
           )}
         </Box>
-        <Typography
-          variant="h3"
-          sx={{
-            fontWeight: 700,
-            color: theme.palette.text.primary,
-            fontSize: { xs: '1.75rem', sm: '2.125rem' },
-            lineHeight: 1.2
-          }}
-        >
-          {value}
-        </Typography>
+        {/* Inline editing for Target Attainment */}
+        {editableTarget && editing ? (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+            <input
+              type="number"
+              value={editValue ?? ""}
+              onChange={(e) => setEditValue(e.target.value)}
+              aria-label="Edit sales target"
+              style={{
+                fontSize: "1.5rem",
+                fontWeight: 700,
+                width: 100,
+                marginRight: 8,
+                borderRadius: 4,
+                border: `1px solid ${colorPalette.main}`,
+                padding: "4px 8px",
+              }}
+            />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditing(false);
+                if (onTargetEdit) onTargetEdit(editValue ?? 0);
+              }}
+              style={{
+                background: colorPalette.main,
+                color: "#fff",
+                border: "none",
+                borderRadius: 4,
+                padding: "4px 12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+              aria-label="Save sales target"
+            >
+              Save
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setEditing(false);
+                setEditValue(targetValue);
+              }}
+              style={{
+                background: "transparent",
+                color: colorPalette.main,
+                border: `1px solid ${colorPalette.main}`,
+                borderRadius: 4,
+                padding: "4px 12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+              aria-label="Cancel edit"
+            >
+              Cancel
+            </button>
+          </Box>
+        ) : (
+          <Typography
+            variant="h3"
+            sx={{
+              fontWeight: 700,
+              color: theme.palette.text.primary,
+              fontSize: { xs: "1.75rem", sm: "2.125rem" },
+              lineHeight: 1.2,
+            }}
+            aria-label={`Value: ${value}`}
+          >
+            {value}
+          </Typography>
+        )}
       </CardContent>
     </Card>
-  )
-}
+  );
+};
 
-export default KpiCard
+export default KpiCard;

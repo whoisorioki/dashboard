@@ -1,38 +1,34 @@
-import { Card, CardContent, Typography, Box, Tooltip, IconButton } from '@mui/material'
-import { HelpOutline as HelpOutlineIcon } from '@mui/icons-material'
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts'
-import { format } from 'date-fns'
-import { useApi } from '../hooks/useDynamicApi'
-import { MonthlySalesGrowthData } from '../types/api'
-import ChartSkeleton from './skeletons/ChartSkeleton'
-import ChartErrorState from './states/ChartErrorState'
-import ChartEmptyState from './states/ChartEmptyState'
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  Tooltip,
+  IconButton,
+} from "@mui/material";
+import { HelpOutline as HelpOutlineIcon } from "@mui/icons-material";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+} from "recharts";
+import { MonthlySalesGrowth } from "../types/graphql";
+import ChartSkeleton from "./skeletons/ChartSkeleton";
+import ChartEmptyState from "./states/ChartEmptyState";
 
 interface MonthlySalesTrendChartProps {
-  startDate: string | null
-  endDate: string | null
-  branch?: string
-  productLine?: string
-}
-
-interface SalesData {
-  date: string
-  sales: number
+  data: MonthlySalesGrowth[] | undefined;
+  isLoading: boolean;
 }
 
 const MonthlySalesTrendChart: React.FC<MonthlySalesTrendChartProps> = ({
-  startDate,
-  endDate,
-  branch,
-  productLine
+  data = [],
+  isLoading,
 }) => {
-  const { data, error, isLoading, mutate } = useApi<MonthlySalesGrowthData[]>('/kpis/monthly-sales-growth', {
-    start_date: startDate || undefined,
-    end_date: endDate || undefined,
-    branch: branch || undefined,
-    product_line: productLine || undefined,
-  })
-
   if (isLoading) {
     return (
       <Card>
@@ -43,23 +39,7 @@ const MonthlySalesTrendChart: React.FC<MonthlySalesTrendChartProps> = ({
           <ChartSkeleton />
         </CardContent>
       </Card>
-    )
-  }
-
-  if (error) {
-    return (
-      <Card>
-        <CardContent>
-          <Typography variant="h5" gutterBottom>
-            Monthly Sales Trend
-          </Typography>
-          <ChartErrorState
-            errorMessage="Failed to load sales trend data"
-            onRetry={mutate}
-          />
-        </CardContent>
-      </Card>
-    )
+    );
   }
 
   if (!data || data.length === 0) {
@@ -75,42 +55,53 @@ const MonthlySalesTrendChart: React.FC<MonthlySalesTrendChartProps> = ({
           />
         </CardContent>
       </Card>
-    )
+    );
   }
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div style={{
-          backgroundColor: 'white',
-          padding: '12px',
-          border: '1px solid #ccc',
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          fontSize: '14px'
-        }}>
-          <p style={{ margin: '0 0 4px 0', fontWeight: 'bold' }}>{`Period: ${label}`}</p>
-          <p style={{ margin: '0', color: '#1976d2' }}>{`Sales Revenue: $${payload[0].value?.toLocaleString()}`}</p>
+        <div
+          style={{
+            backgroundColor: "white",
+            padding: "12px",
+            border: "1px solid #ccc",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            fontSize: "14px",
+          }}
+        >
+          <p
+            style={{ margin: "0 0 4px 0", fontWeight: "bold" }}
+          >{`Period: ${label}`}</p>
+          <p
+            style={{ margin: "0", color: "#1976d2" }}
+          >{`Sales Revenue: KSh ${Math.round(payload[0].value).toLocaleString(
+            "en-KE"
+          )}`}</p>
         </div>
-      )
+      );
     }
-    return null
-  }
+    return null;
+  };
 
   return (
-    <Card sx={{ position: 'relative' }}>
-      <Tooltip title="Line chart showing sales performance over time. Hover over data points to see detailed values for each period." arrow>
+    <Card sx={{ position: "relative" }}>
+      <Tooltip
+        title="Line chart showing sales performance over time. Hover over data points to see detailed values for each period."
+        arrow
+      >
         <IconButton
           size="small"
           sx={{
-            position: 'absolute',
+            position: "absolute",
             top: 16,
             right: 16,
             zIndex: 1,
-            color: 'text.secondary',
-            '&:hover': {
-              color: 'primary.main',
-              backgroundColor: 'action.hover',
+            color: "text.secondary",
+            "&:hover": {
+              color: "primary.main",
+              backgroundColor: "action.hover",
             },
           }}
         >
@@ -137,7 +128,7 @@ const MonthlySalesTrendChart: React.FC<MonthlySalesTrendChartProps> = ({
         </ResponsiveContainer>
       </CardContent>
     </Card>
-  )
-}
+  );
+};
 
-export default MonthlySalesTrendChart
+export default MonthlySalesTrendChart;

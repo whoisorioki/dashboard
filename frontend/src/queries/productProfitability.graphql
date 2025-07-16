@@ -1,0 +1,15 @@
+query ProductProfitability(
+  $startDate: String
+  $endDate: String
+  $branch: String
+) {
+  productProfitability(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+  ) {
+    productLine
+    itemName
+    grossProfit
+  }
+}

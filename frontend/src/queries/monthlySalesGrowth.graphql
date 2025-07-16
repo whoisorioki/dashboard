@@ -1,0 +1,7 @@
+# Monthly Sales Growth Query
+query MonthlySalesGrowth($startDate: String, $endDate: String) {
+  monthlySalesGrowth(startDate: $startDate, endDate: $endDate) {
+    date
+    sales
+  }
+}

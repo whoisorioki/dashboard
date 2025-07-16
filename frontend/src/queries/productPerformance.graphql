@@ -1,0 +1,7 @@
+# Product Performance Query
+query ProductPerformance($startDate: String, $endDate: String, $n: Int) {
+  productPerformance(startDate: $startDate, endDate: $endDate, n: $n) {
+    product
+    sales
+  }
+}

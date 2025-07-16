@@ -1,0 +1,15 @@
+query SalespersonLeaderboard(
+  $startDate: String
+  $endDate: String
+  $branch: String
+) {
+  salespersonLeaderboard(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+  ) {
+    salesperson
+    salesAmount
+    grossProfit
+  }
+}

@@ -3,7 +3,7 @@ import numpy as np
 from typing import Dict, List
 
 
-def calculate_monthly_sales_growth(df: pl.DataFrame) -> List[Dict]:
+def calculate_monthly_sales_growth(df: pl.DataFrame) -> list:
     """
     Calculates monthly sales totals and returns in frontend format.
     Returns: [{date: string, sales: number}]
@@ -11,17 +11,26 @@ def calculate_monthly_sales_growth(df: pl.DataFrame) -> List[Dict]:
     if df.is_empty():
         return []
 
+    # Only cast __time to datetime if it is a string
+    if str(df["__time"].dtype) == "str":
+        df = df.with_columns(
+            pl.col("__time").str.strptime(pl.Datetime, strict=False)
+        )
+
     monthly_sales = (
-        df.group_by_dynamic("__time", every="1mo")
-        .agg(pl.sum("grossRevenue").alias("monthly_sales"))
+        df.lazy()
         .sort("__time")
+        .group_by_dynamic("__time", every="1mo")
+        .agg(pl.sum("grossRevenue").alias("monthly_sales"))
+        .collect()
     )
 
-    # Transform to frontend format
-    return [
-        {"date": row["__time"].strftime("%Y-%m-%d"), "sales": row["monthly_sales"]}
+    # Format for frontend
+    result = [
+        {"date": row["__time"].strftime("%Y-%m"), "sales": row["monthly_sales"]}
         for row in monthly_sales.to_dicts()
     ]
+    return result
 
 
 def calculate_sales_target_attainment(df: pl.DataFrame, target: float) -> dict:
@@ -58,10 +67,12 @@ def get_product_performance(df: pl.DataFrame, n: int = 5) -> List[Dict]:
         return []
 
     product_sales = (
-        df.group_by("ItemName")
+        df.lazy()
+        .group_by("ItemName")
         .agg(pl.sum("grossRevenue").alias("total_sales"))
         .filter(pl.col("total_sales").is_finite())  # Filter out NaN/infinite values
         .sort("total_sales", descending=True)
+        .collect()
     )
 
     # Select top or bottom N based on sign of n
@@ -87,7 +98,7 @@ def create_branch_product_heatmap_data(df: pl.DataFrame) -> pl.DataFrame:
 
     # Use the actual ProductLine column from Druid schema
     # If ProductLine is empty, create fallback based on description
-    df_with_product_line = df.with_columns(
+    df_with_product_line = df.lazy().with_columns(
         pl.when(
             pl.col("ProductLine").is_not_null() & (pl.col("ProductLine") != "Unknown")
         )
@@ -102,7 +113,8 @@ def create_branch_product_heatmap_data(df: pl.DataFrame) -> pl.DataFrame:
 
     # Group by branch and product, then sum sales
     heatmap_df = (
-        df_with_product_line.group_by(["Branch", "product_line_clean"])
+        df_with_product_line
+        .group_by(["Branch", "product_line_clean"])
         .agg(pl.sum("grossRevenue").alias("sales"))
         .with_columns(
             [
@@ -113,6 +125,7 @@ def create_branch_product_heatmap_data(df: pl.DataFrame) -> pl.DataFrame:
         .select(["branch", "product", "sales"])
         .filter(pl.col("sales") > 0)  # Filter out zero/negative sales
         .sort(["branch", "product"])
+        .collect()
     )
 
     return heatmap_df
@@ -171,7 +184,8 @@ def calculate_branch_performance(df: pl.DataFrame) -> pl.DataFrame:
         )
 
     branch_metrics = (
-        df.group_by("Branch")
+        df.lazy()
+        .group_by("Branch")
         .agg(
             [
                 pl.sum("grossRevenue").alias("total_sales"),
@@ -182,6 +196,7 @@ def calculate_branch_performance(df: pl.DataFrame) -> pl.DataFrame:
             ]
         )
         .sort("total_sales", descending=True)
+        .collect()
     )
 
     return branch_metrics
@@ -195,7 +210,8 @@ def get_branch_list(df: pl.DataFrame) -> pl.DataFrame:
         return pl.DataFrame({"Branch": [], "total_sales": [], "last_activity": []})
 
     branch_list = (
-        df.group_by("Branch")
+        df.lazy()
+        .group_by("Branch")
         .agg(
             [
                 pl.sum("grossRevenue").alias("total_sales"),
@@ -203,6 +219,7 @@ def get_branch_list(df: pl.DataFrame) -> pl.DataFrame:
             ]
         )
         .sort("total_sales", descending=True)
+        .collect()
     )
 
     return branch_list
@@ -219,10 +236,12 @@ def calculate_branch_growth(df: pl.DataFrame) -> pl.DataFrame:
 
     # Calculate monthly sales by branch
     monthly_branch_sales = (
-        df.with_columns([pl.col("__time").dt.strftime("%Y-%m").alias("month_year")])
+        df.lazy()
+        .with_columns([pl.col("__time").dt.strftime("%Y-%m").alias("month_year")])
         .group_by(["Branch", "month_year"])
         .agg(pl.sum("grossRevenue").alias("monthly_sales"))
         .sort(["Branch", "month_year"])
+        .collect()
     )
 
     # Calculate growth percentage for each branch with safe handling of infinity
@@ -261,7 +280,8 @@ def get_sales_performance(df: pl.DataFrame) -> pl.DataFrame:
         )
 
     sales_performance = (
-        df.group_by("SalesPerson")
+        df.lazy()
+        .group_by("SalesPerson")
         .agg(
             [
                 pl.sum("grossRevenue").alias("total_sales"),
@@ -272,6 +292,7 @@ def get_sales_performance(df: pl.DataFrame) -> pl.DataFrame:
             ]
         )
         .sort("total_sales", descending=True)
+        .collect()
     )
 
     return sales_performance
@@ -296,7 +317,8 @@ def get_product_analytics(df: pl.DataFrame) -> pl.DataFrame:
         )
 
     product_analytics = (
-        df.group_by(["ItemName", "ProductLine", "ItemGroup"])
+        df.lazy()
+        .group_by(["ItemName", "ProductLine", "ItemGroup"])
         .agg(
             [
                 pl.sum("grossRevenue").alias("total_sales"),
@@ -317,6 +339,7 @@ def get_product_analytics(df: pl.DataFrame) -> pl.DataFrame:
         )
         .filter(pl.col("total_sales").is_finite())  # Filter out infinite values
         .sort("total_sales", descending=True)
+        .collect()
     )
 
     return product_analytics
@@ -354,3 +377,35 @@ def calculate_revenue_summary(df: pl.DataFrame) -> dict:
         "unique_branches": unique_branches,
         "unique_employees": unique_employees,
     }
+
+
+def calculate_employee_performance(df: pl.DataFrame, quotas_df: pl.DataFrame) -> list:
+    """
+    Returns a list of employees with their total sales, quota, and attainment percentage.
+    """
+    if df.is_empty() or quotas_df.is_empty():
+        return []
+    employee_sales = df.group_by("SalesPerson").agg(
+        pl.sum("grossRevenue").alias("total_sales")
+    )
+    performance_df = (
+        employee_sales.join(quotas_df, on="SalesPerson", how="left")
+        .with_columns(
+            [
+                pl.col("total_sales"),
+                pl.col("quota"),
+                ((pl.col("total_sales") / pl.col("quota")) * 100).round(2).alias("attainment_pct")
+            ]
+        )
+        .fill_null(0)
+        .sort("attainment_pct", descending=True)
+    )
+    return [
+        {
+            "employee": row["SalesPerson"],
+            "total_sales": row["total_sales"],
+            "quota": row["quota"],
+            "attainment_pct": row["attainment_pct"]
+        }
+        for row in performance_df.to_dicts()
+    ]

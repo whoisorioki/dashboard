@@ -30,28 +30,34 @@ interface WelcomeTourProps {
 
 const tourSteps = [
     {
-        title: 'Welcome to Sales Analytics Dashboard! 🎉',
-        description: 'Get real-time insights into your sales performance with our comprehensive analytics platform.',
+        title: 'Welcome to Kenyan Sales Analytics! 🎉',
+        description: 'Get real-time insights into your sales performance across Kenya with our comprehensive analytics platform. All data is in Kenyan Shillings (KES).',
         icon: <DashboardIcon fontSize="large" />,
         color: 'primary'
     },
     {
-        title: 'Interactive Navigation 🧭',
-        description: 'Use the sidebar to navigate between Overview, Sales, Products, and Regions. Each section provides detailed analytics and performance metrics.',
+        title: 'Navigation & Pages 🧭',
+        description: 'Use the sidebar to navigate between Overview, Sales, Products, and Branches. Each section provides detailed analytics specific to Kenyan business operations.',
         icon: <TrendingUpIcon fontSize="large" />,
         color: 'success'
     },
     {
-        title: 'Real-time Data & Charts 📊',
-        description: 'All charts and KPIs update in real-time. Use the date controls to filter data and explore different time periods.',
+        title: 'Date Range & Filters 📅',
+        description: 'Use the date range picker at the top to filter data by specific periods. You can also filter by branches, products, and sales personnel to focus on specific areas.',
         icon: <AutoGraphIcon fontSize="large" />,
         color: 'info'
     },
     {
-        title: 'Quick Actions & Features ⚡',
-        description: 'Use the floating action button (bottom-right) for quick actions like refreshing data, exporting reports, and sharing dashboards.',
+        title: 'Mock Data Mode 🔄',
+        description: 'The system automatically falls back to realistic mock data when Druid is unavailable. Look for the "Mock Data" banner to know when you\'re viewing sample data.',
         icon: <LightbulbIcon fontSize="large" />,
         color: 'warning'
+    },
+    {
+        title: 'Quick Actions & Export ⚡',
+        description: 'Use the floating action button (bottom-right) for quick actions like refreshing data, exporting reports, and generating analytics summaries.',
+        icon: <LightbulbIcon fontSize="large" />,
+        color: 'secondary'
     }
 ]
 

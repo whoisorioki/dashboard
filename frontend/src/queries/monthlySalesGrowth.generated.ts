@@ -1,0 +1,47 @@
+import * as Types from '../types/graphql';
+
+import { GraphQLClient } from 'graphql-request';
+import { RequestInit } from 'graphql-request/dist/types.dom';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+
+function fetcher<TData, TVariables extends { [key: string]: any }>(client: GraphQLClient, query: string, variables?: TVariables, requestHeaders?: RequestInit['headers']) {
+  return async (): Promise<TData> => client.request({
+    document: query,
+    variables,
+    requestHeaders
+  });
+}
+export type MonthlySalesGrowthQueryVariables = Types.Exact<{
+  startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+}>;
+
+
+export type MonthlySalesGrowthQuery = { __typename?: 'Query', monthlySalesGrowth: Array<{ __typename?: 'MonthlySalesGrowth', date: string, sales: number }> };
+
+
+
+export const MonthlySalesGrowthDocument = `
+    query MonthlySalesGrowth($startDate: String, $endDate: String) {
+  monthlySalesGrowth(startDate: $startDate, endDate: $endDate) {
+    date
+    sales
+  }
+}
+    `;
+
+export const useMonthlySalesGrowthQuery = <
+      TData = MonthlySalesGrowthQuery,
+      TError = unknown
+    >(
+      client: GraphQLClient,
+      variables?: MonthlySalesGrowthQueryVariables,
+      options?: UseQueryOptions<MonthlySalesGrowthQuery, TError, TData>,
+      headers?: RequestInit['headers']
+    ) => {
+    
+    return useQuery<MonthlySalesGrowthQuery, TError, TData>(
+      variables === undefined ? ['MonthlySalesGrowth'] : ['MonthlySalesGrowth', variables],
+      fetcher<MonthlySalesGrowthQuery, MonthlySalesGrowthQueryVariables>(client, MonthlySalesGrowthDocument, variables, headers),
+      options
+    )};

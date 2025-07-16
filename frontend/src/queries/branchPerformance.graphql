@@ -1,0 +1,11 @@
+# Branch Performance Query
+query BranchPerformance($startDate: String, $endDate: String) {
+  branchPerformance(startDate: $startDate, endDate: $endDate) {
+    branch
+    totalSales
+    transactionCount
+    averageSale
+    uniqueCustomers
+    uniqueProducts
+  }
+}

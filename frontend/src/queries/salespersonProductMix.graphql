@@ -1,0 +1,15 @@
+query SalespersonProductMix(
+  $startDate: String
+  $endDate: String
+  $branch: String
+) {
+  salespersonProductMix(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+  ) {
+    salesperson
+    productLine
+    avgProfitMargin
+  }
+}

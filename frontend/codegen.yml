@@ -1,0 +1,34 @@
+schema: http://localhost:8000/graphql
+# Documents: where your .graphql/.gql queries/fragments live (if any)
+documents:
+  - src/queries/**/*.graphql # Recursively include all .graphql files for all mapped queries
+# Generates both types and hooks
+generates:
+  src/types/graphql.ts:
+    plugins:
+      - typescript
+      - typescript-operations
+  src/queries/:
+    preset: near-operation-file
+    presetConfig:
+      extension: .generated.ts
+      baseTypesPath: ../types/graphql.ts
+    plugins:
+      - typescript-operations
+      - typescript-react-query
+config:
+  useTypeImports: false
+  fetcher: graphql-request
+  namingConvention:
+    typeNames: change-case#pascalCase # Ensures types/interfaces are PascalCase (e.g., MonthlySalesGrowthEntry)
+    enumValues: change-case#upperCase # Ensures enums are UPPER_CASE
+    transformUnderscore: true # Converts snake_case to camelCase in field names
+  scalars:
+    DateTime: string
+    Date: string
+    Currency: number # All currency values are numbers (see mapping)
+  avoidOptionals:
+    field: false
+    inputValue: false
+  skipTypename: false # Keep __typename for union/discriminated types
+  preResolveTypes: true # Ensures all types are fully resolved
