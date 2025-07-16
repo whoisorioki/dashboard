@@ -5,6 +5,13 @@ from dotenv import load_dotenv
 from backend.api.routes import router
 from backend.api.kpi_routes import router as kpi_router
 from backend.core.druid_client import lifespan
+from backend.schema import schema
+import strawberry.fastapi
+from schema import Query
+import strawberry
+from fastapi import FastAPI
+from strawberry.fastapi import GraphQLRouter
+
 # import sentry_sdk
 
 # sentry_sdk.init(
@@ -61,17 +68,14 @@ app = FastAPI(
     openapi_tags=[
         {
             "name": "kpis",
-            "description": "Key Performance Indicators and analytics endpoints for sales, branches, and products"
+            "description": "Key Performance Indicators and analytics endpoints for sales, branches, and products",
         },
-        {
-            "name": "sales",
-            "description": "Raw sales data and transaction information"
-        },
+        {"name": "sales", "description": "Raw sales data and transaction information"},
         {
             "name": "health",
-            "description": "System health checks and connectivity monitoring"
-        }
-    ]
+            "description": "System health checks and connectivity monitoring",
+        },
+    ],
 )
 
 # Configure CORS origins based on environment
@@ -102,6 +106,10 @@ app.add_middleware(
 # Include the regular API routes
 app.include_router(router)
 app.include_router(kpi_router)
+
+# Add the Strawberry GraphQL router
+graphql_app = strawberry.fastapi.GraphQLRouter(schema)
+app.include_router(graphql_app, prefix="/graphql")
 
 
 @app.get("/")

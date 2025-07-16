@@ -6,6 +6,7 @@ from typing import Optional
 from datetime import datetime
 from backend.services.sales_data import fetch_sales_data
 from backend.core.druid_client import druid_conn
+from backend.utils.response_envelope import envelope
 
 router = APIRouter(prefix="/api", tags=["sales"])
 
@@ -21,7 +22,26 @@ class UserActivity(BaseModel):
 
 @router.post("/user-activity")
 async def track_user_activity(activity: UserActivity, request: Request):
-    """Track user activity for analytics - stores in Druid"""
+    """
+    Track user activity for analytics - stores in Druid.
+
+    **Response Envelope:**
+    - `data`: {"status": "success", "message": "Activity tracked"}
+    - `error`: null or error object
+    - `metadata`: {"requestId": str}
+
+    **Expected Result Example:**
+    ```python
+    {
+        "status": "success",
+        "message": "Activity tracked"
+    }
+    ```
+
+    **Error Responses:**
+    - 400: User error (e.g., invalid input)
+    - 500: Internal server error
+    """
     # Get real IP address
     client_ip = (
         getattr(request.client, "host", "unknown") if request.client else "unknown"
@@ -45,30 +65,78 @@ async def track_user_activity(activity: UserActivity, request: Request):
     # Log activity (analytics service removed)
     print(f"User activity tracked: {activity_data}")
 
-    return {"status": "success", "message": "Activity tracked"}
+    return envelope({"status": "success", "message": "Activity tracked"}, request)
 
 
 @router.get("/health")
-async def health_check():
-    """Health check endpoint for the API."""
-    return {"status": "ok"}
+async def health_check(request: Request):
+    """
+    Health check endpoint for the API.
+
+    **Response Envelope:**
+    - `data`: {"status": "ok"}
+    - `error`: null or error object
+    - `metadata`: {"requestId": str}
+
+    **Expected Result Example:**
+    ```python
+    {"status": "ok"}
+    ```
+
+    **Error Responses:**
+    - 500: Internal server error
+    """
+    return envelope({"status": "ok"}, request)
 
 
 @router.get("/health/druid")
-async def druid_health_check():
-    """Health check endpoint specifically for Druid connectivity."""
+async def druid_health_check(request: Request):
+    """
+    Health check endpoint specifically for Druid connectivity.
+
+    **Response Envelope:**
+    - `data`: {"druid_status": "connected"|"disconnected", "is_available": bool}
+    - `error`: null or error object
+    - `metadata`: {"requestId": str}
+
+    **Expected Result Example:**
+    ```python
+    {"druid_status": "connected", "is_available": True}
+    ```
+
+    **Error Responses:**
+    - 500: Internal server error
+    """
     is_connected = await run_in_threadpool(druid_conn.is_connected)
-    return {
-        "druid_status": "connected" if is_connected else "disconnected",
-        "is_available": is_connected,
-    }
+    return envelope(
+        {
+            "druid_status": "connected" if is_connected else "disconnected",
+            "is_available": is_connected,
+        },
+        request,
+    )
 
 
 @router.get("/druid/datasources")
-async def get_druid_datasources():
-    """Get list of available Druid datasources."""
+async def get_druid_datasources(request: Request):
+    """
+    Get list of available Druid datasources.
+
+    **Response Envelope:**
+    - `data`: {"datasources": [str], "count": int}
+    - `error`: null or error object
+    - `metadata`: {"requestId": str}
+
+    **Expected Result Example:**
+    ```python
+    {"datasources": ["sales_analytics", "other_source"], "count": 2}
+    ```
+
+    **Error Responses:**
+    - 500: Internal server error
+    """
     datasources = await run_in_threadpool(druid_conn.get_available_datasources)
-    return {"datasources": datasources, "count": len(datasources)}
+    return envelope({"datasources": datasources, "count": len(datasources)}, request)
 
 
 @router.get("/sales")
@@ -84,13 +152,27 @@ async def get_sales(
     """
     Get sales data for the specified time range and filters.
 
-    Args:
-        start_date: Start date in ISO format (YYYY-MM-DD)
-        end_date: End date in ISO format (YYYY-MM-DD)
-        item_names: Comma-separated list of item names
-        sales_persons: Comma-separated list of sales employee names
-        branch_names: Comma-separated list of branch names
-        ignore_mock_data: Whether to filter out mock data from Druid results
+    **Response Envelope:**
+    - `data`: [ { ...sales record... } ]
+    - `error`: null or error object
+    - `metadata`: {"requestId": str}
+
+    **Expected Result Example:**
+    ```python
+    [
+        {
+            "date": "2024-06-01",
+            "branch": "Nairobi",
+            "item_name": "Product A",
+            "sales": 12345.67,
+            ...
+        }
+    ]
+    ```
+
+    **Error Responses:**
+    - 400: User error (e.g., invalid date, no data)
+    - 500: Internal server error
     """
     # Convert comma-separated strings to lists
     item_names_list = item_names.split(",") if item_names else None
@@ -114,12 +196,33 @@ async def get_sales(
             & ~pl.col("Branch").str.contains("test", literal=False)
         )
 
-    return df.to_dicts()
+    return envelope(df.to_dicts(), request)
 
 
 @router.get("/data-range")
-async def get_data_range():
-    """Get the earliest and latest dates available in the dataset"""
+async def get_data_range(request: Request):
+    """
+    Get the earliest and latest dates available in the dataset.
+
+    **Response Envelope:**
+    - `data`: [ {"earliest_date": str, "latest_date": str, "total_records": int} ]
+    - `error`: null or error object
+    - `metadata`: {"requestId": str}
+
+    **Expected Result Example:**
+    ```python
+    [
+        {
+            "earliest_date": "2023-01-01T00:00:00.000Z",
+            "latest_date": "2025-06-01T00:00:00.000Z",
+            "total_records": 51685
+        }
+    ]
+    ```
+
+    **Error Responses:**
+    - 500: Internal server error
+    """
     import requests
 
     try:
@@ -189,20 +292,26 @@ async def get_data_range():
                 if "events" in segment:
                     total_records += len(segment["events"])
 
-        return [
-            {
-                "earliest_date": earliest_date,
-                "latest_date": latest_date,
-                "total_records": total_records,
-            }
-        ]
+        return envelope(
+            [
+                {
+                    "earliest_date": earliest_date,
+                    "latest_date": latest_date,
+                    "total_records": total_records,
+                }
+            ],
+            request,
+        )
 
     except Exception as e:
         # Fallback to hardcoded values if Druid query fails
-        return [
-            {
-                "earliest_date": "2023-01-01T00:00:00.000Z",
-                "latest_date": "2025-06-01T00:00:00.000Z",
-                "total_records": 51685,
-            }
-        ]
+        return envelope(
+            [
+                {
+                    "earliest_date": "2023-01-01T00:00:00.000Z",
+                    "latest_date": "2025-06-01T00:00:00.000Z",
+                    "total_records": 51685,
+                }
+            ],
+            request,
+        )
