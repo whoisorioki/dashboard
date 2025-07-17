@@ -37,6 +37,7 @@ import { useNavigate } from "react-router-dom";
 import { useMonthlySalesGrowthQuery } from "../queries/monthlySalesGrowth.generated";
 import { useRevenueSummaryQuery } from "../queries/revenueSummary.generated";
 import { graphqlClient } from "../lib/graphqlClient";
+import { useProductPerformanceQuery } from "../queries/productPerformance.generated";
 
 // Type guards for API responses
 // Remove legacy type guards; use generated types directly
@@ -67,13 +68,11 @@ const Dashboard = () => {
       endDate: end_date || undefined,
     });
 
-  const { data: branchProductHeatmap, isLoading: loadingHeatmap } =
+  // Remove unsupported arguments for useProductAnalyticsQuery
+  const { data: productAnalytics, isLoading: loadingProductAnalytics } =
     useProductAnalyticsQuery(graphqlClient, {
       startDate: start_date || undefined,
       endDate: end_date || undefined,
-      branch: selected_branch !== "all" ? selected_branch : undefined,
-      productLine:
-        selected_product_line !== "all" ? selected_product_line : undefined,
     });
 
   const { data: targetAttainment, isLoading: loadingTarget } =
@@ -83,22 +82,19 @@ const Dashboard = () => {
       target: sales_target ? parseFloat(sales_target) : undefined,
     });
 
-  const { data: productAnalytics, isLoading: loadingProductAnalytics } =
-    useProductAnalyticsQuery(graphqlClient, {
+  const { data: productPerformance, isLoading: loadingProductPerformance } =
+    useProductPerformanceQuery(graphqlClient, {
       startDate: start_date || undefined,
       endDate: end_date || undefined,
-      branch: selected_branch !== "all" ? selected_branch : undefined,
-      productLine:
-        selected_product_line !== "all" ? selected_product_line : undefined,
     });
 
   // Use all fields from backend output directly
-  const safeMonthlySalesGrowth = Array.isArray(monthlySalesGrowthData)
-    ? monthlySalesGrowthData
+  const safeMonthlySalesGrowth = Array.isArray(monthlySalesGrowthData?.monthlySalesGrowth)
+    ? monthlySalesGrowthData.monthlySalesGrowth
     : [];
-  const safeRevenueSummary = revenueSummaryData || null;
-  const safeProductAnalytics = Array.isArray(productAnalytics)
-    ? productAnalytics
+  const safeRevenueSummary = revenueSummaryData?.revenueSummary || null;
+  const safeProductAnalytics = Array.isArray(productAnalytics?.productAnalytics)
+    ? productAnalytics.productAnalytics
     : [];
 
   // TODO: Add and display all other KPIs as needed
@@ -126,24 +122,23 @@ const Dashboard = () => {
       : 0;
   // Avg Deal Size: Not available until backend provides totalTransactions
   // TODO: Update backend to include totalTransactions in revenue summary
-  const avgDealSize = safeRevenueSummary?.total_transactions
-    ? safeRevenueSummary.total_revenue / safeRevenueSummary.total_transactions
+  const avgDealSize = safeRevenueSummary?.totalTransactions
+    ? safeRevenueSummary.totalRevenue / safeRevenueSummary.totalTransactions
     : null;
 
   const getTargetAttainmentPercentage = () => {
-    if (!targetAttainment || typeof targetAttainment.attainment_percentage !== "number") {
+    if (!targetAttainment?.targetAttainment || typeof targetAttainment.targetAttainment.attainmentPercentage !== "number") {
       return 0;
     }
-    return targetAttainment.attainment_percentage;
+    return targetAttainment.targetAttainment.attainmentPercentage;
   };
 
   // Show loading state
   if (
     loadingMonthlySalesGrowth ||
     loadingRevenueSummary ||
-    loadingHeatmap ||
-    loadingTarget ||
-    loadingProductAnalytics
+    loadingProductAnalytics ||
+    loadingProductPerformance
   ) {
     return (
       <Box
@@ -192,17 +187,6 @@ const Dashboard = () => {
         title="Sales Analytics Dashboard"
         subtitle="Real-time insights and performance metrics"
         icon={<DashboardIcon />}
-        actionButton={
-          <Button
-            variant={debugMode ? "contained" : "outlined"}
-            color={debugMode ? "secondary" : "primary"}
-            size="small"
-            onClick={() => setDebugMode((d) => !d)}
-            sx={{ ml: 2 }}
-          >
-            {debugMode ? "Disable Debug" : "Enable Debug"}
-          </Button>
-        }
       />
 
       {/* Add summary sentence and refactor KPI card layout */}
@@ -228,7 +212,6 @@ const Dashboard = () => {
             trendValue={formatPercentage(salesGrowth)}
             color="primary"
             metricKey="total-sales"
-            onClick={() => navigateToDetail("total-sales")}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
@@ -242,7 +225,6 @@ const Dashboard = () => {
             trendValue={formatPercentage(salesGrowth)}
             color="primary"
             metricKey="sales-growth"
-            onClick={() => navigateToDetail("sales-growth")}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
@@ -256,7 +238,6 @@ const Dashboard = () => {
             trendValue={undefined}
             color="primary"
             metricKey="avg-deal-size"
-            onClick={() => navigateToDetail("avg-deal-size")}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
@@ -269,7 +250,6 @@ const Dashboard = () => {
             isLoading={loadingTarget}
             color="warning"
             metricKey="target-attainment"
-            onClick={() => navigateToDetail("target-attainment")}
             editableTarget
             targetValue={sales_target}
             onTargetEdit={setSalesTarget}
@@ -278,12 +258,11 @@ const Dashboard = () => {
       </Grid>
 
       {/* CHARTS SECTION - F-Pattern Layout: Most critical info top-left */}
-      {/* Top Row - Most Critical: Quota Attainment and Monthly Trend */}
       <Grid container spacing={{ xs: 2, sm: 3 }}>
         <Grid item xs={12} md={6} xl={4}>
           <Box sx={{ height: "400px" }}>
             <QuotaAttainmentGauge
-              data={targetAttainment}
+              data={targetAttainment?.targetAttainment}
               isLoading={loadingTarget}
               target={parseInt(sales_target) || 50000000}
             />
@@ -303,29 +282,18 @@ const Dashboard = () => {
         <Grid item xs={12} md={6} xl={6}>
           <Box sx={{ height: "400px" }}>
             <ProductPerformanceChart
-              data={safeProductAnalytics}
-              isLoading={loadingProductAnalytics}
+              data={productPerformance?.productPerformance ?? []}
+              isLoading={loadingProductPerformance}
             />
           </Box>
         </Grid>
-
-        {/* <Grid item xs={12} md={6} xl={6}>
-          <Box sx={{ height: "400px" }}>
-            <SalesFunnelChart
-              data={productAnalytics?.productAnalytics || []}
-              isLoading={loadingProductAnalytics}
-            />
-          </Box>
-        </Grid> */}
 
         {/* Third Row - Branch Product Heatmap (Full Width) */}
         <Grid item xs={12}>
           <Box sx={{ height: "500px" }}>
             <BranchProductHeatmap
-              data={
-                Array.isArray(branchProductHeatmap) ? branchProductHeatmap : []
-              }
-              isLoading={loadingHeatmap}
+              data={[]}
+              isLoading={loadingProductAnalytics}
             />
           </Box>
         </Grid>
