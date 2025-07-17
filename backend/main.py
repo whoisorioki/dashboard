@@ -7,7 +7,7 @@ from backend.api.kpi_routes import router as kpi_router
 from backend.core.druid_client import lifespan
 from backend.schema import schema
 import strawberry.fastapi
-from schema import Query
+from backend.schema import Query
 import strawberry
 from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter

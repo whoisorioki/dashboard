@@ -36,66 +36,10 @@ import { useFilters } from "../context/FilterContext";
 import { useNavigate } from "react-router-dom";
 import { useMonthlySalesGrowthQuery } from "../queries/monthlySalesGrowth.generated";
 import { useRevenueSummaryQuery } from "../queries/revenueSummary.generated";
-import { graphqlClient } from "../graphqlClient";
+import { graphqlClient } from "../lib/graphqlClient";
 
 // Type guards for API responses
-function isMonthlySalesGrowthArray(
-  data: any
-): data is { date: string; sales: number }[] {
-  return (
-    Array.isArray(data) &&
-    data.every((e) => typeof e.date === "string" && typeof e.sales === "number")
-  );
-}
-function isRevenueSummary(obj: any): obj is { totalRevenue: number } {
-  return obj && typeof obj.totalRevenue === "number";
-}
-function isTopCustomersArray(
-  data: any
-): data is { acctName: string; salesAmount: number; grossProfit: number }[] {
-  return (
-    Array.isArray(data) &&
-    data.every(
-      (e) =>
-        typeof e.acctName === "string" &&
-        typeof e.salesAmount === "number" &&
-        typeof e.grossProfit === "number"
-    )
-  );
-}
-function isMarginTrendsArray(
-  data: any
-): data is { date: string; margin: number }[] {
-  return (
-    Array.isArray(data) &&
-    data.every(
-      (e) => typeof e.date === "string" && typeof e.margin === "number"
-    )
-  );
-}
-function isProfitabilityByDimensionArray(
-  data: any
-): data is { dimension: string; grossMargin: number; grossProfit: number }[] {
-  return (
-    Array.isArray(data) &&
-    data.every(
-      (e) =>
-        typeof e.dimension === "string" &&
-        typeof e.grossMargin === "number" &&
-        typeof e.grossProfit === "number"
-    )
-  );
-}
-function isReturnsAnalysisArray(
-  data: any
-): data is { reason: string; count: number }[] {
-  return (
-    Array.isArray(data) &&
-    data.every(
-      (e) => typeof e.reason === "string" && typeof e.count === "number"
-    )
-  );
-}
+// Remove legacy type guards; use generated types directly
 
 const Dashboard = () => {
   const [debugMode, setDebugMode] = useState(false);
@@ -132,16 +76,13 @@ const Dashboard = () => {
         selected_product_line !== "all" ? selected_product_line : undefined,
     });
 
-  // Replace useApi for target attainment
   const { data: targetAttainment, isLoading: loadingTarget } =
     useTargetAttainmentQuery(graphqlClient, {
       startDate: start_date || undefined,
       endDate: end_date || undefined,
+      target: sales_target ? parseFloat(sales_target) : undefined,
     });
 
-  // Monthly Sales Trend already fetched as monthlyGrowth
-
-  // Replace useApi for product analytics
   const { data: productAnalytics, isLoading: loadingProductAnalytics } =
     useProductAnalyticsQuery(graphqlClient, {
       startDate: start_date || undefined,
@@ -151,39 +92,16 @@ const Dashboard = () => {
         selected_product_line !== "all" ? selected_product_line : undefined,
     });
 
-  // Safe arrays for robust rendering
-  const safeMonthlySalesGrowth = isMonthlySalesGrowthArray(
-    monthlySalesGrowthData?.monthlySalesGrowth
-  )
-    ? monthlySalesGrowthData.monthlySalesGrowth
+  // Use all fields from backend output directly
+  const safeMonthlySalesGrowth = Array.isArray(monthlySalesGrowthData)
+    ? monthlySalesGrowthData
     : [];
-  const safeRevenueSummary = isRevenueSummary(
-    revenueSummaryData?.revenueSummary
-  )
-    ? revenueSummaryData.revenueSummary
-    : null;
-  const safeTopCustomers = isTopCustomersArray(
-    productAnalytics?.productAnalytics
-  )
-    ? productAnalytics.productAnalytics
-    : [];
-  const safeMarginTrends = isMarginTrendsArray(
-    productAnalytics?.productAnalytics
-  )
-    ? productAnalytics.productAnalytics
-    : [];
-  const safeProfitabilityByDimension = isProfitabilityByDimensionArray(
-    productAnalytics?.productAnalytics
-  )
-    ? productAnalytics.productAnalytics
-    : [];
-  const safeReturnsAnalysis = isReturnsAnalysisArray(
-    productAnalytics?.productAnalytics
-  )
-    ? productAnalytics.productAnalytics
+  const safeRevenueSummary = revenueSummaryData || null;
+  const safeProductAnalytics = Array.isArray(productAnalytics)
+    ? productAnalytics
     : [];
 
-  // TODO: Add useRevenueSummary and other hooks as needed
+  // TODO: Add and display all other KPIs as needed
 
   const formatCurrency = (value: number | undefined | null) => {
     if (value == null || isNaN(value)) return "KSh 0";
@@ -196,43 +114,27 @@ const Dashboard = () => {
   };
 
   // Helper functions for canonical calculations
-  const totalSales = Array.isArray(monthlySalesGrowthData?.monthlySalesGrowth)
-    ? monthlySalesGrowthData.monthlySalesGrowth.reduce(
-        (sum, entry) => sum + (entry.sales || 0),
-        0
-      )
+  const totalSales = Array.isArray(safeMonthlySalesGrowth)
+    ? safeMonthlySalesGrowth.reduce((sum, entry) => sum + (entry.sales || 0), 0)
     : 0;
   const salesGrowth =
-    Array.isArray(monthlySalesGrowthData?.monthlySalesGrowth) &&
-    monthlySalesGrowthData.monthlySalesGrowth.length > 1
-      ? ((monthlySalesGrowthData.monthlySalesGrowth[
-          monthlySalesGrowthData.monthlySalesGrowth.length - 1
-        ].sales -
-          monthlySalesGrowthData.monthlySalesGrowth[0].sales) /
-          monthlySalesGrowthData.monthlySalesGrowth[0].sales) *
+    Array.isArray(safeMonthlySalesGrowth) && safeMonthlySalesGrowth.length > 1
+      ? ((safeMonthlySalesGrowth[safeMonthlySalesGrowth.length - 1].sales -
+          safeMonthlySalesGrowth[0].sales) /
+          safeMonthlySalesGrowth[0].sales) *
         100
       : 0;
   // Avg Deal Size: Not available until backend provides totalTransactions
   // TODO: Update backend to include totalTransactions in revenue summary
-  const avgDealSize = null;
+  const avgDealSize = safeRevenueSummary?.total_transactions
+    ? safeRevenueSummary.total_revenue / safeRevenueSummary.total_transactions
+    : null;
 
   const getTargetAttainmentPercentage = () => {
-    if (
-      !targetAttainment?.targetAttainment ||
-      typeof targetAttainment.targetAttainment.attainmentPercentage !== "number"
-    ) {
+    if (!targetAttainment || typeof targetAttainment.attainment_percentage !== "number") {
       return 0;
     }
-    return targetAttainment.targetAttainment.attainmentPercentage;
-  };
-
-  // Determine if any of the main KPIs are using mock data
-  const isUsingMockData = false; // Removed usingMock* destructures
-
-  const navigateToDetail = (metricKey: string) => {
-    navigate(
-      `/detail/${metricKey}?start_date=${start_date}&end_date=${end_date}&branch=${selected_branch}&product_line=${selected_product_line}`
-    );
+    return targetAttainment.attainment_percentage;
   };
 
   // Show loading state
@@ -260,35 +162,22 @@ const Dashboard = () => {
   }
 
   // Standardize error state
-  if (
-    productAnalytics?.productAnalytics === null ||
-    productAnalytics?.productAnalytics === undefined
-  ) {
-    return (
-      <ChartEmptyState
-        isError
-        message="Failed to load product analytics data."
-      />
-    );
+  if (!safeProductAnalytics) {
+    return <ChartEmptyState isError message="Failed to load product analytics data." />;
   }
 
   // Fallback UI for each widget
   if (!safeMonthlySalesGrowth.length) {
-    return (
-      <ChartEmptyState
-        isError
-        message="Monthly sales growth data is missing or invalid."
-      />
-    );
+    return <ChartEmptyState isError message="Monthly sales growth data is missing or invalid." />;
   }
   if (!safeRevenueSummary) {
-    return (
-      <ChartEmptyState
-        isError
-        message="Revenue summary data is missing or invalid."
-      />
-    );
+    return <ChartEmptyState isError message="Revenue summary data is missing or invalid." />;
   }
+
+  // TODO: Expand all tables/charts to display all backend fields for each KPI
+  // For example, for product analytics, show ItemName, ProductLine, ItemGroup, total_sales, etc.
+  // For branch performance, show Branch, total_sales, transaction_count, etc.
+  // For customer value, show cardName, salesAmount, grossProfit, etc.
 
   return (
     <Box
@@ -394,7 +283,7 @@ const Dashboard = () => {
         <Grid item xs={12} md={6} xl={4}>
           <Box sx={{ height: "400px" }}>
             <QuotaAttainmentGauge
-              data={targetAttainment?.targetAttainment}
+              data={targetAttainment}
               isLoading={loadingTarget}
               target={parseInt(sales_target) || 50000000}
             />
@@ -414,7 +303,7 @@ const Dashboard = () => {
         <Grid item xs={12} md={6} xl={6}>
           <Box sx={{ height: "400px" }}>
             <ProductPerformanceChart
-              data={Array.isArray(productAnalytics) ? productAnalytics : []}
+              data={safeProductAnalytics}
               isLoading={loadingProductAnalytics}
             />
           </Box>
@@ -456,7 +345,7 @@ const Dashboard = () => {
                   isError
                   message="Failed to load top customers."
                 />
-              ) : safeTopCustomers.length === 0 ? (
+              ) : safeProductAnalytics.length === 0 ? (
                 <ChartEmptyState message="No top customers data available." />
               ) : (
                 <Table size="small">
@@ -467,8 +356,8 @@ const Dashboard = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {Array.isArray(safeTopCustomers) &&
-                      safeTopCustomers.map((row, idx) => (
+                    {Array.isArray(safeProductAnalytics) &&
+                      safeProductAnalytics.map((row, idx) => (
                         <TableRow key={row.acctName || idx}>
                           <TableCell>{row.acctName}</TableCell>
                           <TableCell align="right">
@@ -499,7 +388,7 @@ const Dashboard = () => {
                   isError
                   message="Failed to load margin trends."
                 />
-              ) : safeMarginTrends.length === 0 ? (
+              ) : safeProductAnalytics.length === 0 ? (
                 <ChartEmptyState message="No margin trends data available." />
               ) : (
                 <Table size="small">
@@ -510,8 +399,8 @@ const Dashboard = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {Array.isArray(safeMarginTrends) &&
-                      safeMarginTrends.map((row, idx) => (
+                    {Array.isArray(safeProductAnalytics) &&
+                      safeProductAnalytics.map((row, idx) => (
                         <TableRow key={row.date || idx}>
                           <TableCell>{row.date}</TableCell>
                           <TableCell align="right">
@@ -539,7 +428,7 @@ const Dashboard = () => {
                   isError
                   message="Failed to load profitability by branch."
                 />
-              ) : safeProfitabilityByDimension.length === 0 ? (
+              ) : safeProductAnalytics.length === 0 ? (
                 <ChartEmptyState message="No profitability by branch data available." />
               ) : (
                 <Table size="small">
@@ -550,8 +439,8 @@ const Dashboard = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {Array.isArray(safeProfitabilityByDimension) &&
-                      safeProfitabilityByDimension.map((row, idx) => (
+                    {Array.isArray(safeProductAnalytics) &&
+                      safeProductAnalytics.map((row, idx) => (
                         <TableRow key={row.dimension || idx}>
                           <TableCell>{row.dimension}</TableCell>
                           <TableCell align="right">
@@ -582,7 +471,7 @@ const Dashboard = () => {
                   isError
                   message="Failed to load returns analysis."
                 />
-              ) : safeReturnsAnalysis.length === 0 ? (
+              ) : safeProductAnalytics.length === 0 ? (
                 <ChartEmptyState message="No returns analysis data available." />
               ) : (
                 <Table size="small">
@@ -593,8 +482,8 @@ const Dashboard = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {Array.isArray(safeReturnsAnalysis) &&
-                      safeReturnsAnalysis.map((row, idx) => (
+                    {Array.isArray(safeProductAnalytics) &&
+                      safeProductAnalytics.map((row, idx) => (
                         <TableRow key={row.reason || idx}>
                           <TableCell>{row.reason}</TableCell>
                           <TableCell align="right">{row.count}</TableCell>

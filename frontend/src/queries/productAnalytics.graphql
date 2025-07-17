@@ -1,13 +1,13 @@
 # Product Analytics Query
 query ProductAnalytics($startDate: String, $endDate: String) {
   productAnalytics(startDate: $startDate, endDate: $endDate) {
-    itemName
-    productLine
-    itemGroup
-    totalSales
-    totalQty
-    transactionCount
-    uniqueBranches
-    averagePrice
+    ItemName
+    ProductLine
+    ItemGroup
+    total_sales
+    total_qty
+    transaction_count
+    unique_branches
+    average_price
   }
 }

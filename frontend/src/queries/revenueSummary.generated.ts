@@ -17,7 +17,7 @@ export type RevenueSummaryQueryVariables = Types.Exact<{
 }>;
 
 
-export type RevenueSummaryQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue: number, totalTransactions: number, averageTransaction: number, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number } };
+export type RevenueSummaryQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue: number, grossProfit: number, netProfit: number, totalTransactions: number, averageTransaction: number, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number } };
 
 
 
@@ -25,6 +25,8 @@ export const RevenueSummaryDocument = `
     query RevenueSummary($startDate: String, $endDate: String) {
   revenueSummary(startDate: $startDate, endDate: $endDate) {
     totalRevenue
+    grossProfit
+    netProfit
     totalTransactions
     averageTransaction
     uniqueProducts

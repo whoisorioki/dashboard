@@ -1,6 +1,47 @@
 import polars as pl
 import numpy as np
 from typing import Dict, List
+import logging
+
+def _ensure_time_is_datetime(df: pl.DataFrame) -> pl.DataFrame:
+    if "__time" not in df.columns:
+        raise ValueError("__time column missing from DataFrame")
+    dtype = df["__time"].dtype
+    if dtype == pl.Datetime:
+        return df
+    elif dtype == pl.Int64 or dtype == pl.UInt64:
+        # Assume ms since epoch, convert to us for Polars Datetime
+        df = df.with_columns(
+            (pl.col("__time") * 1000).cast(pl.Datetime)
+        )
+        return df
+    else:
+        # Try string parsing as before
+        for fmt in [
+            "%Y-%m-%dT%H:%M:%S%.3fZ",
+            "%Y-%m-%dT%H:%M:%S%.6fZ",
+            "%Y-%m-%dT%H:%M:%SZ",
+            "%Y-%m-%d %H:%M:%S",
+        ]:
+            try:
+                df = df.with_columns(
+                    pl.col("__time").cast(pl.Utf8).str.strptime(pl.Datetime, fmt, strict=False)
+                )
+                if df["__time"].dtype == pl.Datetime:
+                    return df
+            except Exception:
+                continue
+        # Fallback: try casting directly
+        try:
+            df = df.with_columns(
+                pl.col("__time").cast(pl.Datetime)
+            )
+            if df["__time"].dtype == pl.Datetime:
+                return df
+        except Exception:
+            pass
+    logging.error(f"Failed to convert __time to Datetime. Dtype: {df['__time'].dtype}, Sample: {df['__time'].head(5)}")
+    raise ValueError(f"Failed to convert __time to Datetime. Dtype: {df['__time'].dtype}")
 
 
 def calculate_monthly_sales_growth(df: pl.DataFrame) -> list:
@@ -11,21 +52,16 @@ def calculate_monthly_sales_growth(df: pl.DataFrame) -> list:
     if df.is_empty():
         return []
 
-    # Only cast __time to datetime if it is a string
-    if str(df["__time"].dtype) == "str":
-        df = df.with_columns(
-            pl.col("__time").str.strptime(pl.Datetime, strict=False)
-        )
-
+    df = _ensure_time_is_datetime(df)
+    group_every = "1mo"
     monthly_sales = (
         df.lazy()
         .sort("__time")
-        .group_by_dynamic("__time", every="1mo")
+        .group_by_dynamic("__time", every=group_every)
         .agg(pl.sum("grossRevenue").alias("monthly_sales"))
         .collect()
     )
 
-    # Format for frontend
     result = [
         {"date": row["__time"].strftime("%Y-%m"), "sales": row["monthly_sales"]}
         for row in monthly_sales.to_dicts()
@@ -40,7 +76,9 @@ def calculate_sales_target_attainment(df: pl.DataFrame, target: float) -> dict:
     if target == 0 or df.is_empty():
         return {"total_sales": 0.0, "attainment_percentage": 0.0}
 
-    total_sales = float(df.select(pl.sum("grossRevenue")).item())
+    total_sales = float(
+        df.lazy().select(pl.sum("grossRevenue")).collect().item()
+    )
 
     # Ensure no NaN values
     if np.isnan(total_sales) or np.isinf(total_sales):
@@ -113,8 +151,7 @@ def create_branch_product_heatmap_data(df: pl.DataFrame) -> pl.DataFrame:
 
     # Group by branch and product, then sum sales
     heatmap_df = (
-        df_with_product_line
-        .group_by(["Branch", "product_line_clean"])
+        df_with_product_line.group_by(["Branch", "product_line_clean"])
         .agg(pl.sum("grossRevenue").alias("sales"))
         .with_columns(
             [
@@ -137,21 +174,25 @@ def calculate_employee_quota_attainment(
     """
     Calculates sales per employee and their quota attainment percentage.
     """
-    employee_sales = df.group_by("SalesPerson").agg(
-        pl.sum("grossRevenue").alias("total_sales")
+    employee_sales = (
+        df.lazy()
+        .group_by("SalesPerson")
+        .agg(pl.sum("grossRevenue").alias("total_sales"))
+        .collect()
     )
-
+    # Both employee_sales and quotas_df are DataFrames, so join directly
     performance_df = (
-        employee_sales.join(quotas_df, on="SalesPerson", how="left")
+        employee_sales
+        .join(quotas_df, on="SalesPerson", how="left")
         .with_columns(
             ((pl.col("total_sales") / pl.col("quota")) * 100)
             .round(2)
             .alias("attainment_pct")
         )
         .fill_null(0)
+        .sort("attainment_pct", descending=True)
     )
-
-    return performance_df.sort("attainment_pct", descending=True)
+    return performance_df
 
 
 def calculate_avg_deal_size_per_rep(df: pl.DataFrame) -> pl.DataFrame:
@@ -159,11 +200,12 @@ def calculate_avg_deal_size_per_rep(df: pl.DataFrame) -> pl.DataFrame:
     Calculates the average sale value for each employee.
     """
     avg_deal_size = (
-        df.group_by("SalesPerson")
+        df.lazy()
+        .group_by("SalesPerson")
         .agg(pl.mean("grossRevenue").round(2).alias("average_deal_size"))
         .sort("average_deal_size", descending=True)
+        .collect()
     )
-
     return avg_deal_size
 
 
@@ -205,10 +247,12 @@ def calculate_branch_performance(df: pl.DataFrame) -> pl.DataFrame:
 def get_branch_list(df: pl.DataFrame) -> pl.DataFrame:
     """
     Get a simple list of all branches with basic sales data.
+    last_activity will be formatted as yyyy-mm-dd string.
     """
     if df.is_empty():
         return pl.DataFrame({"Branch": [], "total_sales": [], "last_activity": []})
 
+    df = _ensure_time_is_datetime(df)
     branch_list = (
         df.lazy()
         .group_by("Branch")
@@ -221,7 +265,11 @@ def get_branch_list(df: pl.DataFrame) -> pl.DataFrame:
         .sort("total_sales", descending=True)
         .collect()
     )
-
+    # Format last_activity as yyyy-mm-dd string
+    if branch_list.height > 0:
+        branch_list = branch_list.with_columns(
+            pl.col("last_activity").dt.strftime("%Y-%m-%d").alias("last_activity")
+        )
     return branch_list
 
 
@@ -234,7 +282,11 @@ def calculate_branch_growth(df: pl.DataFrame) -> pl.DataFrame:
             {"Branch": [], "__time": [], "monthly_sales": [], "growth_pct": []}
         )
 
-    # Calculate monthly sales by branch
+    df = _ensure_time_is_datetime(df)
+    # Debug: print dtype and sample
+    logging.info(f"__time dtype after conversion: {df['__time'].dtype}")
+    logging.info(f"__time sample: {df['__time'].head(5)}")
+
     monthly_branch_sales = (
         df.lazy()
         .with_columns([pl.col("__time").dt.strftime("%Y-%m").alias("month_year")])
@@ -244,7 +296,6 @@ def calculate_branch_growth(df: pl.DataFrame) -> pl.DataFrame:
         .collect()
     )
 
-    # Calculate growth percentage for each branch with safe handling of infinity
     growth_df = monthly_branch_sales.with_columns(
         pl.col("monthly_sales")
         .pct_change()
@@ -358,17 +409,24 @@ def calculate_revenue_summary(df: pl.DataFrame) -> dict:
             "unique_branches": 0,
             "unique_employees": 0,
         }
-
-    total_revenue = float(df.select(pl.sum("grossRevenue")).item())
+    summary = (
+        df.lazy()
+        .select([
+            pl.sum("grossRevenue").alias("total_revenue"),
+            pl.n_unique("ItemName").alias("unique_products"),
+            pl.n_unique("Branch").alias("unique_branches"),
+            pl.n_unique("SalesPerson").alias("unique_employees"),
+        ])
+        .collect()
+    )
+    total_revenue = float(summary[0, "total_revenue"])
     total_transactions = df.height
-    unique_products = df.select(pl.n_unique("ItemName")).item()
-    unique_branches = df.select(pl.n_unique("Branch")).item()
-    unique_employees = df.select(pl.n_unique("SalesPerson")).item()
-
+    unique_products = int(summary[0, "unique_products"])
+    unique_branches = int(summary[0, "unique_branches"])
+    unique_employees = int(summary[0, "unique_employees"])
     average_transaction = (
         total_revenue / total_transactions if total_transactions > 0 else 0.0
     )
-
     return {
         "total_revenue": round(total_revenue, 2),
         "total_transactions": total_transactions,
@@ -385,16 +443,23 @@ def calculate_employee_performance(df: pl.DataFrame, quotas_df: pl.DataFrame) ->
     """
     if df.is_empty() or quotas_df.is_empty():
         return []
-    employee_sales = df.group_by("SalesPerson").agg(
-        pl.sum("grossRevenue").alias("total_sales")
+    employee_sales = (
+        df.lazy()
+        .group_by("SalesPerson")
+        .agg(pl.sum("grossRevenue").alias("total_sales"))
+        .collect()
     )
+    # Both employee_sales and quotas_df are DataFrames, so join directly
     performance_df = (
-        employee_sales.join(quotas_df, on="SalesPerson", how="left")
+        employee_sales
+        .join(quotas_df, on="SalesPerson", how="left")
         .with_columns(
             [
                 pl.col("total_sales"),
                 pl.col("quota"),
-                ((pl.col("total_sales") / pl.col("quota")) * 100).round(2).alias("attainment_pct")
+                ((pl.col("total_sales") / pl.col("quota")) * 100)
+                .round(2)
+                .alias("attainment_pct"),
             ]
         )
         .fill_null(0)
@@ -405,7 +470,44 @@ def calculate_employee_performance(df: pl.DataFrame, quotas_df: pl.DataFrame) ->
             "employee": row["SalesPerson"],
             "total_sales": row["total_sales"],
             "quota": row["quota"],
-            "attainment_pct": row["attainment_pct"]
+            "attainment_pct": row["attainment_pct"],
         }
         for row in performance_df.to_dicts()
     ]
+
+
+def calculate_margin_trends(df: pl.DataFrame) -> list:
+    """
+    Calculates monthly margin percentage trends.
+    Returns: [{date: string, marginPct: float}]
+    """
+    if df.is_empty():
+        return []
+    df = _ensure_time_is_datetime(df)
+    monthly = (
+        df.lazy()
+        .with_columns([
+            pl.col("__time").dt.strftime("%Y-%m").alias("month")
+        ])
+        .group_by("month")
+        .agg(
+            [
+                pl.sum("grossRevenue").alias("revenue"),
+                pl.sum("totalCost").alias("cost"),
+            ]
+        )
+        .with_columns(
+            [
+                ((pl.col("revenue") - pl.col("cost")) / pl.col("revenue") * 100)
+                .round(2)
+                .alias("marginPct")
+            ]
+        )
+        .sort("month")
+        .collect()
+    )
+    result = [
+        {"date": row["month"], "marginPct": row["marginPct"]}
+        for row in monthly.to_dicts()
+    ]
+    return result

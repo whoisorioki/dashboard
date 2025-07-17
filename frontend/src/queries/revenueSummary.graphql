@@ -1,12 +1,10 @@
 query RevenueSummary($startDate: String, $endDate: String) {
   revenueSummary(startDate: $startDate, endDate: $endDate) {
-    totalRevenue
-    grossProfit
-    netProfit
-    totalTransactions
-    averageTransaction
-    uniqueProducts
-    uniqueBranches
-    uniqueEmployees
+    total_revenue
+    total_transactions
+    average_transaction
+    unique_products
+    unique_branches
+    unique_employees
   }
 }

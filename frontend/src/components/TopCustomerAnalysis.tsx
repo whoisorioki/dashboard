@@ -3,19 +3,6 @@ import {
   Card,
   CardContent,
   Typography,
-  Box,
-  Tooltip,
-  IconButton,
-} from "@mui/material";
-import {
-  HelpOutline as HelpOutlineIcon,
-  FilterList as FilterListIcon,
-} from "@mui/icons-material";
-import ChartSkeleton from "./skeletons/ChartSkeleton";
-import { useTopCustomersQuery } from "../queries/topCustomers.generated";
-import { graphqlClient } from "../graphqlClient";
-import ChartEmptyState from "./states/ChartEmptyState";
-import {
   TableContainer,
   Paper,
   Table,
@@ -24,8 +11,10 @@ import {
   TableCell,
   TableBody,
 } from "@mui/material";
-import { ProductAnalyticsQuery } from "../queries/productAnalytics.generated";
-import ChartCard from "./ChartCard";
+import ChartSkeleton from "./skeletons/ChartSkeleton";
+import { useTopCustomersQuery } from "../queries/topCustomers.generated";
+import { graphqlClient } from "../lib/graphqlClient";
+import ChartEmptyState from "./states/ChartEmptyState";
 
 interface TopCustomerAnalysisProps {
   startDate: string | null;
@@ -36,13 +25,12 @@ const TopCustomerAnalysis: React.FC<TopCustomerAnalysisProps> = ({
   startDate,
   endDate,
 }) => {
-  const { data, error, isLoading, refetch } = useTopCustomersQuery(
-    graphqlClient,
-    {
-      startDate,
-      endDate,
-    }
-  );
+  const { data, error, isLoading, refetch } = useTopCustomersQuery(graphqlClient, {
+    startDate: startDate ?? undefined,
+    endDate: endDate ?? undefined,
+  });
+
+  const customers = data?.topCustomers ?? [];
 
   if (isLoading) return <ChartSkeleton />;
   if (error)
@@ -58,7 +46,7 @@ const TopCustomerAnalysis: React.FC<TopCustomerAnalysisProps> = ({
         onRetry={refetch}
       />
     );
-  if (!data || data.length === 0)
+  if (!customers.length)
     return <ChartEmptyState message="No customer data available." />;
 
   return (
@@ -72,22 +60,16 @@ const TopCustomerAnalysis: React.FC<TopCustomerAnalysisProps> = ({
             <TableHead>
               <TableRow>
                 <TableCell>Customer</TableCell>
-                <TableCell align="right">Total Revenue</TableCell>
-                <TableCell align="right">Transactions</TableCell>
-                <TableCell align="right">Avg. Purchase Value</TableCell>
+                <TableCell align="right">Total Sales</TableCell>
+                <TableCell align="right">Gross Profit</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {data.map((row, index) => (
+              {customers.map((row, index) => (
                 <TableRow key={`${row.cardName}-${index}`}>
                   <TableCell>{row.cardName}</TableCell>
-                  <TableCell align="right">
-                    ${row.totalRevenue.toLocaleString()}
-                  </TableCell>
-                  <TableCell align="right">{row.transactionCount}</TableCell>
-                  <TableCell align="right">
-                    ${row.averagePurchaseValue.toLocaleString()}
-                  </TableCell>
+                  <TableCell align="right">{row.salesAmount.toLocaleString()}</TableCell>
+                  <TableCell align="right">{row.grossProfit.toLocaleString()}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

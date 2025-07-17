@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useDataRangeQuery } from "./generated/graphql";
-import { graphqlClient } from "../graphqlClient";
+import { graphqlClient } from "../lib/graphqlClient";
 
 interface DataRangeResult {
   minDate: Date | null;

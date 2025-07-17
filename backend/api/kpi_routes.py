@@ -55,7 +55,6 @@ async def monthly_sales_growth(
         "2024-06-01", description="Start date in YYYY-MM-DD format"
     ),
     end_date: str = Query("2024-06-30", description="End date in YYYY-MM-DD format"),
-    mock_data: bool = Query(False, description="Use mock data instead of Druid"),
     item_names: Optional[str] = Query(
         None, description="Comma-separated list of item names to filter"
     ),
@@ -73,22 +72,27 @@ async def monthly_sales_growth(
     """
     Calculate monthly sales growth trends.
 
-    Returns month-over-month sales growth percentages for the specified time period.
-    All monetary values are in Kenyan Shillings (KES).
+    Returns month-over-month sales growth percentages for the specified time period. All monetary values are in Kenyan Shillings (KES).
 
-    **Response Format:**
-    ```json
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
     {
-        "using_mock_data": false,
-        "result": [
-            {
-                "month_year": "2024-06",
-                "sales": 1500000.0,
-                "growth_pct": 12.5
-            }
-        ]
+        "data": [
+            {"month_year": "2024-06", "sales": 1500000.0, "growth_pct": 12.5}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
     }
-    ```
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
     """
     item_names_list = item_names.split(",") if item_names else None
     sales_persons_list = sales_persons.split(",") if sales_persons else None
@@ -98,39 +102,17 @@ async def monthly_sales_growth(
         branch_names_list = branch_names.split(",")
     else:
         branch_names_list = None
-    try:
-        df = await fetch_sales_data(
-            start_date=start_date,
-            end_date=end_date,
-            item_names=item_names_list,
-            sales_persons=sales_persons_list,
-            branch_names=branch_names_list,
-            use_mock_data=mock_data,
-        )
-        if product_line and product_line != "all":
-            df = df.filter(pl.col("ProductLine") == product_line)
-        result = await run_in_threadpool(kpi_service.calculate_monthly_sales_growth, df)
-        return envelope(result, request)
-    except Exception as e:
-        if not mock_data:
-            logger.warning(
-                f"Druid failed for monthly_sales_growth, falling back to mock data: {e}"
-            )
-            df = await fetch_sales_data(
-                start_date=start_date,
-                end_date=end_date,
-                item_names=item_names_list,
-                sales_persons=sales_persons_list,
-                branch_names=branch_names_list,
-                use_mock_data=True,
-            )
-            if product_line and product_line != "all":
-                df = df.filter(pl.col("ProductLine") == product_line)
-            result = await run_in_threadpool(
-                kpi_service.calculate_monthly_sales_growth, df
-            )
-            return envelope(result, request)
-        raise
+    df = await fetch_sales_data(
+        start_date=start_date,
+        end_date=end_date,
+        item_names=item_names_list,
+        sales_persons=sales_persons_list,
+        branch_names=branch_names_list,
+    )
+    if product_line and product_line != "all":
+        df = df.filter(pl.col("ProductLine") == product_line)
+    result = await run_in_threadpool(kpi_service.calculate_monthly_sales_growth, df)
+    return envelope(result, request)
 
 
 @router.get("/sales-target-attainment")
@@ -139,13 +121,37 @@ async def sales_target_attainment(
     target: float,
     start_date: str = Query("2024-06-01"),
     end_date: str = Query("2024-06-30"),
-    mock_data: bool = Query(False),
     item_names: Optional[str] = Query(None),
     sales_persons: Optional[str] = Query(None),
     branch_names: Optional[str] = Query(None),
     branch: Optional[str] = Query(None),
     product_line: Optional[str] = Query(None),
 ):
+    """
+    Calculate sales target attainment for the specified time period.
+
+    Returns a list of sales targets and their attainment percentages. All monetary values are in Kenyan Shillings (KES).
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"target": 1000000.0, "attainment_pct": 120.0}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
+    """
     item_names_list = item_names.split(",") if item_names else None
     sales_persons_list = sales_persons.split(",") if sales_persons else None
     if branch:
@@ -154,41 +160,19 @@ async def sales_target_attainment(
         branch_names_list = branch_names.split(",")
     else:
         branch_names_list = None
-    try:
-        df = await fetch_sales_data(
-            start_date=start_date,
-            end_date=end_date,
-            item_names=item_names_list,
-            sales_persons=sales_persons_list,
-            branch_names=branch_names_list,
-            use_mock_data=mock_data,
-        )
-        if product_line and product_line != "all":
-            df = df.filter(pl.col("ProductLine") == product_line)
-        result = await run_in_threadpool(
-            kpi_service.calculate_sales_target_attainment, df, target
-        )
-        return envelope(result, request)
-    except Exception as e:
-        if not mock_data:
-            logger.warning(
-                f"Druid failed for sales_target_attainment, falling back to mock data: {e}"
-            )
-            df = await fetch_sales_data(
-                start_date=start_date,
-                end_date=end_date,
-                item_names=item_names_list,
-                sales_persons=sales_persons_list,
-                branch_names=branch_names_list,
-                use_mock_data=True,
-            )
-            if product_line and product_line != "all":
-                df = df.filter(pl.col("ProductLine") == product_line)
-            result = await run_in_threadpool(
-                kpi_service.calculate_sales_target_attainment, df, target
-            )
-            return envelope(result, request)
-        raise
+    df = await fetch_sales_data(
+        start_date=start_date,
+        end_date=end_date,
+        item_names=item_names_list,
+        sales_persons=sales_persons_list,
+        branch_names=branch_names_list,
+    )
+    if product_line and product_line != "all":
+        df = df.filter(pl.col("ProductLine") == product_line)
+    result = await run_in_threadpool(
+        kpi_service.calculate_sales_target_attainment, df, target
+    )
+    return envelope(result, request)
 
 
 @router.get("/product-performance")
@@ -197,13 +181,37 @@ async def product_performance(
     n: int = 5,
     start_date: str = Query("2024-06-01"),
     end_date: str = Query("2024-06-30"),
-    mock_data: bool = Query(False),
     item_names: Optional[str] = Query(None),
     sales_persons: Optional[str] = Query(None),
     branch_names: Optional[str] = Query(None),
     branch: Optional[str] = Query(None),
     product_line: Optional[str] = Query(None),
 ):
+    """
+    Get top N performing products based on sales.
+
+    Returns a list of products with their performance metrics. All monetary values are in Kenyan Shillings (KES).
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"ItemName": "PIAGGIO 3-WHEELER APE CITY DLX", "total_sales": 55198750.03, "total_qty": 123, "transaction_count": 51, "average_price": 448770.33}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
+    """
     item_names_list = item_names.split(",") if item_names else None
     sales_persons_list = sales_persons.split(",") if sales_persons else None
     if branch:
@@ -212,37 +220,17 @@ async def product_performance(
         branch_names_list = branch_names.split(",")
     else:
         branch_names_list = None
-    try:
-        df = await fetch_sales_data(
-            start_date=start_date,
-            end_date=end_date,
-            item_names=item_names_list,
-            sales_persons=sales_persons_list,
-            branch_names=branch_names_list,
-            use_mock_data=mock_data,
-        )
-        if product_line and product_line != "all":
-            df = df.filter(pl.col("ProductLine") == product_line)
-        result = await run_in_threadpool(kpi_service.get_product_performance, df, n)
-        return envelope(result, request)
-    except Exception as e:
-        if not mock_data:
-            logger.warning(
-                f"Druid failed for product_performance, falling back to mock data: {e}"
-            )
-            df = await fetch_sales_data(
-                start_date=start_date,
-                end_date=end_date,
-                item_names=item_names_list,
-                sales_persons=sales_persons_list,
-                branch_names=branch_names_list,
-                use_mock_data=True,
-            )
-            if product_line and product_line != "all":
-                df = df.filter(pl.col("ProductLine") == product_line)
-            result = await run_in_threadpool(kpi_service.get_product_performance, df, n)
-            return envelope(result, request)
-        raise
+    df = await fetch_sales_data(
+        start_date=start_date,
+        end_date=end_date,
+        item_names=item_names_list,
+        sales_persons=sales_persons_list,
+        branch_names=branch_names_list,
+    )
+    if product_line and product_line != "all":
+        df = df.filter(pl.col("ProductLine") == product_line)
+    result = await run_in_threadpool(kpi_service.get_product_performance, df, n)
+    return envelope(result, request)
 
 
 @router.get("/branch-product-heatmap")
@@ -250,13 +238,37 @@ async def branch_product_heatmap(
     request: Request,
     start_date: str = Query("2024-06-01"),
     end_date: str = Query("2024-06-30"),
-    mock_data: bool = Query(False),
     item_names: Optional[str] = Query(None),
     sales_persons: Optional[str] = Query(None),
     branch_names: Optional[str] = Query(None),
     branch: Optional[str] = Query(None),
     product_line: Optional[str] = Query(None),
 ):
+    """
+    Create a heatmap of product sales by branch.
+
+    Returns a list of branch-product sales data. All monetary values are in Kenyan Shillings (KES).
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"branch": "Branch A", "product": "Product X", "sales": 100000.0}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
+    """
     item_names_list = item_names.split(",") if item_names else None
     sales_persons_list = sales_persons.split(",") if sales_persons else None
     if branch:
@@ -265,41 +277,19 @@ async def branch_product_heatmap(
         branch_names_list = branch_names.split(",")
     else:
         branch_names_list = None
-    try:
-        df = await fetch_sales_data(
-            start_date=start_date,
-            end_date=end_date,
-            item_names=item_names_list,
-            sales_persons=sales_persons_list,
-            branch_names=branch_names_list,
-            use_mock_data=mock_data,
-        )
-        if product_line and product_line != "all":
-            df = df.filter(pl.col("ProductLine") == product_line)
-        result_df = await run_in_threadpool(
-            kpi_service.create_branch_product_heatmap_data, df
-        )
-        return envelope(result_df.to_dicts(), request)
-    except Exception as e:
-        if not mock_data:
-            logger.warning(
-                f"Druid failed for branch_product_heatmap, falling back to mock data: {e}"
-            )
-            df = await fetch_sales_data(
-                start_date=start_date,
-                end_date=end_date,
-                item_names=item_names_list,
-                sales_persons=sales_persons_list,
-                branch_names=branch_names_list,
-                use_mock_data=True,
-            )
-            if product_line and product_line != "all":
-                df = df.filter(pl.col("ProductLine") == product_line)
-            result_df = await run_in_threadpool(
-                kpi_service.create_branch_product_heatmap_data, df
-            )
-            return envelope(result_df.to_dicts(), request)
-        raise
+    df = await fetch_sales_data(
+        start_date=start_date,
+        end_date=end_date,
+        item_names=item_names_list,
+        sales_persons=sales_persons_list,
+        branch_names=branch_names_list,
+    )
+    if product_line and product_line != "all":
+        df = df.filter(pl.col("ProductLine") == product_line)
+    result_df = await run_in_threadpool(
+        kpi_service.create_branch_product_heatmap_data, df
+    )
+    return envelope(result_df.to_dicts(), request)
 
 
 # Apply fail-safe fallback to all remaining endpoints
@@ -308,13 +298,37 @@ async def branch_performance(
     request: Request,
     start_date: str = Query("2024-06-01"),
     end_date: str = Query("2024-06-30"),
-    mock_data: bool = Query(False),
     item_names: Optional[str] = Query(None),
     sales_persons: Optional[str] = Query(None),
     branch_names: Optional[str] = Query(None),
     branch: Optional[str] = Query(None),
     product_line: Optional[str] = Query(None),
 ):
+    """
+    Calculate branch performance metrics.
+
+    Returns a list of branches with their performance metrics. All monetary values are in Kenyan Shillings (KES).
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"branch": "Branch A", "total_sales": 1000000.0, "total_qty": 100, "transaction_count": 10, "average_price": 10000.0}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
+    """
     item_names_list = item_names.split(",") if item_names else None
     sales_persons_list = sales_persons.split(",") if sales_persons else None
     if branch:
@@ -323,41 +337,17 @@ async def branch_performance(
         branch_names_list = branch_names.split(",")
     else:
         branch_names_list = None
-    try:
-        df = await fetch_sales_data(
-            start_date=start_date,
-            end_date=end_date,
-            item_names=item_names_list,
-            sales_persons=sales_persons_list,
-            branch_names=branch_names_list,
-            use_mock_data=mock_data,
-        )
-        if product_line and product_line != "all":
-            df = df.filter(pl.col("ProductLine") == product_line)
-        result_df = await run_in_threadpool(
-            kpi_service.calculate_branch_performance, df
-        )
-        return envelope(result_df.to_dicts(), request)
-    except Exception as e:
-        if not mock_data:
-            logger.warning(
-                f"Druid failed for branch_performance, falling back to mock data: {e}"
-            )
-            df = await fetch_sales_data(
-                start_date=start_date,
-                end_date=end_date,
-                item_names=item_names_list,
-                sales_persons=sales_persons_list,
-                branch_names=branch_names_list,
-                use_mock_data=True,
-            )
-            if product_line and product_line != "all":
-                df = df.filter(pl.col("ProductLine") == product_line)
-            result_df = await run_in_threadpool(
-                kpi_service.calculate_branch_performance, df
-            )
-            return envelope(result_df.to_dicts(), request)
-        raise
+    df = await fetch_sales_data(
+        start_date=start_date,
+        end_date=end_date,
+        item_names=item_names_list,
+        sales_persons=sales_persons_list,
+        branch_names=branch_names_list,
+    )
+    if product_line and product_line != "all":
+        df = df.filter(pl.col("ProductLine") == product_line)
+    result_df = await run_in_threadpool(kpi_service.calculate_branch_performance, df)
+    return envelope(result_df.to_dicts(), request)
 
 
 @router.get("/branch-list")
@@ -365,13 +355,37 @@ async def branch_list(
     request: Request,
     start_date: str = Query("2024-06-01"),
     end_date: str = Query("2024-06-30"),
-    mock_data: bool = Query(False),
     item_names: Optional[str] = Query(None),
     sales_persons: Optional[str] = Query(None),
     branch_names: Optional[str] = Query(None),
     branch: Optional[str] = Query(None),
     product_line: Optional[str] = Query(None),
 ):
+    """
+    Get a list of branches.
+
+    Returns a list of branches.
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"branch": "Branch A"}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
+    """
     item_names_list = item_names.split(",") if item_names else None
     sales_persons_list = sales_persons.split(",") if sales_persons else None
     if branch:
@@ -380,37 +394,17 @@ async def branch_list(
         branch_names_list = branch_names.split(",")
     else:
         branch_names_list = None
-    try:
-        df = await fetch_sales_data(
-            start_date=start_date,
-            end_date=end_date,
-            item_names=item_names_list,
-            sales_persons=sales_persons_list,
-            branch_names=branch_names_list,
-            use_mock_data=mock_data,
-        )
-        if product_line and product_line != "all":
-            df = df.filter(pl.col("ProductLine") == product_line)
-        result_df = await run_in_threadpool(kpi_service.get_branch_list, df)
-        return envelope(result_df.to_dicts(), request)
-    except Exception as e:
-        if not mock_data:
-            logger.warning(
-                f"Druid failed for branch_list, falling back to mock data: {e}"
-            )
-            df = await fetch_sales_data(
-                start_date=start_date,
-                end_date=end_date,
-                item_names=item_names_list,
-                sales_persons=sales_persons_list,
-                branch_names=branch_names_list,
-                use_mock_data=True,
-            )
-            if product_line and product_line != "all":
-                df = df.filter(pl.col("ProductLine") == product_line)
-            result_df = await run_in_threadpool(kpi_service.get_branch_list, df)
-            return envelope(result_df.to_dicts(), request)
-        raise
+    df = await fetch_sales_data(
+        start_date=start_date,
+        end_date=end_date,
+        item_names=item_names_list,
+        sales_persons=sales_persons_list,
+        branch_names=branch_names_list,
+    )
+    if product_line and product_line != "all":
+        df = df.filter(pl.col("ProductLine") == product_line)
+    result_df = await run_in_threadpool(kpi_service.get_branch_list, df)
+    return envelope(result_df.to_dicts(), request)
 
 
 @router.get("/branch-growth")
@@ -418,13 +412,37 @@ async def branch_growth(
     request: Request,
     start_date: str = Query("2024-06-01"),
     end_date: str = Query("2024-06-30"),
-    mock_data: bool = Query(False),
     item_names: Optional[str] = Query(None),
     sales_persons: Optional[str] = Query(None),
     branch_names: Optional[str] = Query(None),
     branch: Optional[str] = Query(None),
     product_line: Optional[str] = Query(None),
 ):
+    """
+    Calculate branch growth trends.
+
+    Returns a list of branches with their growth percentages. All monetary values are in Kenyan Shillings (KES).
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"branch": "Branch A", "growth_pct": 10.0}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
+    """
     item_names_list = item_names.split(",") if item_names else None
     sales_persons_list = sales_persons.split(",") if sales_persons else None
     if branch:
@@ -433,37 +451,21 @@ async def branch_growth(
         branch_names_list = branch_names.split(",")
     else:
         branch_names_list = None
+    df = await fetch_sales_data(
+        start_date=start_date,
+        end_date=end_date,
+        item_names=item_names_list,
+        sales_persons=sales_persons_list,
+        branch_names=branch_names_list,
+    )
+    if product_line and product_line != "all":
+        df = df.filter(pl.col("ProductLine") == product_line)
     try:
-        df = await fetch_sales_data(
-            start_date=start_date,
-            end_date=end_date,
-            item_names=item_names_list,
-            sales_persons=sales_persons_list,
-            branch_names=branch_names_list,
-            use_mock_data=mock_data,
-        )
-        if product_line and product_line != "all":
-            df = df.filter(pl.col("ProductLine") == product_line)
         result_df = await run_in_threadpool(kpi_service.calculate_branch_growth, df)
         return envelope(result_df.to_dicts(), request)
     except Exception as e:
-        if not mock_data:
-            logger.warning(
-                f"Druid failed for branch_growth, falling back to mock data: {e}"
-            )
-            df = await fetch_sales_data(
-                start_date=start_date,
-                end_date=end_date,
-                item_names=item_names_list,
-                sales_persons=sales_persons_list,
-                branch_names=branch_names_list,
-                use_mock_data=True,
-            )
-            if product_line and product_line != "all":
-                df = df.filter(pl.col("ProductLine") == product_line)
-            result_df = await run_in_threadpool(kpi_service.calculate_branch_growth, df)
-            return envelope(result_df.to_dicts(), request)
-        raise
+        logger.error(f"Error in branch_growth: {e}")
+        raise HTTPException(status_code=500, detail=f"Branch growth calculation failed: {e}")
 
 
 @router.get("/sales-performance")
@@ -471,13 +473,37 @@ async def sales_performance(
     request: Request,
     start_date: str = Query("2024-06-01"),
     end_date: str = Query("2024-06-30"),
-    mock_data: bool = Query(False),
     item_names: Optional[str] = Query(None),
     sales_persons: Optional[str] = Query(None),
     branch_names: Optional[str] = Query(None),
     branch: Optional[str] = Query(None),
     product_line: Optional[str] = Query(None),
 ):
+    """
+    Get sales performance metrics.
+
+    Returns a list of sales performance metrics. All monetary values are in Kenyan Shillings (KES).
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"sales_person": "John Doe", "total_sales": 1000000.0, "total_qty": 100, "transaction_count": 10, "average_price": 10000.0}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
+    """
     item_names_list = item_names.split(",") if item_names else None
     sales_persons_list = sales_persons.split(",") if sales_persons else None
     if branch:
@@ -486,37 +512,17 @@ async def sales_performance(
         branch_names_list = branch_names.split(",")
     else:
         branch_names_list = None
-    try:
-        df = await fetch_sales_data(
-            start_date=start_date,
-            end_date=end_date,
-            item_names=item_names_list,
-            sales_persons=sales_persons_list,
-            branch_names=branch_names_list,
-            use_mock_data=mock_data,
-        )
-        if product_line and product_line != "all":
-            df = df.filter(pl.col("ProductLine") == product_line)
-        result_df = await run_in_threadpool(kpi_service.get_sales_performance, df)
-        return envelope(result_df.to_dicts(), request)
-    except Exception as e:
-        if not mock_data:
-            logger.warning(
-                f"Druid failed for sales_performance, falling back to mock data: {e}"
-            )
-            df = await fetch_sales_data(
-                start_date=start_date,
-                end_date=end_date,
-                item_names=item_names_list,
-                sales_persons=sales_persons_list,
-                branch_names=branch_names_list,
-                use_mock_data=True,
-            )
-            if product_line and product_line != "all":
-                df = df.filter(pl.col("ProductLine") == product_line)
-            result_df = await run_in_threadpool(kpi_service.get_sales_performance, df)
-            return envelope(result_df.to_dicts(), request)
-        raise
+    df = await fetch_sales_data(
+        start_date=start_date,
+        end_date=end_date,
+        item_names=item_names_list,
+        sales_persons=sales_persons_list,
+        branch_names=branch_names_list,
+    )
+    if product_line and product_line != "all":
+        df = df.filter(pl.col("ProductLine") == product_line)
+    result_df = await run_in_threadpool(kpi_service.get_sales_performance, df)
+    return envelope(result_df.to_dicts(), request)
 
 
 @router.get("/product-analytics")
@@ -524,13 +530,36 @@ async def product_analytics(
     request: Request,
     start_date: str = Query("2024-06-01"),
     end_date: str = Query("2024-06-30"),
-    mock_data: bool = Query(False),
     item_names: Optional[str] = Query(None),
     sales_persons: Optional[str] = Query(None),
     branch_names: Optional[str] = Query(None),
     branch: Optional[str] = Query(None),
     product_line: Optional[str] = Query(None),
 ):
+    """
+    Get detailed product analytics including performance metrics for the specified time period.
+    All monetary values are in Kenyan Shillings (KES).
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"ItemName": "PIAGGIO 3-WHEELER APE CITY DLX", "ProductLine": "Piaggio", "ItemGroup": "Units", "total_sales": 55198750.03, "total_qty": 123, "transaction_count": 51, "average_price": 448770.33}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
+    """
     item_names_list = item_names.split(",") if item_names else None
     sales_persons_list = sales_persons.split(",") if sales_persons else None
     if branch:
@@ -539,37 +568,17 @@ async def product_analytics(
         branch_names_list = branch_names.split(",")
     else:
         branch_names_list = None
-    try:
-        df = await fetch_sales_data(
-            start_date=start_date,
-            end_date=end_date,
-            item_names=item_names_list,
-            sales_persons=sales_persons_list,
-            branch_names=branch_names_list,
-            use_mock_data=mock_data,
-        )
-        if product_line and product_line != "all":
-            df = df.filter(pl.col("ProductLine") == product_line)
-        result_df = await run_in_threadpool(kpi_service.get_product_analytics, df)
-        return envelope(result_df.to_dicts(), request)
-    except Exception as e:
-        if not mock_data:
-            logger.warning(
-                f"Druid failed for product_analytics, falling back to mock data: {e}"
-            )
-            df = await fetch_sales_data(
-                start_date=start_date,
-                end_date=end_date,
-                item_names=item_names_list,
-                sales_persons=sales_persons_list,
-                branch_names=branch_names_list,
-                use_mock_data=True,
-            )
-            if product_line and product_line != "all":
-                df = df.filter(pl.col("ProductLine") == product_line)
-            result_df = await run_in_threadpool(kpi_service.get_product_analytics, df)
-            return envelope(result_df.to_dicts(), request)
-        raise
+    df = await fetch_sales_data(
+        start_date=start_date,
+        end_date=end_date,
+        item_names=item_names_list,
+        sales_persons=sales_persons_list,
+        branch_names=branch_names_list,
+    )
+    if product_line and product_line != "all":
+        df = df.filter(pl.col("ProductLine") == product_line)
+    result_df = await run_in_threadpool(kpi_service.get_product_analytics, df)
+    return envelope(result_df.to_dicts(), request)
 
 
 @router.get("/revenue-summary")
@@ -577,13 +586,37 @@ async def revenue_summary(
     request: Request,
     start_date: str = Query("2024-06-01"),
     end_date: str = Query("2024-06-30"),
-    mock_data: bool = Query(False),
     item_names: Optional[str] = Query(None),
     sales_persons: Optional[str] = Query(None),
     branch_names: Optional[str] = Query(None),
     branch: Optional[str] = Query(None),
     product_line: Optional[str] = Query(None),
 ):
+    """
+    Calculate revenue summary for the specified time period.
+
+    Returns a summary of total revenue, gross profit, and average gross margin. All monetary values are in Kenyan Shillings (KES).
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"total_revenue": 100000000.0, "total_gross_profit": 20000000.0, "average_gross_margin": 20.0}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
+    """
     item_names_list = item_names.split(",") if item_names else None
     sales_persons_list = sales_persons.split(",") if sales_persons else None
     if branch:
@@ -592,67 +625,17 @@ async def revenue_summary(
         branch_names_list = branch_names.split(",")
     else:
         branch_names_list = None
-    try:
-        df = await fetch_sales_data(
-            start_date=start_date,
-            end_date=end_date,
-            item_names=item_names_list,
-            sales_persons=sales_persons_list,
-            branch_names=branch_names_list,
-            use_mock_data=mock_data,
-        )
-        if product_line and product_line != "all":
-            df = df.filter(pl.col("ProductLine") == product_line)
-        result = await run_in_threadpool(kpi_service.calculate_revenue_summary, df)
-        return envelope(result, request)
-    except Exception as e:
-        if not mock_data:
-            logger.warning(
-                f"Druid failed for revenue_summary, falling back to mock data: {e}"
-            )
-            df = await fetch_sales_data(
-                start_date=start_date,
-                end_date=end_date,
-                item_names=item_names_list,
-                sales_persons=sales_persons_list,
-                branch_names=branch_names_list,
-                use_mock_data=True,
-            )
-            if product_line and product_line != "all":
-                df = df.filter(pl.col("ProductLine") == product_line)
-            result = await run_in_threadpool(kpi_service.calculate_revenue_summary, df)
-            return envelope(result, request)
-        raise
-
-
-# --- MOCK DATA FOR CUSTOMER VALUE ANALYTICS ---
-mock_customer_value_data = [
-    {
-        "AcctName": "Acme Corp",
-        "total_gross_revenue": 120000.0,
-        "total_net_profit": 35000.0,
-    },
-    {
-        "AcctName": "Beta Industries",
-        "total_gross_revenue": 95000.0,
-        "total_net_profit": 22000.0,
-    },
-    {
-        "AcctName": "Gamma LLC",
-        "total_gross_revenue": 87000.0,
-        "total_net_profit": 18000.0,
-    },
-    {
-        "AcctName": "Delta Partners",
-        "total_gross_revenue": 65000.0,
-        "total_net_profit": 12000.0,
-    },
-    {
-        "AcctName": "Epsilon Inc",
-        "total_gross_revenue": 43000.0,
-        "total_net_profit": 9000.0,
-    },
-]
+    df = await fetch_sales_data(
+        start_date=start_date,
+        end_date=end_date,
+        item_names=item_names_list,
+        sales_persons=sales_persons_list,
+        branch_names=branch_names_list,
+    )
+    if product_line and product_line != "all":
+        df = df.filter(pl.col("ProductLine") == product_line)
+    result = await run_in_threadpool(kpi_service.calculate_revenue_summary, df)
+    return envelope(result, request)
 
 
 @router.get("/customer-value")
@@ -660,13 +643,36 @@ async def customer_value(
     request: Request,
     start_date: str = Query("2024-06-01"),
     end_date: str = Query("2024-06-30"),
-    mock_data: bool = Query(False),
     item_names: Optional[str] = Query(None),
     sales_persons: Optional[str] = Query(None),
     branch_names: Optional[str] = Query(None),
     branch: Optional[str] = Query(None),
     product_line: Optional[str] = Query(None),
 ):
+    """
+    Get customer value analysis grouped by CardName (customer name) for the specified time period.
+    All monetary values are in Kenyan Shillings (KES).
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"cardName": "Wanjiku Mwangi", "salesAmount": 445702880.16, "grossProfit": 130900434.02}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
+    """
     item_names_list = item_names.split(",") if item_names else None
     sales_persons_list = sales_persons.split(",") if sales_persons else None
     if branch:
@@ -675,67 +681,38 @@ async def customer_value(
         branch_names_list = branch_names.split(",")
     else:
         branch_names_list = None
-    try:
-        df = await fetch_sales_data(
-            start_date=start_date,
-            end_date=end_date,
-            item_names=item_names_list,
-            sales_persons=sales_persons_list,
-            branch_names=branch_names_list,
-            use_mock_data=mock_data,
+    df = await fetch_sales_data(
+        start_date=start_date,
+        end_date=end_date,
+        item_names=item_names_list,
+        sales_persons=sales_persons_list,
+        branch_names=branch_names_list,
+    )
+    if product_line and product_line != "all":
+        df = df.filter(pl.col("ProductLine") == product_line)
+    if df.is_empty():
+        return envelope([], request)
+    result_df = (
+        df.lazy()
+        .group_by("CardName")
+        .agg(
+            [
+                pl.sum("grossRevenue").alias("salesAmount"),
+                (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("grossProfit"),
+            ]
         )
-        if product_line and product_line != "all":
-            df = df.filter(pl.col("ProductLine") == product_line)
-        if df.is_empty():
-            return envelope([], request)
-        result_df = (
-            df.lazy()
-            .group_by("AcctName")
-            .agg(
-                [
-                    pl.sum("grossRevenue").alias("total_gross_revenue"),
-                    (pl.sum("grossRevenue") - pl.sum("totalCost")).alias(
-                        "total_net_profit"
-                    ),
-                ]
-            )
-            .sort("total_net_profit", descending=True)
-            .collect()
-        )
-        return envelope(result_df.to_dicts(), request)
-    except Exception as e:
-        if not mock_data:
-            logger.warning(
-                f"Druid failed for customer_value, falling back to mock data: {e}"
-            )
-            df = await fetch_sales_data(
-                start_date=start_date,
-                end_date=end_date,
-                item_names=item_names_list,
-                sales_persons=sales_persons_list,
-                branch_names=branch_names_list,
-                use_mock_data=True,
-            )
-            if product_line and product_line != "all":
-                df = df.filter(pl.col("ProductLine") == product_line)
-            if df.is_empty():
-                return envelope([], request)
-            result_df = (
-                df.lazy()
-                .group_by("AcctName")
-                .agg(
-                    [
-                        pl.sum("grossRevenue").alias("total_gross_revenue"),
-                        (pl.sum("grossRevenue") - pl.sum("totalCost")).alias(
-                            "total_net_profit"
-                        ),
-                    ]
-                )
-                .sort("total_net_profit", descending=True)
-                .collect()
-            )
-            return envelope(result_df.to_dicts(), request)
-        raise
+        .sort("grossProfit", descending=True)
+        .collect()
+    )
+    result = [
+        {
+            "cardName": row["CardName"],
+            "salesAmount": row["salesAmount"],
+            "grossProfit": row["grossProfit"],
+        }
+        for row in result_df.to_dicts()
+    ]
+    return envelope(result, request)
 
 
 @router.get("/employee-performance")
@@ -743,39 +720,36 @@ async def employee_performance(
     request: Request,
     start_date: str = Query(...),
     end_date: str = Query(...),
-    mock_data: bool = Query(False),
 ):
     """
-    Returns employee sales and quota attainment. Fails over to mock data if Druid fails.
+    Returns employee sales and quota attainment. Only real data is used.
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"employee": "John Doe", "total_sales": 1000000.0, "quota_attainment_pct": 120.0}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
     """
-    using_mock_data = False
-    try:
-        if mock_data:
-            raise Exception("Force mock data")
-        df = await sales_data.fetch_sales_data(start_date, end_date)
-        quotas_df = await run_in_threadpool(sales_data.get_employee_quotas)
-        result = await run_in_threadpool(
-            kpi_service.calculate_employee_performance, df, quotas_df
-        )
-    except Exception as e:
-        import logging
-
-        logging.warning(
-            f"Druid failed for employee_performance, falling back to mock data: {e}"
-        )
-        using_mock_data = True
-        df = await run_in_threadpool(
-            sales_data.get_mock_sales_data, start_date, end_date
-        )
-        quotas_df = await run_in_threadpool(sales_data.get_mock_employee_quotas)
-        result = await run_in_threadpool(
-            kpi_service.calculate_employee_performance, df, quotas_df
-        )
+    df = await sales_data.fetch_sales_data(start_date, end_date)
+    quotas_df = await run_in_threadpool(sales_data.get_employee_quotas)
+    result = await run_in_threadpool(
+        kpi_service.calculate_employee_performance, df, quotas_df
+    )
     return envelope(result, request)
-
-
-# --- MOCK ENDPOINTS FOR MISSING KPIS ---
-from fastapi import HTTPException
 
 
 @router.get("/top-customers")
@@ -784,17 +758,54 @@ async def top_customers(
     start_date: str = Query("2024-06-01"),
     end_date: str = Query("2024-06-30"),
     n: int = 5,
-    mock_data: bool = Query(True),
 ):
-    # Return mock top customers with correct fields
+    """
+    Get the top N customers by sales amount for the specified time period.
+    All monetary values are in Kenyan Shillings (KES).
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"cardName": "Wanjiku Mwangi", "salesAmount": 123456.78, "grossProfit": 23456.78}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
+    """
+    df = await fetch_sales_data(start_date, end_date)
+    if df.is_empty():
+        return envelope([], request)
+    result_df = (
+        df.lazy()
+        .group_by("CardName")
+        .agg(
+            [
+                pl.sum("grossRevenue").alias("salesAmount"),
+                (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("grossProfit"),
+            ]
+        )
+        .sort("salesAmount", descending=True)
+        .head(n)
+        .collect()
+    )
     result = [
         {
-            "CardName": f"Customer {i+1}",
-            "total_revenue": 100000 - i * 10000,
-            "transaction_count": 20 - i,
-            "average_purchase_value": round((100000 - i * 10000) / (20 - i), 2),
+            "cardName": row["CardName"],
+            "salesAmount": row["salesAmount"],
+            "grossProfit": row["grossProfit"],
         }
-        for i in range(n)
+        for row in result_df.to_dicts()
     ]
     return envelope(result, request)
 
@@ -804,19 +815,36 @@ async def margin_trends(
     request: Request,
     start_date: str = Query("2024-06-01"),
     end_date: str = Query("2024-06-30"),
-    mock_data: bool = Query(True),
 ):
-    # Return mock margin trends (monthly)
-    import datetime
+    """
+    Calculate margin trends for the specified time period.
 
-    base = datetime.date(2024, 1, 1)
-    result = [
-        {
-            "date": (base.replace(month=((i % 12) + 1))).strftime("%Y-%m"),
-            "margin": 20 + i % 5,
-        }
-        for i in range(6)
-    ]
+    Returns a list of margin trends. All monetary values are in Kenyan Shillings (KES).
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"month_year": "2024-06", "gross_margin": 20.0}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
+    """
+    df = await fetch_sales_data(start_date, end_date)
+    if df.is_empty():
+        return envelope([], request)
+    result = kpi_service.calculate_margin_trends(df)
     return envelope(result, request)
 
 
@@ -826,16 +854,60 @@ async def profitability_by_dimension(
     dimension: str = Query("Branch"),
     start_date: str = Query("2024-06-01"),
     end_date: str = Query("2024-06-30"),
-    mock_data: bool = Query(True),
 ):
-    # Return mock profitability by dimension with correct fields
+    """
+    Calculate profitability by a specified dimension.
+
+    Returns a list of profitability metrics grouped by the dimension. All monetary values are in Kenyan Shillings (KES).
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"dimension": "Branch A", "gross_margin": 20.0, "gross_profit": 1000000.0}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
+    """
+    df = await fetch_sales_data(start_date, end_date)
+    if df.is_empty():
+        return envelope([], request)
+    group_col = dimension
+    result_df = (
+        df.lazy()
+        .group_by(group_col)
+        .agg(
+            [
+                (
+                    (pl.sum("grossRevenue") - pl.sum("totalCost"))
+                    / pl.sum("grossRevenue")
+                )
+                .round(4)
+                .alias("grossMargin"),
+                (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("grossProfit"),
+            ]
+        )
+        .sort("grossProfit", descending=True)
+        .collect()
+    )
     result = [
         {
-            dimension: f"{dimension} {i+1}",
-            "gross_margin": 20 + i * 2,
-            "gross_profit": 50000 + i * 5000,
+            "dimension": row[group_col],
+            "grossMargin": row["grossMargin"],
+            "grossProfit": row["grossProfit"],
         }
-        for i in range(5)
+        for row in result_df.to_dicts()
     ]
     return envelope(result, request)
 
@@ -845,15 +917,45 @@ async def returns_analysis(
     request: Request,
     start_date: str = Query("2024-06-01"),
     end_date: str = Query("2024-06-30"),
-    mock_data: bool = Query(True),
 ):
-    # Return mock returns analysis with correct fields
+    """
+    Analyze product returns for the specified time period.
+
+    Returns a list of reasons for returns and their counts. All monetary values are in Kenyan Shillings (KES).
+
+    Response Envelope:
+      - data: list of results
+      - error: null or error object
+      - metadata: {"requestId": str}
+
+    *Response Format:*
+    *```json
+    {
+        "data": [
+            {"reason": "Damaged", "count": 5}
+        ],
+        "error": null,
+        "metadata": {"requestId": "string"}
+    }
+    ```*
+
+    Error Responses:
+      - 400: User error (e.g., invalid date, no data)
+      - 500: Internal server error
+    """
+    df = await fetch_sales_data(start_date, end_date)
+    if df.is_empty() or "returnsValue" not in df.columns:
+        return envelope([], request)
+    result_df = (
+        df.lazy()
+        .filter(pl.col("returnsValue") > 0)
+        .group_by("ItemName")
+        .agg(pl.count().alias("count"))
+        .sort("count", descending=True)
+        .collect()
+    )
     result = [
-        {
-            "ItemName": f"Product {i+1}",
-            "returns_value_pct": round(0.05 + i * 0.01, 3),
-            "units_returned_pct": round(0.02 + i * 0.005, 3),
-        }
-        for i in range(5)
+        {"reason": row["ItemName"], "count": row["count"]}
+        for row in result_df.to_dicts()
     ]
     return envelope(result, request)

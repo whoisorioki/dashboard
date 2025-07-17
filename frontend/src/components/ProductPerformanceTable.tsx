@@ -14,13 +14,10 @@ import {
 } from "@mui/material";
 import { useProductAnalyticsQuery } from "../queries/productAnalytics.generated";
 import { ProductAnalytics } from "../types/graphql";
-import { graphqlClient } from "../graphqlClient";
+import { graphqlClient } from "../lib/graphqlClient";
 
 const ProductPerformanceTable: React.FC = () => {
-  const { data, isLoading, error } = useProductAnalyticsQuery(
-    graphqlClient,
-    {}
-  );
+  const { data, isLoading, error } = useProductAnalyticsQuery(graphqlClient, {});
   const products = Array.isArray(data?.productAnalytics)
     ? [...data.productAnalytics]
     : [];

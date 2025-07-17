@@ -1,9 +1,9 @@
 # Branch Growth Query
 query BranchGrowth($startDate: String, $endDate: String) {
   branchGrowth(startDate: $startDate, endDate: $endDate) {
-    branch
-    monthYear
-    monthlySales
-    growthPct
+    Branch
+    month_year
+    monthly_sales
+    growth_pct
   }
 }

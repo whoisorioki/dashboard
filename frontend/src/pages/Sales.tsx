@@ -36,7 +36,7 @@ import KpiCard from "../components/KpiCard";
 import MonthlySalesTrendChart from "../components/MonthlySalesTrendChart";
 import { useSalesPerformanceQuery } from "../queries/salesPerformance.generated";
 import { useRevenueSummaryQuery } from "../queries/revenueSummary.generated";
-import { graphqlClient } from "../graphqlClient";
+import { graphqlClient } from "../lib/graphqlClient";
 import { useFilters } from "../context/FilterContext";
 import ChartEmptyState from "../components/states/ChartEmptyState";
 
@@ -51,12 +51,15 @@ const Sales = () => {
     data: salesData,
     error: salesError,
     isLoading: salesLoading,
-  } = useSalesPerformanceQuery(graphqlClient, {
-    startDate: start_date,
-    endDate: end_date,
-    branch: selected_branch !== "all" ? selected_branch : undefined,
-    productLine:
-      selected_product_line !== "all" ? selected_product_line : undefined,
+  } = useSalesPerformanceQuery({
+    client: graphqlClient,
+    variables: {
+      startDate: start_date,
+      endDate: end_date,
+      branch: selected_branch !== "all" ? selected_branch : undefined,
+      productLine:
+        selected_product_line !== "all" ? selected_product_line : undefined,
+    },
   });
 
   // Fetch revenue summary data
@@ -64,12 +67,15 @@ const Sales = () => {
     data: revenueSummary,
     error: revenueError,
     isLoading: revenueLoading,
-  } = useRevenueSummaryQuery(graphqlClient, {
-    startDate: start_date,
-    endDate: end_date,
-    branch: selected_branch !== "all" ? selected_branch : undefined,
-    productLine:
-      selected_product_line !== "all" ? selected_product_line : undefined,
+  } = useRevenueSummaryQuery({
+    client: graphqlClient,
+    variables: {
+      startDate: start_date,
+      endDate: end_date,
+      branch: selected_branch !== "all" ? selected_branch : undefined,
+      productLine:
+        selected_product_line !== "all" ? selected_product_line : undefined,
+    },
   });
 
   const safeSalesData = Array.isArray(salesData) ? salesData : [];

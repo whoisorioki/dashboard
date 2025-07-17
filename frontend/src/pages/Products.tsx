@@ -36,7 +36,7 @@ import ProductPerformanceChart from "../components/ProductPerformanceChart";
 import { useFilters } from "../context/FilterContext";
 import { useProductAnalyticsQuery } from "../queries/productAnalytics.generated";
 import { useRevenueSummaryQuery } from "../queries/revenueSummary.generated";
-import { graphqlClient } from "../graphqlClient";
+import { graphqlClient } from "../lib/graphqlClient";
 import ChartEmptyState from "../components/states/ChartEmptyState";
 
 const Products = () => {
@@ -51,12 +51,15 @@ const Products = () => {
     data: productData,
     error: productError,
     isLoading: productLoading,
-  } = useProductAnalyticsQuery(graphqlClient, {
-    startDate: start_date,
-    endDate: end_date,
-    branch: selected_branch !== "all" ? selected_branch : undefined,
-    productLine:
-      selected_product_line !== "all" ? selected_product_line : undefined,
+  } = useProductAnalyticsQuery({
+    client: graphqlClient,
+    variables: {
+      startDate: start_date,
+      endDate: end_date,
+      branch: selected_branch !== "all" ? selected_branch : undefined,
+      productLine:
+        selected_product_line !== "all" ? selected_product_line : undefined,
+    },
   });
   const safeProductData = Array.isArray(productData) ? productData : [];
 
@@ -65,12 +68,15 @@ const Products = () => {
     data: revenueSummary,
     error: revenueError,
     isLoading: revenueLoading,
-  } = useRevenueSummaryQuery(graphqlClient, {
-    startDate: start_date,
-    endDate: end_date,
-    branch: selected_branch !== "all" ? selected_branch : undefined,
-    productLine:
-      selected_product_line !== "all" ? selected_product_line : undefined,
+  } = useRevenueSummaryQuery({
+    client: graphqlClient,
+    variables: {
+      startDate: start_date,
+      endDate: end_date,
+      branch: selected_branch !== "all" ? selected_branch : undefined,
+      productLine:
+        selected_product_line !== "all" ? selected_product_line : undefined,
+    },
   });
 
   const formatCurrency = (value: number) => {

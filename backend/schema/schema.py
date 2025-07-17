@@ -127,7 +127,46 @@ class ReturnsAnalysisEntry:
 
 @strawberry.type
 class TopCustomerEntry:
-    acct_name: str = strawberry.field(name="acctName")
+    card_name: str = strawberry.field(name="cardName")
+    sales_amount: float = strawberry.field(name="salesAmount")
+    gross_profit: float = strawberry.field(name="grossProfit")
+
+
+@strawberry.type
+class BranchListEntry:
+    branch: str
+
+
+@strawberry.type
+class MarginTrendEntry:
+    date: str
+    margin_pct: float = strawberry.field(name="marginPct")
+
+
+@strawberry.type
+class ProductProfitabilityEntry:
+    product_line: str = strawberry.field(name="productLine")
+    item_name: str = strawberry.field(name="itemName")
+    gross_profit: float = strawberry.field(name="grossProfit")
+
+
+@strawberry.type
+class SalespersonLeaderboardEntry:
+    salesperson: str
+    sales_amount: float = strawberry.field(name="salesAmount")
+    gross_profit: float = strawberry.field(name="grossProfit")
+
+
+@strawberry.type
+class SalespersonProductMixEntry:
+    salesperson: str
+    product_line: str = strawberry.field(name="productLine")
+    avg_profit_margin: float = strawberry.field(name="avgProfitMargin")
+
+
+@strawberry.type
+class CustomerValueEntry:
+    card_name: str = strawberry.field(name="cardName")
     sales_amount: float = strawberry.field(name="salesAmount")
     gross_profit: float = strawberry.field(name="grossProfit")
 
@@ -275,7 +314,7 @@ class Query:
         return [ReturnsAnalysisEntry(reason="Damaged", count=5)]
 
     @strawberry.field
-    def top_customers(
+    async def top_customers(
         self,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
@@ -285,13 +324,147 @@ class Query:
         sales_persons: Optional[List[str]] = None,
         branch_names: Optional[List[str]] = None,
         product_line: Optional[str] = None,
-        mock_data: Optional[bool] = False,
     ) -> List[TopCustomerEntry]:
-        # Replace with real logic
+        from backend.services.sales_data import fetch_sales_data
+        import polars as pl
+        import datetime
+        # Provide default dates if not supplied
+        today = datetime.date.today().isoformat()
+        start = start_date or today
+        end = end_date or today
+        df = await fetch_sales_data(
+            start_date=start,
+            end_date=end,
+            item_names=item_names,
+            sales_persons=sales_persons,
+            branch_names=branch_names,
+        )
+        if product_line and product_line != "all":
+            df = df.filter(pl.col("ProductLine") == product_line)
+        if df.is_empty():
+            return []
+        n_val = n if n is not None else 5
+        result_df = (
+            df.lazy()
+            .group_by("CardName")
+            .agg(
+                [
+                    pl.sum("grossRevenue").alias("salesAmount"),
+                    (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("grossProfit"),
+                ]
+            )
+            .sort("salesAmount", descending=True)
+            .head(n_val)
+            .collect()
+        )
         return [
             TopCustomerEntry(
-                acct_name="Acme Corp", sales_amount=123456.78, gross_profit=23456.78
+                card_name=row["CardName"],
+                sales_amount=row["salesAmount"],
+                gross_profit=row["grossProfit"],
             )
+            for row in result_df.to_dicts()
+        ]
+
+    @strawberry.field
+    def branch_list(
+        self, start_date: Optional[str] = None, end_date: Optional[str] = None
+    ) -> List[BranchListEntry]:
+        return [BranchListEntry(branch="Nairobi"), BranchListEntry(branch="Mombasa")]
+
+    @strawberry.field
+    def margin_trends(
+        self, start_date: Optional[str] = None, end_date: Optional[str] = None
+    ) -> List[MarginTrendEntry]:
+        return [MarginTrendEntry(date="2024-06-01", margin_pct=12.5)]
+
+    @strawberry.field
+    def product_profitability(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        branch: Optional[str] = None,
+    ) -> List[ProductProfitabilityEntry]:
+        return [
+            ProductProfitabilityEntry(
+                product_line="TVs", item_name="Samsung QLED", gross_profit=10000.0
+            )
+        ]
+
+    @strawberry.field
+    def salesperson_leaderboard(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        branch: Optional[str] = None,
+    ) -> List[SalespersonLeaderboardEntry]:
+        return [
+            SalespersonLeaderboardEntry(
+                salesperson="Jane Doe", sales_amount=200000.0, gross_profit=50000.0
+            )
+        ]
+
+    @strawberry.field
+    def salesperson_product_mix(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        branch: Optional[str] = None,
+    ) -> List[SalespersonProductMixEntry]:
+        return [
+            SalespersonProductMixEntry(
+                salesperson="Jane Doe", product_line="TVs", avg_profit_margin=0.25
+            )
+        ]
+
+    @strawberry.field
+    async def customer_value(
+        self,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        item_names: Optional[List[str]] = None,
+        sales_persons: Optional[List[str]] = None,
+        branch_names: Optional[List[str]] = None,
+        branch: Optional[str] = None,
+        product_line: Optional[str] = None,
+    ) -> List[CustomerValueEntry]:
+        from backend.services.sales_data import fetch_sales_data
+        import polars as pl
+        import datetime
+        # Provide default dates if not supplied
+        today = datetime.date.today().isoformat()
+        start = start_date or today
+        end = end_date or today
+        df = await fetch_sales_data(
+            start_date=start,
+            end_date=end,
+            item_names=item_names,
+            sales_persons=sales_persons,
+            branch_names=branch_names,
+        )
+        if product_line and product_line != "all":
+            df = df.filter(pl.col("ProductLine") == product_line)
+        if df.is_empty():
+            return []
+        result_df = (
+            df.lazy()
+            .group_by("CardName")
+            .agg(
+                [
+                    pl.sum("grossRevenue").alias("salesAmount"),
+                    (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("grossProfit"),
+                ]
+            )
+            .sort("grossProfit", descending=True)
+            .collect()
+        )
+        return [
+            CustomerValueEntry(
+                card_name=row["CardName"],
+                sales_amount=row["salesAmount"],
+                gross_profit=row["grossProfit"],
+            )
+            for row in result_df.to_dicts()
         ]
 
 

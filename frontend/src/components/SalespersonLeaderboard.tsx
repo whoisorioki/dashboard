@@ -14,13 +14,10 @@ import {
 } from "@mui/material";
 import { useSalesPerformanceQuery } from "../queries/salesPerformance.generated";
 import { SalesPerformance } from "../types/graphql";
-import { graphqlClient } from "../graphqlClient";
+import { graphqlClient } from "../lib/graphqlClient";
 
 const SalespersonLeaderboard: React.FC = () => {
-  const { data, isLoading, error } = useSalesPerformanceQuery(
-    graphqlClient,
-    {}
-  );
+  const { data, isLoading, error } = useSalesPerformanceQuery(graphqlClient, {});
   const salespeople = Array.isArray(data?.salesPerformance)
     ? [...data.salesPerformance]
     : [];

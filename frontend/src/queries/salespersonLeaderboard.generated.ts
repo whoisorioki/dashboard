@@ -1,0 +1,53 @@
+import * as Types from '../types/graphql';
+
+import { GraphQLClient } from 'graphql-request';
+import { RequestInit } from 'graphql-request/dist/types.dom';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
+
+function fetcher<TData, TVariables extends { [key: string]: any }>(client: GraphQLClient, query: string, variables?: TVariables, requestHeaders?: RequestInit['headers']) {
+  return async (): Promise<TData> => client.request({
+    document: query,
+    variables,
+    requestHeaders
+  });
+}
+export type SalespersonLeaderboardQueryVariables = Types.Exact<{
+  startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
+}>;
+
+
+export type SalespersonLeaderboardQuery = { __typename?: 'Query', salespersonLeaderboard: Array<{ __typename?: 'SalespersonLeaderboardEntry', salesperson: string, salesAmount: number, grossProfit: number }> };
+
+
+
+export const SalespersonLeaderboardDocument = `
+    query SalespersonLeaderboard($startDate: String, $endDate: String, $branch: String) {
+  salespersonLeaderboard(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+  ) {
+    salesperson
+    salesAmount
+    grossProfit
+  }
+}
+    `;
+
+export const useSalespersonLeaderboardQuery = <
+      TData = SalespersonLeaderboardQuery,
+      TError = unknown
+    >(
+      client: GraphQLClient,
+      variables?: SalespersonLeaderboardQueryVariables,
+      options?: UseQueryOptions<SalespersonLeaderboardQuery, TError, TData>,
+      headers?: RequestInit['headers']
+    ) => {
+    
+    return useQuery<SalespersonLeaderboardQuery, TError, TData>(
+      variables === undefined ? ['SalespersonLeaderboard'] : ['SalespersonLeaderboard', variables],
+      fetcher<SalespersonLeaderboardQuery, SalespersonLeaderboardQueryVariables>(client, SalespersonLeaderboardDocument, variables, headers),
+      options
+    )};

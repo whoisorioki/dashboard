@@ -12,24 +12,16 @@ import {
   TableBody,
   CircularProgress,
 } from "@mui/material";
-import { useProductAnalyticsQuery } from "../queries/productAnalytics.generated";
-import { ProductAnalytics } from "../types/graphql";
-import { graphqlClient } from "../graphqlClient";
+import { useCustomerValueQuery } from "../queries/customerValue.generated";
+import { graphqlClient } from "../lib/graphqlClient";
 
 const CustomerValueTable: React.FC = () => {
-  const { data, isLoading, error } = useProductAnalyticsQuery(
-    graphqlClient,
-    {}
-  );
-  const customers = Array.isArray(data?.productAnalytics)
-    ? [...data.productAnalytics]
+  const { data, isLoading, error } = useCustomerValueQuery(graphqlClient, {});
+  const customers = Array.isArray(data?.customerValue)
+    ? [...data.customerValue]
     : [];
-  // Sort by grossProfit descending (if available), fallback to totalSales
-  const sorted = customers.sort(
-    (a, b) =>
-      (b as any).grossProfit - (a as any).grossProfit ||
-      b.totalSales - a.totalSales
-  );
+  // Sort by grossProfit descending
+  const sorted = customers.sort((a, b) => b.grossProfit - a.grossProfit);
   const topCustomers = sorted.slice(0, 5);
 
   if (isLoading)
@@ -70,12 +62,10 @@ const CustomerValueTable: React.FC = () => {
             </TableHead>
             <TableBody>
               {topCustomers.map((row, index) => (
-                <TableRow key={`${row.itemName}-${index}`}>
-                  <TableCell>{row.itemName}</TableCell>
-                  <TableCell>{row.totalSales.toLocaleString()}</TableCell>
-                  <TableCell>
-                    {(row as any).grossProfit?.toLocaleString() ?? "-"}
-                  </TableCell>
+                <TableRow key={`${row.cardName}-${index}`}>
+                  <TableCell>{row.cardName}</TableCell>
+                  <TableCell>{row.salesAmount.toLocaleString()}</TableCell>
+                  <TableCell>{row.grossProfit.toLocaleString()}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

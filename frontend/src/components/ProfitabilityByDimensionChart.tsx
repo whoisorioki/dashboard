@@ -18,7 +18,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { useProfitabilityByDimensionQuery } from "../queries/profitabilityByDimension.generated";
-import { graphqlClient } from "../graphqlClient";
+import { graphqlClient } from "../lib/graphqlClient";
 import { useFilters } from "../context/FilterContext";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
 import ChartEmptyState from "./states/ChartEmptyState";
@@ -34,14 +34,11 @@ const ProfitabilityByDimensionChart: React.FC<
   ProfitabilityByDimensionChartProps
 > = ({ startDate, endDate }) => {
   const [dimension, setDimension] = useState("Branch");
-  const { data, error, isLoading, refetch } = useProfitabilityByDimensionQuery(
-    graphqlClient,
-    {
-      dimension,
-      startDate,
-      endDate,
-    }
-  );
+  const { data, error, isLoading, refetch } = useProfitabilityByDimensionQuery(graphqlClient, {
+    dimension,
+    startDate,
+    endDate,
+  });
 
   if (isLoading) {
     return (

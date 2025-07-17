@@ -14,6 +14,7 @@ function fetcher<TData, TVariables extends { [key: string]: any }>(client: Graph
 export type ProductPerformanceQueryVariables = Types.Exact<{
   startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  n?: Types.InputMaybe<Types.Scalars['Int']['input']>;
 }>;
 
 
@@ -22,8 +23,8 @@ export type ProductPerformanceQuery = { __typename?: 'Query', productPerformance
 
 
 export const ProductPerformanceDocument = `
-    query ProductPerformance($startDate: String, $endDate: String) {
-  productPerformance(startDate: $startDate, endDate: $endDate) {
+    query ProductPerformance($startDate: String, $endDate: String, $n: Int) {
+  productPerformance(startDate: $startDate, endDate: $endDate, n: $n) {
     product
     sales
   }

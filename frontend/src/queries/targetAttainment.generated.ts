@@ -14,18 +14,20 @@ function fetcher<TData, TVariables extends { [key: string]: any }>(client: Graph
 export type TargetAttainmentQueryVariables = Types.Exact<{
   startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  target?: Types.InputMaybe<Types.Scalars['Float']['input']>;
 }>;
 
 
-export type TargetAttainmentQuery = { __typename?: 'Query', targetAttainment: { __typename?: 'TargetAttainment', attainmentPercentage: number, totalSales: number } };
+export type TargetAttainmentQuery = { __typename?: 'Query', targetAttainment: { __typename?: 'TargetAttainment', attainmentPercentage: number, totalSales: number, target: number } };
 
 
 
 export const TargetAttainmentDocument = `
-    query TargetAttainment($startDate: String, $endDate: String) {
-  targetAttainment(startDate: $startDate, endDate: $endDate) {
+    query TargetAttainment($startDate: String, $endDate: String, $target: Float) {
+  targetAttainment(startDate: $startDate, endDate: $endDate, target: $target) {
     attainmentPercentage
     totalSales
+    target
   }
 }
     `;
