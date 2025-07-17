@@ -37,12 +37,14 @@ export const useCustomerValueQuery = <
     >(
       client: GraphQLClient,
       variables?: CustomerValueQueryVariables,
-      options?: UseQueryOptions<CustomerValueQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<CustomerValueQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<CustomerValueQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<CustomerValueQuery, TError, TData>(
-      variables === undefined ? ['CustomerValue'] : ['CustomerValue', variables],
-      fetcher<CustomerValueQuery, CustomerValueQueryVariables>(client, CustomerValueDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['CustomerValue'] : ['CustomerValue', variables],
+    queryFn: fetcher<CustomerValueQuery, CustomerValueQueryVariables>(client, CustomerValueDocument, variables, headers),
+    ...options
+  }
     )};

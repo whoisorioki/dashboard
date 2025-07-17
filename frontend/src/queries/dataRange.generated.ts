@@ -34,12 +34,14 @@ export const useDataRangeQuery = <
     >(
       client: GraphQLClient,
       variables?: DataRangeQueryVariables,
-      options?: UseQueryOptions<DataRangeQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<DataRangeQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<DataRangeQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<DataRangeQuery, TError, TData>(
-      variables === undefined ? ['DataRange'] : ['DataRange', variables],
-      fetcher<DataRangeQuery, DataRangeQueryVariables>(client, DataRangeDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['DataRange'] : ['DataRange', variables],
+    queryFn: fetcher<DataRangeQuery, DataRangeQueryVariables>(client, DataRangeDocument, variables, headers),
+    ...options
+  }
     )};

@@ -36,12 +36,14 @@ export const useMarginTrendsQuery = <
     >(
       client: GraphQLClient,
       variables?: MarginTrendsQueryVariables,
-      options?: UseQueryOptions<MarginTrendsQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<MarginTrendsQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<MarginTrendsQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<MarginTrendsQuery, TError, TData>(
-      variables === undefined ? ['MarginTrends'] : ['MarginTrends', variables],
-      fetcher<MarginTrendsQuery, MarginTrendsQueryVariables>(client, MarginTrendsDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['MarginTrends'] : ['MarginTrends', variables],
+    queryFn: fetcher<MarginTrendsQuery, MarginTrendsQueryVariables>(client, MarginTrendsDocument, variables, headers),
+    ...options
+  }
     )};

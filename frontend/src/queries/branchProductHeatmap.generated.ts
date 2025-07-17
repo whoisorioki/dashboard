@@ -37,12 +37,14 @@ export const useBranchProductHeatmapQuery = <
     >(
       client: GraphQLClient,
       variables?: BranchProductHeatmapQueryVariables,
-      options?: UseQueryOptions<BranchProductHeatmapQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<BranchProductHeatmapQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<BranchProductHeatmapQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<BranchProductHeatmapQuery, TError, TData>(
-      variables === undefined ? ['BranchProductHeatmap'] : ['BranchProductHeatmap', variables],
-      fetcher<BranchProductHeatmapQuery, BranchProductHeatmapQueryVariables>(client, BranchProductHeatmapDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['BranchProductHeatmap'] : ['BranchProductHeatmap', variables],
+    queryFn: fetcher<BranchProductHeatmapQuery, BranchProductHeatmapQueryVariables>(client, BranchProductHeatmapDocument, variables, headers),
+    ...options
+  }
     )};

@@ -51,15 +51,12 @@ const Products = () => {
     data: productData,
     error: productError,
     isLoading: productLoading,
-  } = useProductAnalyticsQuery({
-    client: graphqlClient,
-    variables: {
-      startDate: start_date,
-      endDate: end_date,
-      branch: selected_branch !== "all" ? selected_branch : undefined,
-      productLine:
-        selected_product_line !== "all" ? selected_product_line : undefined,
-    },
+  } = useProductAnalyticsQuery(graphqlClient, {
+    startDate: start_date,
+    endDate: end_date,
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+    productLine:
+      selected_product_line !== "all" ? selected_product_line : undefined,
   });
   const safeProductData = Array.isArray(productData) ? productData : [];
 
@@ -68,15 +65,12 @@ const Products = () => {
     data: revenueSummary,
     error: revenueError,
     isLoading: revenueLoading,
-  } = useRevenueSummaryQuery({
-    client: graphqlClient,
-    variables: {
-      startDate: start_date,
-      endDate: end_date,
-      branch: selected_branch !== "all" ? selected_branch : undefined,
-      productLine:
-        selected_product_line !== "all" ? selected_product_line : undefined,
-    },
+  } = useRevenueSummaryQuery(graphqlClient, {
+    startDate: start_date,
+    endDate: end_date,
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+    productLine:
+      selected_product_line !== "all" ? selected_product_line : undefined,
   });
 
   const formatCurrency = (value: number) => {
@@ -138,8 +132,6 @@ const Products = () => {
   const uniqueProductLines = [
     ...new Set(safeProductData.map((p) => p.productLine) || []),
   ];
-
-  const isUsingMockData = false; // Removed usingMockProductAnalytics and usingMockRevenueSummary
 
   // Show loading state
   if (productLoading || revenueLoading) {

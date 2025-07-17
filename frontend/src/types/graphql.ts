@@ -438,7 +438,6 @@ export type ReturnsAnalysisQueryVariables = Exact<{
   branchNames?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
   branch?: InputMaybe<Scalars['String']['input']>;
   productLine?: InputMaybe<Scalars['String']['input']>;
-  mockData?: InputMaybe<Scalars['Boolean']['input']>;
 }>;
 
 
@@ -450,7 +449,7 @@ export type RevenueSummaryQueryVariables = Exact<{
 }>;
 
 
-export type RevenueSummaryQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue: number, grossProfit: number, netProfit: number, totalTransactions: number, averageTransaction: number, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number } };
+export type RevenueSummaryQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue: number, totalTransactions: number, averageTransaction: number, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number } };
 
 export type SalesPerformanceQueryVariables = Exact<{
   startDate?: InputMaybe<Scalars['String']['input']>;
@@ -485,7 +484,7 @@ export type TargetAttainmentQueryVariables = Exact<{
 }>;
 
 
-export type TargetAttainmentQuery = { __typename?: 'Query', targetAttainment: { __typename?: 'TargetAttainment', attainmentPercentage: number, totalSales: number, target: number } };
+export type TargetAttainmentQuery = { __typename?: 'Query', targetAttainment: { __typename?: 'TargetAttainment', totalSales: number, attainmentPercentage: number } };
 
 export type TopCustomersQueryVariables = Exact<{
   startDate?: InputMaybe<Scalars['String']['input']>;

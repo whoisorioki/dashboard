@@ -1,6 +1,6 @@
 import strawberry
 from typing import List, Optional
-from backend.services.sales_data import fetch_sales_data
+from backend.services.sales_data import fetch_sales_data, get_data_range_from_druid
 from backend.services.kpi_service import calculate_revenue_summary
 import asyncio
 import datetime
@@ -155,6 +155,8 @@ class SalespersonLeaderboardEntry:
     salesperson: str
     sales_amount: float = strawberry.field(name="salesAmount")
     gross_profit: float = strawberry.field(name="grossProfit")
+    quota: float = strawberry.field(name="quota")
+    attainment_percentage: float = strawberry.field(name="attainmentPercentage")
 
 
 @strawberry.type
@@ -173,6 +175,10 @@ class CustomerValueEntry:
 
 @strawberry.type
 class Query:
+    def _get_default_dates(self):
+        data_range = get_data_range_from_druid()
+        return data_range.get('earliest_date'), data_range.get('latest_date')
+
     @strawberry.field
     def monthly_sales_growth(
         self,
@@ -263,10 +269,9 @@ class Query:
         branch: Optional[str] = None,
         product_line: Optional[str] = None,
     ) -> RevenueSummary:
-        # Provide default dates if not supplied
-        today = datetime.date.today().isoformat()
-        start = start_date or today
-        end = end_date or today
+        default_start, default_end = self._get_default_dates()
+        start = start_date or (default_start if isinstance(default_start, str) and default_start else '1970-01-01T00:00:00.000Z')
+        end = end_date or (default_end if isinstance(default_end, str) and default_end else '2100-01-01T00:00:00.000Z')
         df = await fetch_sales_data(start, end)
         summary = calculate_revenue_summary(df)
         return RevenueSummary(
@@ -281,7 +286,7 @@ class Query:
         )
 
     @strawberry.field
-    def profitability_by_dimension(
+    async def profitability_by_dimension(
         self,
         dimension: str,
         start_date: Optional[str] = None,
@@ -289,7 +294,38 @@ class Query:
         branch: Optional[str] = None,
         product_line: Optional[str] = None,
     ) -> List[ProfitabilityByDimension]:
-        return []
+        from backend.services.sales_data import fetch_sales_data
+        import polars as pl
+        import datetime
+        today = datetime.date.today().isoformat()
+        start = start_date or today
+        end = end_date or today
+        df = await fetch_sales_data(
+            start_date=start,
+            end_date=end,
+            branch_names=[branch] if branch else None,
+        )
+        if product_line and product_line != "all":
+            df = df.filter(pl.col("ProductLine") == product_line)
+        if df.is_empty() or dimension not in df.columns:
+            return []
+        result_df = (
+            df.lazy()
+            .group_by(dimension)
+            .agg([
+                (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("gross_profit"),
+                (pl.sum("grossRevenue") / pl.sum("totalCost") - 1).alias("gross_margin"),
+            ])
+            .collect()
+        )
+        return [
+            ProfitabilityByDimension(
+                **{dimension: row[dimension]},
+                gross_profit=row["gross_profit"],
+                gross_margin=row["gross_margin"],
+            )
+            for row in result_df.to_dicts()
+        ]
 
     @strawberry.field
     def data_range(self) -> DataRange:
@@ -299,7 +335,7 @@ class Query:
         )
 
     @strawberry.field
-    def returns_analysis(
+    async def returns_analysis(
         self,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
@@ -310,8 +346,36 @@ class Query:
         product_line: Optional[str] = None,
         mock_data: Optional[bool] = False,
     ) -> List[ReturnsAnalysisEntry]:
-        # Replace with real logic
-        return [ReturnsAnalysisEntry(reason="Damaged", count=5)]
+        from backend.services.sales_data import fetch_sales_data
+        import polars as pl
+        import datetime
+        today = datetime.date.today().isoformat()
+        start = start_date or today
+        end = end_date or today
+        df = await fetch_sales_data(
+            start_date=start,
+            end_date=end,
+            item_names=item_names,
+            sales_persons=sales_persons,
+            branch_names=branch_names or ([branch] if branch else None),
+        )
+        if product_line and product_line != "all":
+            df = df.filter(pl.col("ProductLine") == product_line)
+        if df.is_empty() or "returnsValue" not in df.columns:
+            return []
+        # Assume returns reason is not available, so group by ItemName as a proxy
+        result_df = (
+            df.lazy()
+            .filter(pl.col("returnsValue") > 0)
+            .group_by("ItemName")
+            .agg([
+                pl.count().alias("count"),
+            ])
+            .collect()
+        )
+        return [
+            ReturnsAnalysisEntry(reason=row["ItemName"], count=row["count"]) for row in result_df.to_dicts()
+        ]
 
     @strawberry.field
     async def top_customers(
@@ -367,54 +431,153 @@ class Query:
         ]
 
     @strawberry.field
-    def branch_list(
+    async def branch_list(
         self, start_date: Optional[str] = None, end_date: Optional[str] = None
     ) -> List[BranchListEntry]:
-        return [BranchListEntry(branch="Nairobi"), BranchListEntry(branch="Mombasa")]
+        from backend.services.sales_data import fetch_sales_data
+        import polars as pl
+        import datetime
+        today = datetime.date.today().isoformat()
+        start = start_date or today
+        end = end_date or today
+        df = await fetch_sales_data(start_date=start, end_date=end)
+        if df.is_empty() or "Branch" not in df.columns:
+            return []
+        branches = df["Branch"].unique().to_list()
+        return [BranchListEntry(branch=b) for b in branches]
 
     @strawberry.field
-    def margin_trends(
+    async def margin_trends(
         self, start_date: Optional[str] = None, end_date: Optional[str] = None
     ) -> List[MarginTrendEntry]:
-        return [MarginTrendEntry(date="2024-06-01", margin_pct=12.5)]
+        from backend.services.sales_data import fetch_sales_data
+        import polars as pl
+        import datetime
+        today = datetime.date.today().isoformat()
+        start = start_date or today
+        end = end_date or today
+        df = await fetch_sales_data(start_date=start, end_date=end)
+        if df.is_empty() or "__time" not in df.columns:
+            return []
+        df = df.with_columns([
+            pl.col("__time").cast(pl.Datetime).dt.strftime("%Y-%m-%d").alias("date"),
+            ((pl.col("grossRevenue") - pl.col("totalCost")) / pl.col("grossRevenue")).alias("margin_pct"),
+        ])
+        result_df = (
+            df.lazy()
+            .group_by("date")
+            .agg([
+                pl.mean("margin_pct").alias("margin_pct"),
+            ])
+            .sort("date")
+            .collect()
+        )
+        return [MarginTrendEntry(date=row["date"], margin_pct=row["margin_pct"]) for row in result_df.to_dicts()]
 
     @strawberry.field
-    def product_profitability(
+    async def product_profitability(
         self,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         branch: Optional[str] = None,
     ) -> List[ProductProfitabilityEntry]:
+        from backend.services.sales_data import fetch_sales_data
+        import polars as pl
+        import datetime
+        today = datetime.date.today().isoformat()
+        start = start_date or today
+        end = end_date or today
+        df = await fetch_sales_data(start_date=start, end_date=end, branch_names=[branch] if branch else None)
+        if df.is_empty():
+            return []
+        result_df = (
+            df.lazy()
+            .group_by(["ProductLine", "ItemName"])
+            .agg([
+                (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("gross_profit"),
+            ])
+            .sort("gross_profit", descending=True)
+            .collect()
+        )
         return [
             ProductProfitabilityEntry(
-                product_line="TVs", item_name="Samsung QLED", gross_profit=10000.0
+                product_line=row["ProductLine"],
+                item_name=row["ItemName"],
+                gross_profit=row["gross_profit"],
             )
+            for row in result_df.to_dicts()
         ]
 
     @strawberry.field
-    def salesperson_leaderboard(
+    async def salesperson_leaderboard(
         self,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         branch: Optional[str] = None,
     ) -> List[SalespersonLeaderboardEntry]:
+        from backend.services.sales_data import fetch_sales_data, get_employee_quotas
+        import polars as pl
+        import datetime
+        today = datetime.date.today().isoformat()
+        start = start_date or today
+        end = end_date or today
+        df = await fetch_sales_data(start_date=start, end_date=end, branch_names=[branch] if branch else None)
+        if df.is_empty():
+            return []
+        quotas_df = get_employee_quotas(start, end)
+        leaderboard = (
+            df.lazy()
+            .group_by("SalesPerson")
+            .agg([
+                pl.sum("grossRevenue").alias("sales_amount"),
+                (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("gross_profit"),
+            ])
+            .collect()
+        )
+        # Join quotas
+        leaderboard = leaderboard.join(quotas_df, on="SalesPerson", how="left")
         return [
             SalespersonLeaderboardEntry(
-                salesperson="Jane Doe", sales_amount=200000.0, gross_profit=50000.0
+                salesperson=row["SalesPerson"],
+                sales_amount=row["sales_amount"],
+                gross_profit=row["gross_profit"],
+                quota=row["quota"] if row["quota"] is not None else 0.0,
+                attainment_percentage=(row["sales_amount"] / row["quota"] * 100) if row["quota"] else 0.0,
             )
+            for row in leaderboard.to_dicts()
         ]
 
     @strawberry.field
-    def salesperson_product_mix(
+    async def salesperson_product_mix(
         self,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         branch: Optional[str] = None,
     ) -> List[SalespersonProductMixEntry]:
+        from backend.services.sales_data import fetch_sales_data
+        import polars as pl
+        import datetime
+        today = datetime.date.today().isoformat()
+        start = start_date or today
+        end = end_date or today
+        df = await fetch_sales_data(start_date=start, end_date=end, branch_names=[branch] if branch else None)
+        if df.is_empty():
+            return []
+        result_df = (
+            df.lazy()
+            .group_by(["SalesPerson", "ProductLine"])
+            .agg([
+                ((pl.sum("grossRevenue") - pl.sum("totalCost")) / pl.sum("grossRevenue")).alias("avg_profit_margin"),
+            ])
+            .collect()
+        )
         return [
             SalespersonProductMixEntry(
-                salesperson="Jane Doe", product_line="TVs", avg_profit_margin=0.25
+                salesperson=row["SalesPerson"],
+                product_line=row["ProductLine"],
+                avg_profit_margin=row["avg_profit_margin"],
             )
+            for row in result_df.to_dicts()
         ]
 
     @strawberry.field

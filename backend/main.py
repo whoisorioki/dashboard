@@ -47,7 +47,6 @@ app = FastAPI(
     - **Sales Analytics**: Comprehensive sales performance metrics and KPIs
     - **Branch Performance**: Multi-branch analysis and comparison
     - **Product Analytics**: Product performance and profitability insights
-    - **Real-time Data**: Live data from Apache Druid with fallback to mock data
     - **Multi-dimensional Filtering**: Filter by date ranges, branches, products, and sales personnel
     
     ## Authentication
@@ -55,7 +54,6 @@ app = FastAPI(
     
     ## Data Sources
     - Primary: Apache Druid for real-time analytics
-    - Fallback: Mock data when Druid is unavailable
     - All monetary values are in Kenyan Shillings (KES)
     
     ## API Structure

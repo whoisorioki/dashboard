@@ -52,15 +52,12 @@ const Branches = () => {
     data: branchPerformanceData,
     error: branchError,
     isLoading: branchLoading,
-  } = useBranchPerformanceQuery({
-    client: graphqlClient,
-    variables: {
-      startDate: start_date,
-      endDate: end_date,
-      branch: selected_branch !== "all" ? selected_branch : undefined,
-      productLine:
-        selected_product_line !== "all" ? selected_product_line : undefined,
-    },
+  } = useBranchPerformanceQuery(graphqlClient, {
+    startDate: start_date,
+    endDate: end_date,
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+    productLine:
+      selected_product_line !== "all" ? selected_product_line : undefined,
   });
   const safeBranchPerformanceData = Array.isArray(branchPerformanceData)
     ? branchPerformanceData
@@ -71,15 +68,12 @@ const Branches = () => {
     data: branchGrowthData,
     error: growthError,
     isLoading: growthLoading,
-  } = useBranchGrowthQuery({
-    client: graphqlClient,
-    variables: {
-      startDate: start_date,
-      endDate: end_date,
-      branch: selected_branch !== "all" ? selected_branch : undefined,
-      productLine:
-        selected_product_line !== "all" ? selected_product_line : undefined,
-    },
+  } = useBranchGrowthQuery(graphqlClient, {
+    startDate: start_date,
+    endDate: end_date,
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+    productLine:
+      selected_product_line !== "all" ? selected_product_line : undefined,
   });
   const safeBranchGrowthData = Array.isArray(branchGrowthData)
     ? branchGrowthData

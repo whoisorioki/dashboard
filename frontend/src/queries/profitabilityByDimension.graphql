@@ -8,7 +8,9 @@ query ProfitabilityByDimension(
     startDate: $startDate
     endDate: $endDate
   ) {
-    dimension
+    branch
+    productLine
+    itemGroup
     grossMargin
     grossProfit
   }

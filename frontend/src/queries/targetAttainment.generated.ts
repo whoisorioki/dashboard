@@ -18,16 +18,15 @@ export type TargetAttainmentQueryVariables = Types.Exact<{
 }>;
 
 
-export type TargetAttainmentQuery = { __typename?: 'Query', targetAttainment: { __typename?: 'TargetAttainment', attainmentPercentage: number, totalSales: number, target: number } };
+export type TargetAttainmentQuery = { __typename?: 'Query', targetAttainment: { __typename?: 'TargetAttainment', totalSales: number, attainmentPercentage: number } };
 
 
 
 export const TargetAttainmentDocument = `
     query TargetAttainment($startDate: String, $endDate: String, $target: Float) {
   targetAttainment(startDate: $startDate, endDate: $endDate, target: $target) {
-    attainmentPercentage
     totalSales
-    target
+    attainmentPercentage
   }
 }
     `;
@@ -38,12 +37,14 @@ export const useTargetAttainmentQuery = <
     >(
       client: GraphQLClient,
       variables?: TargetAttainmentQueryVariables,
-      options?: UseQueryOptions<TargetAttainmentQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<TargetAttainmentQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<TargetAttainmentQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<TargetAttainmentQuery, TError, TData>(
-      variables === undefined ? ['TargetAttainment'] : ['TargetAttainment', variables],
-      fetcher<TargetAttainmentQuery, TargetAttainmentQueryVariables>(client, TargetAttainmentDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['TargetAttainment'] : ['TargetAttainment', variables],
+    queryFn: fetcher<TargetAttainmentQuery, TargetAttainmentQueryVariables>(client, TargetAttainmentDocument, variables, headers),
+    ...options
+  }
     )};

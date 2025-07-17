@@ -52,12 +52,14 @@ export const useTopCustomersQuery = <
     >(
       client: GraphQLClient,
       variables?: TopCustomersQueryVariables,
-      options?: UseQueryOptions<TopCustomersQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<TopCustomersQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<TopCustomersQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<TopCustomersQuery, TError, TData>(
-      variables === undefined ? ['TopCustomers'] : ['TopCustomers', variables],
-      fetcher<TopCustomersQuery, TopCustomersQueryVariables>(client, TopCustomersDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['TopCustomers'] : ['TopCustomers', variables],
+    queryFn: fetcher<TopCustomersQuery, TopCustomersQueryVariables>(client, TopCustomersDocument, variables, headers),
+    ...options
+  }
     )};

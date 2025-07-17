@@ -51,15 +51,12 @@ const Sales = () => {
     data: salesData,
     error: salesError,
     isLoading: salesLoading,
-  } = useSalesPerformanceQuery({
-    client: graphqlClient,
-    variables: {
-      startDate: start_date,
-      endDate: end_date,
-      branch: selected_branch !== "all" ? selected_branch : undefined,
-      productLine:
-        selected_product_line !== "all" ? selected_product_line : undefined,
-    },
+  } = useSalesPerformanceQuery(graphqlClient, {
+    startDate: start_date,
+    endDate: end_date,
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+    productLine:
+      selected_product_line !== "all" ? selected_product_line : undefined,
   });
 
   // Fetch revenue summary data
@@ -67,15 +64,12 @@ const Sales = () => {
     data: revenueSummary,
     error: revenueError,
     isLoading: revenueLoading,
-  } = useRevenueSummaryQuery({
-    client: graphqlClient,
-    variables: {
-      startDate: start_date,
-      endDate: end_date,
-      branch: selected_branch !== "all" ? selected_branch : undefined,
-      productLine:
-        selected_product_line !== "all" ? selected_product_line : undefined,
-    },
+  } = useRevenueSummaryQuery(graphqlClient, {
+    startDate: start_date,
+    endDate: end_date,
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+    productLine:
+      selected_product_line !== "all" ? selected_product_line : undefined,
   });
 
   const safeSalesData = Array.isArray(salesData) ? salesData : [];
@@ -121,8 +115,6 @@ const Sales = () => {
         }
       })
     : [];
-
-  const isUsingMockData = false; // Removed usingMockSalesPerformance and usingMockRevenueSummary
 
   // Show loading state
   if (salesLoading || revenueLoading) {

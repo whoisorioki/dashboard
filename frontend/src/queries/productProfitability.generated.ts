@@ -38,12 +38,14 @@ export const useProductProfitabilityQuery = <
     >(
       client: GraphQLClient,
       variables?: ProductProfitabilityQueryVariables,
-      options?: UseQueryOptions<ProductProfitabilityQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<ProductProfitabilityQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<ProductProfitabilityQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<ProductProfitabilityQuery, TError, TData>(
-      variables === undefined ? ['ProductProfitability'] : ['ProductProfitability', variables],
-      fetcher<ProductProfitabilityQuery, ProductProfitabilityQueryVariables>(client, ProductProfitabilityDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['ProductProfitability'] : ['ProductProfitability', variables],
+    queryFn: fetcher<ProductProfitabilityQuery, ProductProfitabilityQueryVariables>(client, ProductProfitabilityDocument, variables, headers),
+    ...options
+  }
     )};

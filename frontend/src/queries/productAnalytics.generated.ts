@@ -42,12 +42,14 @@ export const useProductAnalyticsQuery = <
     >(
       client: GraphQLClient,
       variables?: ProductAnalyticsQueryVariables,
-      options?: UseQueryOptions<ProductAnalyticsQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<ProductAnalyticsQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<ProductAnalyticsQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<ProductAnalyticsQuery, TError, TData>(
-      variables === undefined ? ['ProductAnalytics'] : ['ProductAnalytics', variables],
-      fetcher<ProductAnalyticsQuery, ProductAnalyticsQueryVariables>(client, ProductAnalyticsDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['ProductAnalytics'] : ['ProductAnalytics', variables],
+    queryFn: fetcher<ProductAnalyticsQuery, ProductAnalyticsQueryVariables>(client, ProductAnalyticsDocument, variables, headers),
+    ...options
+  }
     )};

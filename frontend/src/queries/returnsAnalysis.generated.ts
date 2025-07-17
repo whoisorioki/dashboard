@@ -19,7 +19,6 @@ export type ReturnsAnalysisQueryVariables = Types.Exact<{
   branchNames?: Types.InputMaybe<Array<Types.Scalars['String']['input']> | Types.Scalars['String']['input']>;
   branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
   productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
-  mockData?: Types.InputMaybe<Types.Scalars['Boolean']['input']>;
 }>;
 
 
@@ -28,7 +27,7 @@ export type ReturnsAnalysisQuery = { __typename?: 'Query', returnsAnalysis: Arra
 
 
 export const ReturnsAnalysisDocument = `
-    query ReturnsAnalysis($startDate: String, $endDate: String, $itemNames: [String!], $salesPersons: [String!], $branchNames: [String!], $branch: String, $productLine: String, $mockData: Boolean) {
+    query ReturnsAnalysis($startDate: String, $endDate: String, $itemNames: [String!], $salesPersons: [String!], $branchNames: [String!], $branch: String, $productLine: String) {
   returnsAnalysis(
     startDate: $startDate
     endDate: $endDate
@@ -37,7 +36,6 @@ export const ReturnsAnalysisDocument = `
     branchNames: $branchNames
     branch: $branch
     productLine: $productLine
-    mockData: $mockData
   ) {
     reason
     count
@@ -51,12 +49,14 @@ export const useReturnsAnalysisQuery = <
     >(
       client: GraphQLClient,
       variables?: ReturnsAnalysisQueryVariables,
-      options?: UseQueryOptions<ReturnsAnalysisQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<ReturnsAnalysisQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<ReturnsAnalysisQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<ReturnsAnalysisQuery, TError, TData>(
-      variables === undefined ? ['ReturnsAnalysis'] : ['ReturnsAnalysis', variables],
-      fetcher<ReturnsAnalysisQuery, ReturnsAnalysisQueryVariables>(client, ReturnsAnalysisDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['ReturnsAnalysis'] : ['ReturnsAnalysis', variables],
+    queryFn: fetcher<ReturnsAnalysisQuery, ReturnsAnalysisQueryVariables>(client, ReturnsAnalysisDocument, variables, headers),
+    ...options
+  }
     )};

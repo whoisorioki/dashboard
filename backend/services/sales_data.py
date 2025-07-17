@@ -1,3 +1,4 @@
+import os
 import polars as pl
 import asyncio
 from datetime import datetime, timedelta
@@ -256,11 +257,86 @@ async def fetch_raw_sales_data(
     return raw_sales_df
 
 
-def get_employee_quotas() -> pl.DataFrame:
-    # TODO: Replace with real quota data source
-    return pl.DataFrame(
-        {
-            "SalesPerson": ["Alice", "Bob", "Charlie", "Diana"],
-            "quota": [1000000, 1200000, 900000, 1100000],
-        }
+def get_data_range_from_druid() -> dict:
+    """
+    Queries Druid for the min and max __time values and total record count.
+    Returns a dict: { 'earliest_date': str, 'latest_date': str, 'total_records': int }
+    """
+    import requests
+    url = "http://localhost:8888/druid/v2/"
+    headers = {"Content-Type": "application/json"}
+    # Earliest date
+    query = {
+        "queryType": "scan",
+        "dataSource": "sales_analytics",
+        "intervals": ["1900-01-01/2100-01-01"],
+        "columns": ["__time"],
+        "resultFormat": "compactedList",
+        "limit": 1,
+        "order": "ascending",
+    }
+    response = requests.post(url, json=query, headers=headers, timeout=30)
+    earliest_date = None
+    if response.status_code == 200:
+        result = response.json()
+        if result and len(result) > 0 and "events" in result[0]:
+            if len(result[0]["events"]) > 0:
+                earliest_date = result[0]["events"][0][0]
+    # Latest date
+    query["order"] = "descending"
+    response = requests.post(url, json=query, headers=headers, timeout=30)
+    latest_date = None
+    if response.status_code == 200:
+        result = response.json()
+        if result and len(result) > 0 and "events" in result[0]:
+            if len(result[0]["events"]) > 0:
+                latest_date = result[0]["events"][0][0]
+    # Total records
+    count_query = {
+        "queryType": "scan",
+        "dataSource": "sales_analytics",
+        "intervals": ["1900-01-01/2100-01-01"],
+        "columns": [],
+        "resultFormat": "compactedList",
+    }
+    response = requests.post(url, json=count_query, headers=headers, timeout=30)
+    total_records = 0
+    if response.status_code == 200:
+        count_result = response.json()
+        for segment in count_result:
+            if "events" in segment:
+                total_records += len(segment["events"])
+    return {
+        "earliest_date": earliest_date,
+        "latest_date": latest_date,
+        "total_records": total_records,
+    }
+
+
+def get_employee_quotas(start_date: str, end_date: str) -> pl.DataFrame:
+    """
+    Calculates the quota for all employees as the median of total sales for all employees during the specified time period.
+    Returns a DataFrame with columns: SalesPerson, quota
+    """
+    from backend.services.sales_data import fetch_sales_data
+    import asyncio
+    import polars as pl
+    # Fetch sales data for the period
+    loop = asyncio.get_event_loop() if asyncio.get_event_loop().is_running() else asyncio.new_event_loop()
+    df = loop.run_until_complete(fetch_sales_data(start_date, end_date))
+    if df.is_empty() or "SalesPerson" not in df.columns or "grossRevenue" not in df.columns:
+        return pl.DataFrame({"SalesPerson": [], "quota": []})
+    # Calculate total sales per employee
+    sales_per_employee = (
+        df.lazy()
+        .group_by("SalesPerson")
+        .agg([pl.sum("grossRevenue").alias("total_sales")])
+        .collect()
     )
+    if sales_per_employee.is_empty():
+        return pl.DataFrame({"SalesPerson": [], "quota": []})
+    median_quota = sales_per_employee["total_sales"].median()
+    return pl.DataFrame({
+        "salesPerson": sales_per_employee["SalesPerson"].to_list(),
+        "quota": [median_quota] * sales_per_employee.height,
+    })

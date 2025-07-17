@@ -26,10 +26,7 @@ const TrendChart: React.FC<TrendChartProps> = ({
   startDate,
   endDate,
 }) => {
-  const { data, error, isLoading } = useMonthlySalesGrowthQuery(graphqlClient, {
-    startDate,
-    endDate,
-  });
+  const { data, error, isLoading } = useMonthlySalesGrowthQuery(graphqlClient, { startDate, endDate });
 
   const chartData = data?.monthlySalesGrowth ?? [];
 

@@ -25,10 +25,7 @@ const ProductPerformanceMatrix: React.FC<ProductPerformanceMatrixProps> = ({
   startDate,
   endDate,
 }) => {
-  const { data, error, isLoading } = useMarginTrendsQuery(graphqlClient, {
-    startDate,
-    endDate,
-  });
+  const { data, error, isLoading } = useMarginTrendsQuery(graphqlClient, { startDate, endDate });
 
   const chartData = data?.marginTrends ?? [];
 

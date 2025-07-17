@@ -38,12 +38,14 @@ export const useSalespersonProductMixQuery = <
     >(
       client: GraphQLClient,
       variables?: SalespersonProductMixQueryVariables,
-      options?: UseQueryOptions<SalespersonProductMixQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<SalespersonProductMixQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<SalespersonProductMixQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<SalespersonProductMixQuery, TError, TData>(
-      variables === undefined ? ['SalespersonProductMix'] : ['SalespersonProductMix', variables],
-      fetcher<SalespersonProductMixQuery, SalespersonProductMixQueryVariables>(client, SalespersonProductMixDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['SalespersonProductMix'] : ['SalespersonProductMix', variables],
+    queryFn: fetcher<SalespersonProductMixQuery, SalespersonProductMixQueryVariables>(client, SalespersonProductMixDocument, variables, headers),
+    ...options
+  }
     )};

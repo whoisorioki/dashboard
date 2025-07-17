@@ -37,12 +37,14 @@ export const useProductPerformanceQuery = <
     >(
       client: GraphQLClient,
       variables?: ProductPerformanceQueryVariables,
-      options?: UseQueryOptions<ProductPerformanceQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<ProductPerformanceQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<ProductPerformanceQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<ProductPerformanceQuery, TError, TData>(
-      variables === undefined ? ['ProductPerformance'] : ['ProductPerformance', variables],
-      fetcher<ProductPerformanceQuery, ProductPerformanceQueryVariables>(client, ProductPerformanceDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['ProductPerformance'] : ['ProductPerformance', variables],
+    queryFn: fetcher<ProductPerformanceQuery, ProductPerformanceQueryVariables>(client, ProductPerformanceDocument, variables, headers),
+    ...options
+  }
     )};

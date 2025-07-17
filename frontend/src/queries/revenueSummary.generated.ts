@@ -17,7 +17,7 @@ export type RevenueSummaryQueryVariables = Types.Exact<{
 }>;
 
 
-export type RevenueSummaryQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue: number, grossProfit: number, netProfit: number, totalTransactions: number, averageTransaction: number, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number } };
+export type RevenueSummaryQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue: number, totalTransactions: number, averageTransaction: number, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number } };
 
 
 
@@ -25,8 +25,6 @@ export const RevenueSummaryDocument = `
     query RevenueSummary($startDate: String, $endDate: String) {
   revenueSummary(startDate: $startDate, endDate: $endDate) {
     totalRevenue
-    grossProfit
-    netProfit
     totalTransactions
     averageTransaction
     uniqueProducts
@@ -42,12 +40,14 @@ export const useRevenueSummaryQuery = <
     >(
       client: GraphQLClient,
       variables?: RevenueSummaryQueryVariables,
-      options?: UseQueryOptions<RevenueSummaryQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<RevenueSummaryQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<RevenueSummaryQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<RevenueSummaryQuery, TError, TData>(
-      variables === undefined ? ['RevenueSummary'] : ['RevenueSummary', variables],
-      fetcher<RevenueSummaryQuery, RevenueSummaryQueryVariables>(client, RevenueSummaryDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['RevenueSummary'] : ['RevenueSummary', variables],
+    queryFn: fetcher<RevenueSummaryQuery, RevenueSummaryQueryVariables>(client, RevenueSummaryDocument, variables, headers),
+    ...options
+  }
     )};

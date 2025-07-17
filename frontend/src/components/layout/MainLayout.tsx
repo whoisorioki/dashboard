@@ -36,7 +36,6 @@ import {
 import { useTheme } from "../../context/ThemeContext";
 import FloatingActionMenu from "../FloatingActionMenu";
 import WelcomeTour from "../WelcomeTour";
-import MockDataBanner from "../MockDataBanner";
 import { DataModeProvider } from "../../context/DataModeContext";
 import ControlBar from "./ControlBar";
 import { useLocalFilterReset } from "../../context/LocalFilterResetContext";
@@ -103,7 +102,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     { text: "Sales", icon: <SalesIcon />, path: "/sales" },
     { text: "Products", icon: <ProductsIcon />, path: "/products" },
     { text: "Branches", icon: <RegionsIcon />, path: "/branches" },
-    { text: "Performance", icon: <InsightsIcon />, path: "/performance" },
     {
       text: "Profitability",
       icon: <MonetizationOnIcon />,
@@ -374,7 +372,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             position: "relative",
           }}
         >
-          <MockDataBanner />
           {children}
           <FloatingActionMenu
             onRefresh={() => window.location.reload()}

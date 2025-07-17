@@ -48,12 +48,6 @@ const tourSteps = [
         color: 'info'
     },
     {
-        title: 'Mock Data Mode 🔄',
-        description: 'The system automatically falls back to realistic mock data when Druid is unavailable. Look for the "Mock Data" banner to know when you\'re viewing sample data.',
-        icon: <LightbulbIcon fontSize="large" />,
-        color: 'warning'
-    },
-    {
         title: 'Quick Actions & Export ⚡',
         description: 'Use the floating action button (bottom-right) for quick actions like refreshing data, exporting reports, and generating analytics summaries.',
         icon: <LightbulbIcon fontSize="large" />,

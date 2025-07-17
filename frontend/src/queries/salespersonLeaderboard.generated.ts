@@ -42,12 +42,14 @@ export const useSalespersonLeaderboardQuery = <
     >(
       client: GraphQLClient,
       variables?: SalespersonLeaderboardQueryVariables,
-      options?: UseQueryOptions<SalespersonLeaderboardQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<SalespersonLeaderboardQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<SalespersonLeaderboardQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<SalespersonLeaderboardQuery, TError, TData>(
-      variables === undefined ? ['SalespersonLeaderboard'] : ['SalespersonLeaderboard', variables],
-      fetcher<SalespersonLeaderboardQuery, SalespersonLeaderboardQueryVariables>(client, SalespersonLeaderboardDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['SalespersonLeaderboard'] : ['SalespersonLeaderboard', variables],
+    queryFn: fetcher<SalespersonLeaderboardQuery, SalespersonLeaderboardQueryVariables>(client, SalespersonLeaderboardDocument, variables, headers),
+    ...options
+  }
     )};

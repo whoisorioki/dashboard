@@ -38,12 +38,14 @@ export const useBranchGrowthQuery = <
     >(
       client: GraphQLClient,
       variables?: BranchGrowthQueryVariables,
-      options?: UseQueryOptions<BranchGrowthQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<BranchGrowthQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<BranchGrowthQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<BranchGrowthQuery, TError, TData>(
-      variables === undefined ? ['BranchGrowth'] : ['BranchGrowth', variables],
-      fetcher<BranchGrowthQuery, BranchGrowthQueryVariables>(client, BranchGrowthDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['BranchGrowth'] : ['BranchGrowth', variables],
+    queryFn: fetcher<BranchGrowthQuery, BranchGrowthQueryVariables>(client, BranchGrowthDocument, variables, headers),
+    ...options
+  }
     )};

@@ -38,6 +38,10 @@ import { useMonthlySalesGrowthQuery } from "../queries/monthlySalesGrowth.genera
 import { useRevenueSummaryQuery } from "../queries/revenueSummary.generated";
 import { graphqlClient } from "../lib/graphqlClient";
 import { useProductPerformanceQuery } from "../queries/productPerformance.generated";
+import { useMarginTrendsQuery } from '../queries/marginTrends.generated';
+import { useProfitabilityByDimensionQuery } from '../queries/profitabilityByDimension.generated';
+import { useReturnsAnalysisQuery } from '../queries/returnsAnalysis.generated';
+import { useTopCustomersQuery } from '../queries/topCustomers.generated';
 
 // Type guards for API responses
 // Remove legacy type guards; use generated types directly
@@ -96,6 +100,31 @@ const Dashboard = () => {
   const safeProductAnalytics = Array.isArray(productAnalytics?.productAnalytics)
     ? productAnalytics.productAnalytics
     : [];
+
+  // Add imports for the new queries
+  const { data: marginTrendsData, isLoading: loadingMarginTrends } = useMarginTrendsQuery(
+    graphqlClient,
+    { startDate: start_date || undefined, endDate: end_date || undefined }
+  );
+  const safeMarginTrends = marginTrendsData?.marginTrends ?? [];
+
+  const { data: profitabilityData, isLoading: loadingProfitability } = useProfitabilityByDimensionQuery(
+    graphqlClient,
+    { dimension: 'Branch', startDate: start_date || undefined, endDate: end_date || undefined }
+  );
+  const safeProfitability = profitabilityData?.profitabilityByDimension ?? [];
+
+  const { data: returnsData, isLoading: loadingReturns } = useReturnsAnalysisQuery(
+    graphqlClient,
+    { startDate: start_date || undefined, endDate: end_date || undefined }
+  );
+  const safeReturns = returnsData?.returnsAnalysis ?? [];
+
+  const { data: topCustomersData, isLoading: loadingTopCustomers } = useTopCustomersQuery(
+    graphqlClient,
+    { startDate: start_date || undefined, endDate: end_date || undefined }
+  );
+  const safeTopCustomers = topCustomersData?.topCustomers ?? [];
 
   // TODO: Add and display all other KPIs as needed
 
@@ -305,15 +334,9 @@ const Dashboard = () => {
               <Typography variant="h6" gutterBottom>
                 Top Customers
               </Typography>
-              {loadingProductAnalytics ? (
+              {loadingTopCustomers ? (
                 <CircularProgress />
-              ) : productAnalytics === null ||
-                productAnalytics === undefined ? (
-                <ChartEmptyState
-                  isError
-                  message="Failed to load top customers."
-                />
-              ) : safeProductAnalytics.length === 0 ? (
+              ) : safeTopCustomers.length === 0 ? (
                 <ChartEmptyState message="No top customers data available." />
               ) : (
                 <Table size="small">
@@ -321,21 +344,17 @@ const Dashboard = () => {
                     <TableRow>
                       <TableCell>Customer</TableCell>
                       <TableCell align="right">Total Sales</TableCell>
+                      <TableCell align="right">Gross Profit</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {Array.isArray(safeProductAnalytics) &&
-                      safeProductAnalytics.map((row, idx) => (
-                        <TableRow key={row.acctName || idx}>
-                          <TableCell>{row.acctName}</TableCell>
-                          <TableCell align="right">
-                            {formatCurrency(row.salesAmount)}
-                          </TableCell>
-                          <TableCell align="right">
-                            {formatCurrency(row.grossProfit)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                    {safeTopCustomers.map((row, idx) => (
+                      <TableRow key={row.cardName || idx}>
+                        <TableCell>{row.cardName}</TableCell>
+                        <TableCell align="right">{formatCurrency(row.salesAmount)}</TableCell>
+                        <TableCell align="right">{formatCurrency(row.grossProfit)}</TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               )}
@@ -348,15 +367,9 @@ const Dashboard = () => {
               <Typography variant="h6" gutterBottom>
                 Margin Trends
               </Typography>
-              {loadingProductAnalytics ? (
+              {loadingMarginTrends ? (
                 <CircularProgress />
-              ) : productAnalytics === null ||
-                productAnalytics === undefined ? (
-                <ChartEmptyState
-                  isError
-                  message="Failed to load margin trends."
-                />
-              ) : safeProductAnalytics.length === 0 ? (
+              ) : safeMarginTrends.length === 0 ? (
                 <ChartEmptyState message="No margin trends data available." />
               ) : (
                 <Table size="small">
@@ -367,15 +380,12 @@ const Dashboard = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {Array.isArray(safeProductAnalytics) &&
-                      safeProductAnalytics.map((row, idx) => (
-                        <TableRow key={row.date || idx}>
-                          <TableCell>{row.date}</TableCell>
-                          <TableCell align="right">
-                            {formatPercentage(row.margin)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                    {safeMarginTrends.map((row, idx) => (
+                      <TableRow key={row.date || idx}>
+                        <TableCell>{row.date}</TableCell>
+                        <TableCell align="right">{formatPercentage(row.marginPct)}</TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               )}
@@ -388,15 +398,9 @@ const Dashboard = () => {
               <Typography variant="h6" gutterBottom>
                 Profitability by Branch
               </Typography>
-              {loadingProductAnalytics ? (
+              {loadingProfitability ? (
                 <CircularProgress />
-              ) : productAnalytics === null ||
-                productAnalytics === undefined ? (
-                <ChartEmptyState
-                  isError
-                  message="Failed to load profitability by branch."
-                />
-              ) : safeProductAnalytics.length === 0 ? (
+              ) : safeProfitability.length === 0 ? (
                 <ChartEmptyState message="No profitability by branch data available." />
               ) : (
                 <Table size="small">
@@ -404,21 +408,17 @@ const Dashboard = () => {
                     <TableRow>
                       <TableCell>Branch</TableCell>
                       <TableCell align="right">Profit</TableCell>
+                      <TableCell align="right">Margin %</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {Array.isArray(safeProductAnalytics) &&
-                      safeProductAnalytics.map((row, idx) => (
-                        <TableRow key={row.dimension || idx}>
-                          <TableCell>{row.dimension}</TableCell>
-                          <TableCell align="right">
-                            {formatCurrency(row.grossProfit)}
-                          </TableCell>
-                          <TableCell align="right">
-                            {formatPercentage(row.grossMargin)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                    {safeProfitability.map((row, idx) => (
+                      <TableRow key={row.branch || idx}>
+                        <TableCell>{row.branch}</TableCell>
+                        <TableCell align="right">{formatCurrency(row.grossProfit ?? 0)}</TableCell>
+                        <TableCell align="right">{formatPercentage(row.grossMargin ?? 0)}</TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               )}
@@ -431,15 +431,9 @@ const Dashboard = () => {
               <Typography variant="h6" gutterBottom>
                 Returns Analysis
               </Typography>
-              {loadingProductAnalytics ? (
+              {loadingReturns ? (
                 <CircularProgress />
-              ) : productAnalytics === null ||
-                productAnalytics === undefined ? (
-                <ChartEmptyState
-                  isError
-                  message="Failed to load returns analysis."
-                />
-              ) : safeProductAnalytics.length === 0 ? (
+              ) : safeReturns.length === 0 ? (
                 <ChartEmptyState message="No returns analysis data available." />
               ) : (
                 <Table size="small">
@@ -450,13 +444,12 @@ const Dashboard = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {Array.isArray(safeProductAnalytics) &&
-                      safeProductAnalytics.map((row, idx) => (
-                        <TableRow key={row.reason || idx}>
-                          <TableCell>{row.reason}</TableCell>
-                          <TableCell align="right">{row.count}</TableCell>
-                        </TableRow>
-                      ))}
+                    {safeReturns.map((row, idx) => (
+                      <TableRow key={row.reason || idx}>
+                        <TableCell>{row.reason}</TableCell>
+                        <TableCell align="right">{row.count}</TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               )}

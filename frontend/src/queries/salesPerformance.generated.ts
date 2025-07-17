@@ -40,12 +40,14 @@ export const useSalesPerformanceQuery = <
     >(
       client: GraphQLClient,
       variables?: SalesPerformanceQueryVariables,
-      options?: UseQueryOptions<SalesPerformanceQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<SalesPerformanceQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<SalesPerformanceQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<SalesPerformanceQuery, TError, TData>(
-      variables === undefined ? ['SalesPerformance'] : ['SalesPerformance', variables],
-      fetcher<SalesPerformanceQuery, SalesPerformanceQueryVariables>(client, SalesPerformanceDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['SalesPerformance'] : ['SalesPerformance', variables],
+    queryFn: fetcher<SalesPerformanceQuery, SalesPerformanceQueryVariables>(client, SalesPerformanceDocument, variables, headers),
+    ...options
+  }
     )};

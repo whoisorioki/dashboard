@@ -36,12 +36,14 @@ export const useMonthlySalesGrowthQuery = <
     >(
       client: GraphQLClient,
       variables?: MonthlySalesGrowthQueryVariables,
-      options?: UseQueryOptions<MonthlySalesGrowthQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<MonthlySalesGrowthQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<MonthlySalesGrowthQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<MonthlySalesGrowthQuery, TError, TData>(
-      variables === undefined ? ['MonthlySalesGrowth'] : ['MonthlySalesGrowth', variables],
-      fetcher<MonthlySalesGrowthQuery, MonthlySalesGrowthQueryVariables>(client, MonthlySalesGrowthDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['MonthlySalesGrowth'] : ['MonthlySalesGrowth', variables],
+    queryFn: fetcher<MonthlySalesGrowthQuery, MonthlySalesGrowthQueryVariables>(client, MonthlySalesGrowthDocument, variables, headers),
+    ...options
+  }
     )};

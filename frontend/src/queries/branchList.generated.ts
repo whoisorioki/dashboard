@@ -35,12 +35,14 @@ export const useBranchListQuery = <
     >(
       client: GraphQLClient,
       variables?: BranchListQueryVariables,
-      options?: UseQueryOptions<BranchListQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<BranchListQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<BranchListQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<BranchListQuery, TError, TData>(
-      variables === undefined ? ['BranchList'] : ['BranchList', variables],
-      fetcher<BranchListQuery, BranchListQueryVariables>(client, BranchListDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['BranchList'] : ['BranchList', variables],
+    queryFn: fetcher<BranchListQuery, BranchListQueryVariables>(client, BranchListDocument, variables, headers),
+    ...options
+  }
     )};

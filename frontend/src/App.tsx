@@ -37,7 +37,7 @@ function LayoutWithReset({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  useDataVersionPoll();
+  // useDataVersionPoll(); // Disabled for debugging blank page issue
   return (
     <PersistQueryClientProvider
       client={queryClient}

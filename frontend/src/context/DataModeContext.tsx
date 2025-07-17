@@ -1,19 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-export type DataMode = 'mock' | 'real';
-
 interface DataModeContextType {
-  dataMode: DataMode;
-  setDataMode: (mode: DataMode) => void;
+  dataMode: 'real';
+  setDataMode: (mode: 'real') => void;
 }
 
 export const DataModeContext = createContext<DataModeContextType | undefined>(undefined);
 
 export const DataModeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [dataMode, setDataMode] = useState<DataMode>(() => {
-    const saved = localStorage.getItem('dataMode');
-    return saved === 'real' ? 'real' : 'mock';
-  });
+  const [dataMode, setDataMode] = useState<'real'>('real');
 
   useEffect(() => {
     localStorage.setItem('dataMode', dataMode);
