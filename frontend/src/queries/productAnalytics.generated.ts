@@ -12,22 +12,31 @@ function fetcher<TData, TVariables extends { [key: string]: any }>(client: Graph
   });
 }
 export type ProductAnalyticsQueryVariables = Types.Exact<{
-  startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
-  endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  startDate: Types.Scalars['String']['input'];
+  endDate: Types.Scalars['String']['input'];
+  branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
 }>;
 
 
-export type ProductAnalyticsQuery = { __typename?: 'Query', productAnalytics: Array<{ __typename?: 'ProductAnalytics', itemName: string, productLine: string, itemGroup: string, totalSales: number, totalQty: number, transactionCount: number, uniqueBranches: number, averagePrice: number }> };
+export type ProductAnalyticsQuery = { __typename?: 'Query', productAnalytics: Array<{ __typename?: 'ProductAnalytics', itemName: string, productLine: string, itemGroup: string, totalSales: number, grossProfit?: number | null, margin?: number | null, totalQty: number, transactionCount: number, uniqueBranches: number, averagePrice: number }> };
 
 
 
 export const ProductAnalyticsDocument = `
-    query ProductAnalytics($startDate: String, $endDate: String) {
-  productAnalytics(startDate: $startDate, endDate: $endDate) {
+    query productAnalytics($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+  productAnalytics(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
     itemName
     productLine
     itemGroup
     totalSales
+    grossProfit
+    margin
     totalQty
     transactionCount
     uniqueBranches
@@ -41,14 +50,14 @@ export const useProductAnalyticsQuery = <
       TError = unknown
     >(
       client: GraphQLClient,
-      variables?: ProductAnalyticsQueryVariables,
+      variables: ProductAnalyticsQueryVariables,
       options?: Omit<UseQueryOptions<ProductAnalyticsQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<ProductAnalyticsQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<ProductAnalyticsQuery, TError, TData>(
       {
-    queryKey: variables === undefined ? ['ProductAnalytics'] : ['ProductAnalytics', variables],
+    queryKey: ['productAnalytics', variables],
     queryFn: fetcher<ProductAnalyticsQuery, ProductAnalyticsQueryVariables>(client, ProductAnalyticsDocument, variables, headers),
     ...options
   }

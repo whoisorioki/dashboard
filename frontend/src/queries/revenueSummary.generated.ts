@@ -14,16 +14,23 @@ function fetcher<TData, TVariables extends { [key: string]: any }>(client: Graph
 export type RevenueSummaryQueryVariables = Types.Exact<{
   startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
 }>;
 
 
-export type RevenueSummaryQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue: number, totalTransactions: number, averageTransaction: number, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number } };
+export type RevenueSummaryQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number } };
 
 
 
 export const RevenueSummaryDocument = `
-    query RevenueSummary($startDate: String, $endDate: String) {
-  revenueSummary(startDate: $startDate, endDate: $endDate) {
+    query RevenueSummary($startDate: String, $endDate: String, $branch: String, $productLine: String) {
+  revenueSummary(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
     totalRevenue
     totalTransactions
     averageTransaction

@@ -29,7 +29,7 @@ docker-compose up -d
 ```
 
 ### Access the Application
-- **Frontend**: http://localhost:3000
+- **Frontend**: http://localhost:5173
 - **Backend API**: http://localhost:8000
 - **Backend Docs**: http://localhost:8000/docs
 - **Druid Console**: http://localhost:8081 (production mode only)

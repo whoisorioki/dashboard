@@ -15,6 +15,7 @@ import {
 import { useSalesPerformanceQuery } from "../queries/salesPerformance.generated";
 import { SalesPerformance } from "../types/graphql";
 import { graphqlClient } from "../lib/graphqlClient";
+import { formatKshAbbreviated } from "../lib/numberFormat";
 
 const SalespersonLeaderboard: React.FC = () => {
   const { data, isLoading, error } = useSalesPerformanceQuery(graphqlClient, {});
@@ -71,9 +72,9 @@ const SalespersonLeaderboard: React.FC = () => {
                   sx={{ fontWeight: idx === 0 ? 700 : 400 }}
                 >
                   <TableCell>{row.salesPerson}</TableCell>
-                  <TableCell>{row.totalSales.toLocaleString()}</TableCell>
+                  <TableCell>{formatKshAbbreviated(row.totalSales)}</TableCell>
                   <TableCell>{row.transactionCount}</TableCell>
-                  <TableCell>{row.averageSale.toLocaleString()}</TableCell>
+                  <TableCell>{formatKshAbbreviated(row.averageSale)}</TableCell>
                   <TableCell>{row.uniqueBranches}</TableCell>
                   <TableCell>{row.uniqueProducts}</TableCell>
                 </TableRow>

@@ -1,52 +1,25 @@
-# Backend Achievements & OpenAPI Documentation Audit Report
+# Backend Achievements & API Status
 
-## ✅ True Backend Achievements
+## ✅ Key Backend Achievements
 
-- **GraphQL-First Data Fetching:** All major KPIs and analytics are available via GraphQL, with schema aligned to frontend requirements.
-- **Polars Lazy Evaluation:** All backend aggregations and analytics use Polars lazy evaluation for performance and memory efficiency.
-- **Robust Error Handling:** Consistent error envelope structure and logging are implemented across all endpoints and services.
-- **OpenAPI/REST/GraphQL Alignment:** Field names and business logic (e.g., `cardName`, KES context) are consistent across REST and GraphQL.
-- **Customer Value & Top Customer Logic:** Both endpoints group by `CardName`, use camelCase, and return real Druid data.
-- **Datetime Handling:** All time-based analytics robustly convert and handle `__time` as datetime, preventing Polars errors.
-- **Health Endpoints:** System health and diagnostics endpoints are present and functional.
-- **Dockerized Backend:** The backend is containerized for development and production, with health checks and environment configuration.
-- **Data Pipeline:** The backend reliably ingests, validates, and serves data from Druid to the frontend.
-- **OpenAPI Documentation Fully Standardized:** All KPI endpoints now have fully compliant docstrings, following the gold standard set by `/monthly-sales-growth`: clear Kenyan business context, explicit mention of KES, *italicized* codeblock with realistic Kenyan data, and explicit error responses. The backend OpenAPI documentation is now fully standardized and consistent across all endpoints.
+- **GraphQL-First API:** All major KPIs and analytics are served via a unified GraphQL endpoint. The schema is designed to meet frontend requirements efficiently.
+- **High-Performance Data Aggregation:** All backend analytics are powered by the Polars library, using lazy evaluation for optimal performance and memory efficiency.
+- **Robust Error Handling:** A consistent error envelope structure and comprehensive logging are implemented across the entire backend.
+- **Unified Data Model:** Field names (camelCase) and business logic are consistent across the GraphQL API, ensuring a predictable contract for the frontend.
+- **Core Analytics Implemented:** Key analytics, including customer value, top customers, sales performance, and profitability, are fully implemented and return live data from Druid.
+- **Reliable Datetime Handling:** Time-based analytics robustly convert and handle the `__time` column, preventing common data type errors.
+- **System Health Endpoints:** Functional health and diagnostics endpoints are available for monitoring system status.
+- **Dockerized Environment:** The backend is fully containerized for both development and production, complete with health checks and environment configuration.
 
 ---
 
-## 🚨 OpenAPI Documentation Consistency Audit
+## API Status
 
-### Endpoints with Correct Docstring Format (Gold Standard)
-- **All KPI endpoints** now follow the gold standard docstring format:
-  - Clear description and Kenyan business context
-  - Explicit mention of KES
-  - Response envelope description
-  - *Italicized* codeblock with realistic Kenyan data
-  - Explicit error responses (400, 500)
-
-### Mock Data Parameter
-- **No `mock_data` parameter in endpoint signatures** (✅ Confirmed: all endpoints have removed `mock_data` from their parameters.)
-
-### Kenyan Context
-- **All endpoints mention KES and Kenyan business context** (✅)
-
-### Response Example Codeblock
-- **All endpoints provide a codeblock with a Kenyan context result, in the required *italicized* format.**
-
----
-
-## 🔴 Outstanding Gaps / False Achievements
-
-- **None.** All KPI endpoints now have compliant, standardized OpenAPI documentation.
-
----
-
-## 🛠️ What Needs to Be Fixed for Full Compliance
-
-- **No further action required.** All endpoint docstrings are now up to the gold standard set by `/monthly-sales-growth`.
+- **Primary API:** The GraphQL endpoint at `/graphql` is the single source of truth for all frontend data.
+- **REST API:** Legacy REST endpoints are available but are considered deprecated. All new feature development should use GraphQL.
+- **Documentation:** The primary API documentation is now in `md/api.md`, which details the GraphQL schema and queries.
 
 ---
 
 **Summary:**
-- The backend is robust and fully aligned for Phase 1. OpenAPI documentation for all KPI endpoints is now complete, standardized, and compliant with the gold standard: Kenyan context, *italicized* codeblock examples, and explicit error responses. No further documentation work is required for KPI endpoints at this time. 
+The backend is stable and robust, successfully serving all data required for the dashboard via its GraphQL API. The focus has shifted from a mixed REST/GraphQL approach to a GraphQL-first strategy, which has been fully implemented. 

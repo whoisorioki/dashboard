@@ -1,5 +1,5 @@
-query TargetAttainment($startDate: String, $endDate: String, $target: Float) {
-  targetAttainment(startDate: $startDate, endDate: $endDate, target: $target) {
+query TargetAttainment($startDate: String, $endDate: String, $target: Float, $branch: String, $productLine: String) {
+  targetAttainment(startDate: $startDate, endDate: $endDate, target: $target, branch: $branch, productLine: $productLine) {
     totalSales
     attainmentPercentage
   }

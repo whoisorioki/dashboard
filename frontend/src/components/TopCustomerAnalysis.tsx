@@ -15,6 +15,7 @@ import ChartSkeleton from "./skeletons/ChartSkeleton";
 import { useTopCustomersQuery } from "../queries/topCustomers.generated";
 import { graphqlClient } from "../lib/graphqlClient";
 import ChartEmptyState from "./states/ChartEmptyState";
+import { formatKshAbbreviated } from "../lib/numberFormat";
 
 interface TopCustomerAnalysisProps {
   startDate: string | null;
@@ -68,8 +69,8 @@ const TopCustomerAnalysis: React.FC<TopCustomerAnalysisProps> = ({
               {customers.map((row, index) => (
                 <TableRow key={`${row.cardName}-${index}`}>
                   <TableCell>{row.cardName}</TableCell>
-                  <TableCell align="right">{row.salesAmount.toLocaleString()}</TableCell>
-                  <TableCell align="right">{row.grossProfit.toLocaleString()}</TableCell>
+                  <TableCell align="right">{formatKshAbbreviated(row.salesAmount)}</TableCell>
+                  <TableCell align="right">{formatKshAbbreviated(row.grossProfit)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

@@ -15,16 +15,22 @@ export type ProductProfitabilityQueryVariables = Types.Exact<{
   startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
 }>;
 
 
-export type ProductProfitabilityQuery = { __typename?: 'Query', productProfitability: Array<{ __typename?: 'ProductProfitabilityEntry', productLine: string, itemName: string, grossProfit: number }> };
+export type ProductProfitabilityQuery = { __typename?: 'Query', productProfitability: Array<{ __typename?: 'ProductProfitabilityEntry', productLine: string, itemName: string, grossProfit?: number | null }> };
 
 
 
 export const ProductProfitabilityDocument = `
-    query ProductProfitability($startDate: String, $endDate: String, $branch: String) {
-  productProfitability(startDate: $startDate, endDate: $endDate, branch: $branch) {
+    query ProductProfitability($startDate: String, $endDate: String, $branch: String, $productLine: String) {
+  productProfitability(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
     productLine
     itemName
     grossProfit

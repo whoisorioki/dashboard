@@ -4,12 +4,17 @@ import { queryClient } from "./queryClient";
 const POLL_INTERVAL = 1000 * 60 * 5; // 5 minutes
 const ENDPOINT = "/api/health/data-version";
 
+const isFirstDayOfMonth = () => {
+  const now = new Date();
+  return now.getDate() === 1;
+};
+
 export function useDataVersionPoll() {
   const lastVersionRef = useRef<string | null>(null);
 
   useEffect(() => {
+    let intervalId: NodeJS.Timeout | undefined;
     let isMounted = true;
-    let intervalId: NodeJS.Timeout;
 
     async function poll() {
       try {
@@ -32,12 +37,16 @@ export function useDataVersionPoll() {
       }
     }
 
-    poll(); // initial poll
-    intervalId = setInterval(poll, POLL_INTERVAL);
+    if (isFirstDayOfMonth()) {
+      poll(); // initial poll
+      intervalId = setInterval(poll, POLL_INTERVAL);
+    } else {
+      poll(); // Only poll once on mount for non-first days
+    }
 
     return () => {
       isMounted = false;
-      clearInterval(intervalId);
+      if (intervalId) clearInterval(intervalId);
     };
   }, []);
 }

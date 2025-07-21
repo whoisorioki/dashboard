@@ -12,6 +12,7 @@ import { HelpOutline as HelpOutlineIcon } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import KpiCardSkeleton from "./skeletons/KpiCardSkeleton";
 import { useState, useEffect } from "react";
+import { formatKshAbbreviated } from "../lib/numberFormat";
 
 // Animation for the card hover effect
 const floatAnimation = keyframes`
@@ -342,7 +343,10 @@ const KpiCard: React.FC<KpiCardProps> = ({
             }}
             aria-label={`Value: ${value}`}
           >
-            {value}
+            {/* Use abbreviation for monetary metrics */}
+            {metricKey && ["sales", "totalSales", "grossProfit", "avgDealSize", "averageDealSize", "target", "targetValue"].includes(metricKey)
+              ? formatKshAbbreviated(Number(value))
+              : value}
           </Typography>
         )}
       </CardContent>

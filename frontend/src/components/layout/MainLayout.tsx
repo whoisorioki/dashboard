@@ -316,6 +316,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             position: "fixed",
             top: { xs: 56, sm: 64 },
             zIndex: 1100,
+            bgcolor: "background.paper",
+            boxShadow: 1,
+            borderBottom: 1,
+            borderColor: "divider",
+            minHeight: 56,
+            display: "flex",
+            alignItems: "center",
           }}
         >
           <ControlBar />

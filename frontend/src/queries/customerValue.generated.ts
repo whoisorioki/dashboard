@@ -17,7 +17,7 @@ export type CustomerValueQueryVariables = Types.Exact<{
 }>;
 
 
-export type CustomerValueQuery = { __typename?: 'Query', customerValue: Array<{ __typename?: 'CustomerValueEntry', cardName: string, salesAmount: number, grossProfit: number }> };
+export type CustomerValueQuery = { __typename?: 'Query', customerValue: Array<{ __typename?: 'CustomerValueEntry', cardName: string, salesAmount?: number | null, grossProfit?: number | null }> };
 
 
 

@@ -15,19 +15,21 @@ export type SalespersonLeaderboardQueryVariables = Types.Exact<{
   startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
 }>;
 
 
-export type SalespersonLeaderboardQuery = { __typename?: 'Query', salespersonLeaderboard: Array<{ __typename?: 'SalespersonLeaderboardEntry', salesperson: string, salesAmount: number, grossProfit: number }> };
+export type SalespersonLeaderboardQuery = { __typename?: 'Query', salespersonLeaderboard: Array<{ __typename?: 'SalespersonLeaderboardEntry', salesperson: string, salesAmount?: number | null, grossProfit?: number | null }> };
 
 
 
 export const SalespersonLeaderboardDocument = `
-    query SalespersonLeaderboard($startDate: String, $endDate: String, $branch: String) {
+    query SalespersonLeaderboard($startDate: String, $endDate: String, $branch: String, $productLine: String) {
   salespersonLeaderboard(
     startDate: $startDate
     endDate: $endDate
     branch: $branch
+    productLine: $productLine
   ) {
     salesperson
     salesAmount

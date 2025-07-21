@@ -14,16 +14,23 @@ function fetcher<TData, TVariables extends { [key: string]: any }>(client: Graph
 export type MarginTrendsQueryVariables = Types.Exact<{
   startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
 }>;
 
 
-export type MarginTrendsQuery = { __typename?: 'Query', marginTrends: Array<{ __typename?: 'MarginTrendEntry', date: string, marginPct: number }> };
+export type MarginTrendsQuery = { __typename?: 'Query', marginTrends: Array<{ __typename?: 'MarginTrendEntry', date: string, marginPct?: number | null }> };
 
 
 
 export const MarginTrendsDocument = `
-    query MarginTrends($startDate: String, $endDate: String) {
-  marginTrends(startDate: $startDate, endDate: $endDate) {
+    query MarginTrends($startDate: String, $endDate: String, $branch: String, $productLine: String) {
+  marginTrends(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
     date
     marginPct
   }

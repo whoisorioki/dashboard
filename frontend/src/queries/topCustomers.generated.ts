@@ -23,7 +23,7 @@ export type TopCustomersQueryVariables = Types.Exact<{
 }>;
 
 
-export type TopCustomersQuery = { __typename?: 'Query', topCustomers: Array<{ __typename?: 'TopCustomerEntry', cardName: string, salesAmount: number, grossProfit: number }> };
+export type TopCustomersQuery = { __typename?: 'Query', topCustomers: Array<{ __typename?: 'TopCustomerEntry', cardName: string, salesAmount?: number | null, grossProfit?: number | null }> };
 
 
 

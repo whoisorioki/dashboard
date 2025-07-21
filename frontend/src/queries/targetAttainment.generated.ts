@@ -15,6 +15,8 @@ export type TargetAttainmentQueryVariables = Types.Exact<{
   startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   target?: Types.InputMaybe<Types.Scalars['Float']['input']>;
+  branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
 }>;
 
 
@@ -23,8 +25,14 @@ export type TargetAttainmentQuery = { __typename?: 'Query', targetAttainment: { 
 
 
 export const TargetAttainmentDocument = `
-    query TargetAttainment($startDate: String, $endDate: String, $target: Float) {
-  targetAttainment(startDate: $startDate, endDate: $endDate, target: $target) {
+    query TargetAttainment($startDate: String, $endDate: String, $target: Float, $branch: String, $productLine: String) {
+  targetAttainment(
+    startDate: $startDate
+    endDate: $endDate
+    target: $target
+    branch: $branch
+    productLine: $productLine
+  ) {
     totalSales
     attainmentPercentage
   }

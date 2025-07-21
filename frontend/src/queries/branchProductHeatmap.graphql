@@ -1,6 +1,6 @@
 # Branch-Product Sales Heatmap Query
-query BranchProductHeatmap($startDate: String, $endDate: String) {
-  branchProductHeatmap(startDate: $startDate, endDate: $endDate) {
+query branchProductHeatmap($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+  branchProductHeatmap(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
     branch
     product
     sales

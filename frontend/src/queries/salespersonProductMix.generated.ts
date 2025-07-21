@@ -15,16 +15,22 @@ export type SalespersonProductMixQueryVariables = Types.Exact<{
   startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
 }>;
 
 
-export type SalespersonProductMixQuery = { __typename?: 'Query', salespersonProductMix: Array<{ __typename?: 'SalespersonProductMixEntry', salesperson: string, productLine: string, avgProfitMargin: number }> };
+export type SalespersonProductMixQuery = { __typename?: 'Query', salespersonProductMix: Array<{ __typename?: 'SalespersonProductMixEntry', salesperson: string, productLine: string, avgProfitMargin?: number | null }> };
 
 
 
 export const SalespersonProductMixDocument = `
-    query SalespersonProductMix($startDate: String, $endDate: String, $branch: String) {
-  salespersonProductMix(startDate: $startDate, endDate: $endDate, branch: $branch) {
+    query SalespersonProductMix($startDate: String, $endDate: String, $branch: String, $productLine: String) {
+  salespersonProductMix(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
     salesperson
     productLine
     avgProfitMargin

@@ -1,5 +1,5 @@
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import CssBaseline from "@mui/material/CssBaseline";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ThemeContextProvider } from "./context/ThemeContext";
@@ -37,7 +37,7 @@ function LayoutWithReset({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
-  // useDataVersionPoll(); // Disabled for debugging blank page issue
+  useDataVersionPoll(); // Enable monthly data version polling
   return (
     <PersistQueryClientProvider
       client={queryClient}
@@ -46,10 +46,10 @@ function App() {
         queryClient.resumePausedMutations();
       }}
     >
-      <ThemeContextProvider>
-        <NotificationProvider>
-          <FilterProvider>
-            <LocalizationProvider dateAdapter={AdapterDateFns}>
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <ThemeContextProvider>
+          <NotificationProvider>
+            <FilterProvider>
               <CssBaseline />
               <LocalFilterResetProvider>
                 <LayoutWithReset>
@@ -120,10 +120,10 @@ function App() {
                   </Routes>
                 </LayoutWithReset>
               </LocalFilterResetProvider>
-            </LocalizationProvider>
-          </FilterProvider>
-        </NotificationProvider>
-      </ThemeContextProvider>
+            </FilterProvider>
+          </NotificationProvider>
+        </ThemeContextProvider>
+      </LocalizationProvider>
     </PersistQueryClientProvider>
   );
 }

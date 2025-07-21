@@ -15,6 +15,7 @@ import {
 import { useProductAnalyticsQuery } from "../queries/productAnalytics.generated";
 import { ProductAnalytics } from "../types/graphql";
 import { graphqlClient } from "../lib/graphqlClient";
+import { formatKshAbbreviated } from "../lib/numberFormat";
 
 const ProductPerformanceTable: React.FC = () => {
   const { data, isLoading, error } = useProductAnalyticsQuery(graphqlClient, {});
@@ -73,10 +74,10 @@ const ProductPerformanceTable: React.FC = () => {
                   <TableCell>{row.itemName}</TableCell>
                   <TableCell>{row.productLine}</TableCell>
                   <TableCell>{row.itemGroup}</TableCell>
-                  <TableCell>{row.totalSales.toLocaleString()}</TableCell>
+                  <TableCell>{formatKshAbbreviated(row.totalSales)}</TableCell>
                   <TableCell>{row.totalQty.toLocaleString()}</TableCell>
                   <TableCell>{row.transactionCount}</TableCell>
-                  <TableCell>{row.averagePrice.toLocaleString()}</TableCell>
+                  <TableCell>{formatKshAbbreviated(row.averagePrice)}</TableCell>
                   <TableCell>{row.uniqueBranches}</TableCell>
                 </TableRow>
               ))}

@@ -1,0 +1,22 @@
+query productsPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+  productAnalytics(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    itemName
+    productLine
+    itemGroup
+    totalSales
+    grossProfit
+    margin
+    totalQty
+    transactionCount
+    uniqueBranches
+    averagePrice
+  }
+  revenueSummary(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    totalRevenue
+    totalTransactions
+    averageTransaction
+    uniqueProducts
+    uniqueBranches
+    uniqueEmployees
+  }
+} 

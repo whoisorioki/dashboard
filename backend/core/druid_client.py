@@ -3,8 +3,9 @@ from contextlib import asynccontextmanager
 from typing import Optional
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
 from pydruid.client import PyDruid
+from fastapi_redis_cache import FastApiRedisCache
 
 # Load environment variables from .env file
 load_dotenv()
@@ -103,6 +104,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"Error initializing Druid client: {e}")
         druid_conn.client = None
+
+    print("Initializing Redis cache...")
+    redis_cache = FastApiRedisCache()
+    redis_cache.init(
+        host_url=os.getenv("REDIS_URL", "redis://localhost"),
+        prefix="sales-analytics-cache",
+        response_header="X-API-Cache",
+        ignore_arg_types=[Request, Response],
+    )
+    print("Redis cache initialized.")
 
     yield
     print("Closing Druid client resources.")

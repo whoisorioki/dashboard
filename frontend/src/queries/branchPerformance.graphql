@@ -1,6 +1,6 @@
 # Branch Performance Query
-query BranchPerformance($startDate: String, $endDate: String) {
-  branchPerformance(startDate: $startDate, endDate: $endDate) {
+query BranchPerformance($startDate: String, $endDate: String, $branch: String, $productLine: String) {
+  branchPerformance(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
     branch
     totalSales
     transactionCount

@@ -1,20 +1,10 @@
 import { Card, CardContent, Typography } from "@mui/material";
-import {
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
-  ZAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
 import { useMarginTrendsQuery } from "../queries/marginTrends.generated";
 import { graphqlClient } from "../lib/graphqlClient";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
 import ChartEmptyState from "./states/ChartEmptyState";
 import ChartCard from "./ChartCard";
+import ReactECharts from "echarts-for-react";
 
 interface ProductPerformanceMatrixProps {
   startDate: string;
@@ -57,24 +47,47 @@ const ProductPerformanceMatrix: React.FC<ProductPerformanceMatrixProps> = ({
       </ChartCard>
     );
   }
+
+  // Prepare ECharts option
+  const option = {
+    tooltip: {
+      trigger: "item",
+      formatter: (params: any) => {
+        return `
+          <div>
+            <strong>Date: ${params.data[0]}</strong><br/>
+            Margin (%): ${(params.data[1] * 100).toFixed(2)}%
+          </div>
+        `;
+      },
+    },
+    xAxis: {
+      type: "category",
+      name: "Date",
+      data: chartData.map((d) => d.date),
+    },
+    yAxis: {
+      type: "value",
+      name: "Margin (%)",
+      axisLabel: {
+        formatter: (v: number) => `${(v * 100).toFixed(1)}%`,
+      },
+    },
+    grid: { left: 60, right: 30, top: 40, bottom: 40 },
+    series: [
+      {
+        name: "Margin Trends",
+        type: "scatter",
+        data: chartData.map((d) => [d.date, d.marginPct]),
+        symbolSize: 16,
+        itemStyle: { color: "#8884d8" },
+      },
+    ],
+  };
+
   return (
     <ChartCard title="Product Performance Matrix" isLoading={false}>
-      <ResponsiveContainer width="100%" height={300}>
-        <ScatterChart>
-          <CartesianGrid />
-          <XAxis type="category" dataKey="date" name="Date" />
-          <YAxis type="number" dataKey="marginPct" name="Margin (%)" />
-          <ZAxis
-            type="number"
-            dataKey="marginPct"
-            name="Margin (%)"
-            range={[100, 1000]}
-          />
-          <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-          <Legend />
-          <Scatter name="Margin Trends" data={chartData} fill="#8884d8" />
-        </ScatterChart>
-      </ResponsiveContainer>
+      <ReactECharts option={option} style={{ height: 300, width: "100%" }} />
     </ChartCard>
   );
 };

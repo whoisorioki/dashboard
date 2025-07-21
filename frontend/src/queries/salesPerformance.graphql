@@ -1,8 +1,10 @@
 # Sales Performance Query
-query SalesPerformance($startDate: String, $endDate: String) {
-  salesPerformance(startDate: $startDate, endDate: $endDate) {
+query salesPerformance($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+  salesPerformance(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
     salesPerson
     totalSales
+    grossProfit
+    avgMargin
     transactionCount
     averageSale
     uniqueBranches

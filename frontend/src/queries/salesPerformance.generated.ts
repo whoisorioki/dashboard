@@ -12,20 +12,29 @@ function fetcher<TData, TVariables extends { [key: string]: any }>(client: Graph
   });
 }
 export type SalesPerformanceQueryVariables = Types.Exact<{
-  startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
-  endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  startDate: Types.Scalars['String']['input'];
+  endDate: Types.Scalars['String']['input'];
+  branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
 }>;
 
 
-export type SalesPerformanceQuery = { __typename?: 'Query', salesPerformance: Array<{ __typename?: 'SalesPerformance', salesPerson: string, totalSales: number, transactionCount: number, averageSale: number, uniqueBranches: number, uniqueProducts: number }> };
+export type SalesPerformanceQuery = { __typename?: 'Query', salesPerformance: Array<{ __typename?: 'SalesPerformance', salesPerson: string, totalSales: number, grossProfit?: number | null, avgMargin?: number | null, transactionCount: number, averageSale: number, uniqueBranches: number, uniqueProducts: number }> };
 
 
 
 export const SalesPerformanceDocument = `
-    query SalesPerformance($startDate: String, $endDate: String) {
-  salesPerformance(startDate: $startDate, endDate: $endDate) {
+    query salesPerformance($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+  salesPerformance(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
     salesPerson
     totalSales
+    grossProfit
+    avgMargin
     transactionCount
     averageSale
     uniqueBranches
@@ -39,14 +48,14 @@ export const useSalesPerformanceQuery = <
       TError = unknown
     >(
       client: GraphQLClient,
-      variables?: SalesPerformanceQueryVariables,
+      variables: SalesPerformanceQueryVariables,
       options?: Omit<UseQueryOptions<SalesPerformanceQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<SalesPerformanceQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<SalesPerformanceQuery, TError, TData>(
       {
-    queryKey: variables === undefined ? ['SalesPerformance'] : ['SalesPerformance', variables],
+    queryKey: ['salesPerformance', variables],
     queryFn: fetcher<SalesPerformanceQuery, SalesPerformanceQueryVariables>(client, SalesPerformanceDocument, variables, headers),
     ...options
   }

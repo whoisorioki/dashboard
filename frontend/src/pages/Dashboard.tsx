@@ -29,19 +29,12 @@ import ProductPerformanceChart from "../components/ProductPerformanceChart";
 import BranchProductHeatmap from "../components/BranchProductHeatmap";
 import QuotaAttainmentGauge from "../components/QuotaAttainmentGauge";
 import ChartEmptyState from "../components/states/ChartEmptyState";
-import { useTargetAttainmentQuery } from "../queries/targetAttainment.generated";
-import { useProductAnalyticsQuery } from "../queries/productAnalytics.generated";
+import { useDashboardDataQuery } from "../queries/dashboardData.generated";
 import { useFilters } from "../context/FilterContext";
 
 import { useNavigate } from "react-router-dom";
-import { useMonthlySalesGrowthQuery } from "../queries/monthlySalesGrowth.generated";
-import { useRevenueSummaryQuery } from "../queries/revenueSummary.generated";
 import { graphqlClient } from "../lib/graphqlClient";
-import { useProductPerformanceQuery } from "../queries/productPerformance.generated";
-import { useMarginTrendsQuery } from '../queries/marginTrends.generated';
-import { useProfitabilityByDimensionQuery } from '../queries/profitabilityByDimension.generated';
-import { useReturnsAnalysisQuery } from '../queries/returnsAnalysis.generated';
-import { useTopCustomersQuery } from '../queries/topCustomers.generated';
+import { formatKshAbbreviated } from "../lib/numberFormat";
 
 // Type guards for API responses
 // Remove legacy type guards; use generated types directly
@@ -59,72 +52,29 @@ const Dashboard = () => {
 
   const navigate = useNavigate();
 
-  // API calls for KPIs using the global filters
-  const { data: monthlySalesGrowthData, isLoading: loadingMonthlySalesGrowth } =
-    useMonthlySalesGrowthQuery(graphqlClient, {
+  // Single API call for all dashboard data
+  const { data: dashboardData, isLoading: loadingDashboard } = useDashboardDataQuery(
+    graphqlClient,
+    {
       startDate: start_date || undefined,
       endDate: end_date || undefined,
-    });
-
-  const { data: revenueSummaryData, isLoading: loadingRevenueSummary } =
-    useRevenueSummaryQuery(graphqlClient, {
-      startDate: start_date || undefined,
-      endDate: end_date || undefined,
-    });
-
-  // Remove unsupported arguments for useProductAnalyticsQuery
-  const { data: productAnalytics, isLoading: loadingProductAnalytics } =
-    useProductAnalyticsQuery(graphqlClient, {
-      startDate: start_date || undefined,
-      endDate: end_date || undefined,
-    });
-
-  const { data: targetAttainment, isLoading: loadingTarget } =
-    useTargetAttainmentQuery(graphqlClient, {
-      startDate: start_date || undefined,
-      endDate: end_date || undefined,
+      branch: selected_branch !== 'all' ? selected_branch : undefined,
+      productLine: selected_product_line !== 'all' ? selected_product_line : undefined,
       target: sales_target ? parseFloat(sales_target) : undefined,
-    });
-
-  const { data: productPerformance, isLoading: loadingProductPerformance } =
-    useProductPerformanceQuery(graphqlClient, {
-      startDate: start_date || undefined,
-      endDate: end_date || undefined,
-    });
+    }
+  );
 
   // Use all fields from backend output directly
-  const safeMonthlySalesGrowth = Array.isArray(monthlySalesGrowthData?.monthlySalesGrowth)
-    ? monthlySalesGrowthData.monthlySalesGrowth
-    : [];
-  const safeRevenueSummary = revenueSummaryData?.revenueSummary || null;
-  const safeProductAnalytics = Array.isArray(productAnalytics?.productAnalytics)
-    ? productAnalytics.productAnalytics
-    : [];
-
-  // Add imports for the new queries
-  const { data: marginTrendsData, isLoading: loadingMarginTrends } = useMarginTrendsQuery(
-    graphqlClient,
-    { startDate: start_date || undefined, endDate: end_date || undefined }
-  );
-  const safeMarginTrends = marginTrendsData?.marginTrends ?? [];
-
-  const { data: profitabilityData, isLoading: loadingProfitability } = useProfitabilityByDimensionQuery(
-    graphqlClient,
-    { dimension: 'Branch', startDate: start_date || undefined, endDate: end_date || undefined }
-  );
-  const safeProfitability = profitabilityData?.profitabilityByDimension ?? [];
-
-  const { data: returnsData, isLoading: loadingReturns } = useReturnsAnalysisQuery(
-    graphqlClient,
-    { startDate: start_date || undefined, endDate: end_date || undefined }
-  );
-  const safeReturns = returnsData?.returnsAnalysis ?? [];
-
-  const { data: topCustomersData, isLoading: loadingTopCustomers } = useTopCustomersQuery(
-    graphqlClient,
-    { startDate: start_date || undefined, endDate: end_date || undefined }
-  );
-  const safeTopCustomers = topCustomersData?.topCustomers ?? [];
+  const safeMonthlySalesGrowth = dashboardData?.monthlySalesGrowth ?? [];
+  const safeRevenueSummary = dashboardData?.revenueSummary || null;
+  const safeProductAnalytics = dashboardData?.productAnalytics ?? [];
+  const safeTargetAttainment = dashboardData?.targetAttainment || null;
+  const safeProductPerformance = dashboardData?.productPerformance ?? [];
+  const safeHeatmapData = dashboardData?.branchProductHeatmap ?? [];
+  const safeTopCustomers = dashboardData?.topCustomers ?? [];
+  const safeMarginTrends = dashboardData?.marginTrends ?? [];
+  const safeReturns = dashboardData?.returnsAnalysis ?? [];
+  const safeProfitability = dashboardData?.profitabilityByDimension ?? [];
 
   // TODO: Add and display all other KPIs as needed
 
@@ -140,35 +90,30 @@ const Dashboard = () => {
 
   // Helper functions for canonical calculations
   const totalSales = Array.isArray(safeMonthlySalesGrowth)
-    ? safeMonthlySalesGrowth.reduce((sum, entry) => sum + (entry.sales || 0), 0)
+    ? safeMonthlySalesGrowth.reduce((sum, entry) => sum + (entry.totalSales || 0), 0)
     : 0;
   const salesGrowth =
     Array.isArray(safeMonthlySalesGrowth) && safeMonthlySalesGrowth.length > 1
-      ? ((safeMonthlySalesGrowth[safeMonthlySalesGrowth.length - 1].sales -
-          safeMonthlySalesGrowth[0].sales) /
-          safeMonthlySalesGrowth[0].sales) *
+      ? ((safeMonthlySalesGrowth[safeMonthlySalesGrowth.length - 1].totalSales -
+          safeMonthlySalesGrowth[0].totalSales) /
+          safeMonthlySalesGrowth[0].totalSales) *
         100
       : 0;
   // Avg Deal Size: Not available until backend provides totalTransactions
-  // TODO: Update backend to include totalTransactions in revenue summary
+  // (Backend already provides totalTransactions in revenue summary)
   const avgDealSize = safeRevenueSummary?.totalTransactions
     ? safeRevenueSummary.totalRevenue / safeRevenueSummary.totalTransactions
     : null;
 
   const getTargetAttainmentPercentage = () => {
-    if (!targetAttainment?.targetAttainment || typeof targetAttainment.targetAttainment.attainmentPercentage !== "number") {
+    if (!safeTargetAttainment || typeof safeTargetAttainment.attainmentPercentage !== "number") {
       return 0;
     }
-    return targetAttainment.targetAttainment.attainmentPercentage;
+    return safeTargetAttainment.attainmentPercentage;
   };
 
   // Show loading state
-  if (
-    loadingMonthlySalesGrowth ||
-    loadingRevenueSummary ||
-    loadingProductAnalytics ||
-    loadingProductPerformance
-  ) {
+  if (loadingDashboard) {
     return (
       <Box
         sx={{
@@ -206,10 +151,8 @@ const Dashboard = () => {
   return (
     <Box
       sx={{
-        p: 0,
-        pl: { xs: 1.5, sm: 2 },
-        pr: { xs: 2, sm: 3 },
-        pb: { xs: 2, sm: 3 },
+        mt: { xs: 6, sm: 8 },
+        p: { xs: 2, sm: 3 },
       }}
     >
       <PageHeader
@@ -233,52 +176,52 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
             title="Total Sales"
-            value={formatCurrency(totalSales)}
+            value={totalSales}
             icon={<AttachMoneyIcon />}
             tooltipText="Total sales revenue for the selected period."
-            isLoading={loadingMonthlySalesGrowth}
+            isLoading={loadingDashboard}
             trend={salesGrowth >= 0 ? "up" : "down"}
             trendValue={formatPercentage(salesGrowth)}
             color="primary"
-            metricKey="total-sales"
+            metricKey="totalSales"
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
             title="Sales Growth (YoY)"
-            value={formatPercentage(salesGrowth)}
+            value={salesGrowth}
             icon={<TrendingUpIcon />}
             tooltipText="Year-over-year sales growth rate."
-            isLoading={loadingMonthlySalesGrowth}
+            isLoading={loadingDashboard}
             trend={salesGrowth >= 0 ? "up" : "down"}
             trendValue={formatPercentage(salesGrowth)}
             color="primary"
-            metricKey="sales-growth"
+            metricKey="salesGrowth"
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
             title="Avg Deal Size"
-            value={avgDealSize !== null ? formatCurrency(avgDealSize) : "N/A"}
+            value={avgDealSize}
             icon={<ReceiptLongIcon />}
             tooltipText="Average value per transaction (requires backend update)."
-            isLoading={loadingRevenueSummary}
+            isLoading={loadingDashboard}
             trend={undefined}
             trendValue={undefined}
             color="primary"
-            metricKey="avg-deal-size"
+            metricKey="avgDealSize"
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           {/* Target Attainment card with inline edit prep */}
           <KpiCard
             title="Target Attainment"
-            value={formatPercentage(getTargetAttainmentPercentage())}
+            value={getTargetAttainmentPercentage()}
             icon={<TargetIcon />}
             tooltipText="Percentage of sales target achieved. Click edit to update target."
-            isLoading={loadingTarget}
+            isLoading={loadingDashboard}
             color="warning"
-            metricKey="target-attainment"
+            metricKey="targetAttainment"
             editableTarget
             targetValue={sales_target}
             onTargetEdit={setSalesTarget}
@@ -291,8 +234,8 @@ const Dashboard = () => {
         <Grid item xs={12} md={6} xl={4}>
           <Box sx={{ height: "400px" }}>
             <QuotaAttainmentGauge
-              data={targetAttainment?.targetAttainment}
-              isLoading={loadingTarget}
+              data={safeTargetAttainment}
+              isLoading={loadingDashboard}
               target={parseInt(sales_target) || 50000000}
             />
           </Box>
@@ -302,7 +245,7 @@ const Dashboard = () => {
           <Box sx={{ height: "400px" }}>
             <MonthlySalesTrendChart
               data={safeMonthlySalesGrowth}
-              isLoading={loadingMonthlySalesGrowth}
+              isLoading={loadingDashboard}
             />
           </Box>
         </Grid>
@@ -311,8 +254,8 @@ const Dashboard = () => {
         <Grid item xs={12} md={6} xl={6}>
           <Box sx={{ height: "400px" }}>
             <ProductPerformanceChart
-              data={productPerformance?.productPerformance ?? []}
-              isLoading={loadingProductPerformance}
+              data={safeProductPerformance ?? []}
+              isLoading={loadingDashboard}
             />
           </Box>
         </Grid>
@@ -321,8 +264,8 @@ const Dashboard = () => {
         <Grid item xs={12}>
           <Box sx={{ height: "500px" }}>
             <BranchProductHeatmap
-              data={[]}
-              isLoading={loadingProductAnalytics}
+              data={safeHeatmapData || []}
+              isLoading={loadingDashboard}
             />
           </Box>
         </Grid>
@@ -334,7 +277,7 @@ const Dashboard = () => {
               <Typography variant="h6" gutterBottom>
                 Top Customers
               </Typography>
-              {loadingTopCustomers ? (
+              {loadingDashboard ? (
                 <CircularProgress />
               ) : safeTopCustomers.length === 0 ? (
                 <ChartEmptyState message="No top customers data available." />
@@ -351,8 +294,8 @@ const Dashboard = () => {
                     {safeTopCustomers.map((row, idx) => (
                       <TableRow key={row.cardName || idx}>
                         <TableCell>{row.cardName}</TableCell>
-                        <TableCell align="right">{formatCurrency(row.salesAmount)}</TableCell>
-                        <TableCell align="right">{formatCurrency(row.grossProfit)}</TableCell>
+                        <TableCell align="right">{formatKshAbbreviated(row.salesAmount)}</TableCell>
+                        <TableCell align="right">{formatKshAbbreviated(row.grossProfit)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -367,7 +310,7 @@ const Dashboard = () => {
               <Typography variant="h6" gutterBottom>
                 Margin Trends
               </Typography>
-              {loadingMarginTrends ? (
+              {loadingDashboard ? (
                 <CircularProgress />
               ) : safeMarginTrends.length === 0 ? (
                 <ChartEmptyState message="No margin trends data available." />
@@ -398,7 +341,7 @@ const Dashboard = () => {
               <Typography variant="h6" gutterBottom>
                 Profitability by Branch
               </Typography>
-              {loadingProfitability ? (
+              {loadingDashboard ? (
                 <CircularProgress />
               ) : safeProfitability.length === 0 ? (
                 <ChartEmptyState message="No profitability by branch data available." />
@@ -415,7 +358,7 @@ const Dashboard = () => {
                     {safeProfitability.map((row, idx) => (
                       <TableRow key={row.branch || idx}>
                         <TableCell>{row.branch}</TableCell>
-                        <TableCell align="right">{formatCurrency(row.grossProfit ?? 0)}</TableCell>
+                        <TableCell align="right">{formatKshAbbreviated(row.grossProfit ?? 0)}</TableCell>
                         <TableCell align="right">{formatPercentage(row.grossMargin ?? 0)}</TableCell>
                       </TableRow>
                     ))}
@@ -431,7 +374,7 @@ const Dashboard = () => {
               <Typography variant="h6" gutterBottom>
                 Returns Analysis
               </Typography>
-              {loadingReturns ? (
+              {loadingDashboard ? (
                 <CircularProgress />
               ) : safeReturns.length === 0 ? (
                 <ChartEmptyState message="No returns analysis data available." />
@@ -469,43 +412,9 @@ const Dashboard = () => {
           }}
         >
           <Typography variant="caption" color="secondary">
-            Raw monthlySalesGrowthData:
+            Raw dashboardData:
           </Typography>
-          <pre>{JSON.stringify(monthlySalesGrowthData, null, 2)}</pre>
-        </Box>
-      )}
-      {debugMode && (
-        <Box
-          sx={{
-            my: 2,
-            p: 2,
-            bgcolor: "#f5f5f5",
-            borderRadius: 2,
-            fontSize: "0.85em",
-            overflowX: "auto",
-          }}
-        >
-          <Typography variant="caption" color="secondary">
-            Raw revenueSummaryData:
-          </Typography>
-          <pre>{JSON.stringify(revenueSummaryData, null, 2)}</pre>
-        </Box>
-      )}
-      {debugMode && (
-        <Box
-          sx={{
-            my: 2,
-            p: 2,
-            bgcolor: "#f5f5f5",
-            borderRadius: 2,
-            fontSize: "0.85em",
-            overflowX: "auto",
-          }}
-        >
-          <Typography variant="caption" color="secondary">
-            Raw productAnalytics:
-          </Typography>
-          <pre>{JSON.stringify(productAnalytics, null, 2)}</pre>
+          <pre>{JSON.stringify(dashboardData, null, 2)}</pre>
         </Box>
       )}
     </Box>

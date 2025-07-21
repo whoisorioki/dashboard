@@ -10,19 +10,12 @@ import {
   IconButton,
 } from "@mui/material";
 import { HelpOutline as HelpOutlineIcon } from "@mui/icons-material";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-} from "recharts";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
 import ChartEmptyState from "./states/ChartEmptyState";
 import { ProductPerformanceQuery } from "../queries/productPerformance.generated";
 import ChartCard from "./ChartCard";
+import ReactECharts from "echarts-for-react";
+import { formatKshAbbreviated } from "../lib/numberFormat";
 
 interface ProductPerformanceChartProps {
   data: ProductPerformanceQuery["productPerformance"] | undefined;
@@ -43,39 +36,6 @@ const ProductPerformanceChart: React.FC<ProductPerformanceChartProps> = ({
     if (newViewType !== null) {
       setViewType(newViewType);
     }
-  };
-
-  // Custom tooltip for better data presentation
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div
-          style={{
-            backgroundColor: "white",
-            padding: "12px",
-            border: "1px solid #ccc",
-            borderRadius: "8px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            fontSize: "14px",
-          }}
-        >
-          <p
-            style={{ margin: "0 0 4px 0", fontWeight: "bold" }}
-          >{`Product: ${label}`}</p>
-          <p
-            style={{
-              margin: "0",
-              color: viewType === "top" ? "#2e7d32" : "#d32f2f",
-            }}
-          >
-            {`Sales: KSh ${Math.round(payload[0].value).toLocaleString(
-              "en-KE"
-            )}`}
-          </p>
-        </div>
-      );
-    }
-    return null;
   };
 
   if (isLoading) {
@@ -103,6 +63,46 @@ const ProductPerformanceChart: React.FC<ProductPerformanceChartProps> = ({
     viewType === "top"
       ? sortedData.slice(0, n)
       : sortedData.slice(-n).reverse();
+
+  // Prepare ECharts option
+  const option = {
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "shadow" },
+      formatter: (params: any) => {
+        const p = params[0];
+        return `
+          <div>
+            <strong>Product: ${p.name}</strong><br/>
+            Sales: ${formatKshAbbreviated(p.value[1])}
+          </div>
+        `;
+      },
+    },
+    grid: { left: 100, right: 30, top: 40, bottom: 40 },
+    xAxis: {
+      type: "value",
+      name: "Sales (KSh)",
+      axisLabel: {
+        formatter: (v: number) => formatKshAbbreviated(v),
+      },
+    },
+    yAxis: {
+      type: "category",
+      data: displayData.map((d) => d.product),
+      name: "Product",
+      axisLabel: { width: 120, overflow: "truncate" },
+    },
+    series: [
+      {
+        name: "Sales",
+        type: "bar",
+        data: displayData.map((d) => [d.product, d.sales]),
+        itemStyle: { color: viewType === "top" ? "#2e7d32" : "#d32f2f" },
+        barWidth: 24,
+      },
+    ],
+  };
 
   return (
     <Card sx={{ position: "relative" }}>
@@ -147,19 +147,7 @@ const ProductPerformanceChart: React.FC<ProductPerformanceChartProps> = ({
             <ToggleButton value="bottom">Bottom 5</ToggleButton>
           </ToggleButtonGroup>
         </Box>
-
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={displayData} layout="horizontal">
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" />
-            <YAxis dataKey="product" type="category" width={100} />
-            <RechartsTooltip content={CustomTooltip} />
-            <Bar
-              dataKey="sales"
-              fill={viewType === "top" ? "#2e7d32" : "#d32f2f"}
-            />
-          </BarChart>
-        </ResponsiveContainer>
+        <ReactECharts option={option} style={{ height: 300, width: "100%" }} />
       </CardContent>
     </Card>
   );

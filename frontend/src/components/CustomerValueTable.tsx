@@ -14,6 +14,7 @@ import {
 } from "@mui/material";
 import { useCustomerValueQuery } from "../queries/customerValue.generated";
 import { graphqlClient } from "../lib/graphqlClient";
+import { formatKshAbbreviated } from "../lib/numberFormat";
 
 const CustomerValueTable: React.FC = () => {
   const { data, isLoading, error } = useCustomerValueQuery(graphqlClient, {});
@@ -64,8 +65,8 @@ const CustomerValueTable: React.FC = () => {
               {topCustomers.map((row, index) => (
                 <TableRow key={`${row.cardName}-${index}`}>
                   <TableCell>{row.cardName}</TableCell>
-                  <TableCell>{row.salesAmount.toLocaleString()}</TableCell>
-                  <TableCell>{row.grossProfit.toLocaleString()}</TableCell>
+                  <TableCell>{formatKshAbbreviated(row.salesAmount)}</TableCell>
+                  <TableCell>{formatKshAbbreviated(row.grossProfit)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

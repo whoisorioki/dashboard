@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, Query, Request, HTTPException
 from typing import Optional
 import polars as pl
+from fastapi_redis_cache import cache
 from backend.services.sales_data import fetch_sales_data
 from backend.services import kpi_service, sales_data
 from fastapi.concurrency import run_in_threadpool
@@ -49,25 +50,10 @@ async def get_sales_data_df(
 
 
 @router.get("/monthly-sales-growth")
+@cache(expire=3600)  # Cache for 1 hour (Tier 2)
 async def monthly_sales_growth(
     request: Request,
-    start_date: str = Query(
-        "2024-06-01", description="Start date in YYYY-MM-DD format"
-    ),
-    end_date: str = Query("2024-06-30", description="End date in YYYY-MM-DD format"),
-    item_names: Optional[str] = Query(
-        None, description="Comma-separated list of item names to filter"
-    ),
-    sales_persons: Optional[str] = Query(
-        None, description="Comma-separated list of sales personnel to filter"
-    ),
-    branch_names: Optional[str] = Query(
-        None, description="Comma-separated list of branch names to filter (legacy)"
-    ),
-    branch: Optional[str] = Query(None, description="Single branch name to filter"),
-    product_line: Optional[str] = Query(
-        None, description="Product line to filter (e.g., 'Piaggio', 'TVS')"
-    ),
+    df: pl.DataFrame = Depends(get_sales_data_df),
 ):
     """
     Calculate monthly sales growth trends.
@@ -94,38 +80,16 @@ async def monthly_sales_growth(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    item_names_list = item_names.split(",") if item_names else None
-    sales_persons_list = sales_persons.split(",") if sales_persons else None
-    if branch:
-        branch_names_list = [branch]
-    elif branch_names:
-        branch_names_list = branch_names.split(",")
-    else:
-        branch_names_list = None
-    df = await fetch_sales_data(
-        start_date=start_date,
-        end_date=end_date,
-        item_names=item_names_list,
-        sales_persons=sales_persons_list,
-        branch_names=branch_names_list,
-    )
-    if product_line and product_line != "all":
-        df = df.filter(pl.col("ProductLine") == product_line)
     result = await run_in_threadpool(kpi_service.calculate_monthly_sales_growth, df)
     return envelope(result, request)
 
 
 @router.get("/sales-target-attainment")
+@cache(expire=3600)
 async def sales_target_attainment(
     request: Request,
     target: float,
-    start_date: str = Query("2024-06-01"),
-    end_date: str = Query("2024-06-30"),
-    item_names: Optional[str] = Query(None),
-    sales_persons: Optional[str] = Query(None),
-    branch_names: Optional[str] = Query(None),
-    branch: Optional[str] = Query(None),
-    product_line: Optional[str] = Query(None),
+    df: pl.DataFrame = Depends(get_sales_data_df),
 ):
     """
     Calculate sales target attainment for the specified time period.
@@ -152,23 +116,6 @@ async def sales_target_attainment(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    item_names_list = item_names.split(",") if item_names else None
-    sales_persons_list = sales_persons.split(",") if sales_persons else None
-    if branch:
-        branch_names_list = [branch]
-    elif branch_names:
-        branch_names_list = branch_names.split(",")
-    else:
-        branch_names_list = None
-    df = await fetch_sales_data(
-        start_date=start_date,
-        end_date=end_date,
-        item_names=item_names_list,
-        sales_persons=sales_persons_list,
-        branch_names=branch_names_list,
-    )
-    if product_line and product_line != "all":
-        df = df.filter(pl.col("ProductLine") == product_line)
     result = await run_in_threadpool(
         kpi_service.calculate_sales_target_attainment, df, target
     )
@@ -176,16 +123,11 @@ async def sales_target_attainment(
 
 
 @router.get("/product-performance")
+@cache(expire=3600)
 async def product_performance(
     request: Request,
     n: int = 5,
-    start_date: str = Query("2024-06-01"),
-    end_date: str = Query("2024-06-30"),
-    item_names: Optional[str] = Query(None),
-    sales_persons: Optional[str] = Query(None),
-    branch_names: Optional[str] = Query(None),
-    branch: Optional[str] = Query(None),
-    product_line: Optional[str] = Query(None),
+    df: pl.DataFrame = Depends(get_sales_data_df),
 ):
     """
     Get top N performing products based on sales.
@@ -200,9 +142,9 @@ async def product_performance(
     *Response Format:*
     *```json
     {
-        "data": [
-            {"ItemName": "PIAGGIO 3-WHEELER APE CITY DLX", "total_sales": 55198750.03, "total_qty": 123, "transaction_count": 51, "average_price": 448770.33}
-        ],
+        "data": {
+            "product": "PIAGGIO 3-WHEELER APE CITY DLX", "sales": 55198750.03
+        },
         "error": null,
         "metadata": {"requestId": "string"}
     }
@@ -212,37 +154,15 @@ async def product_performance(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    item_names_list = item_names.split(",") if item_names else None
-    sales_persons_list = sales_persons.split(",") if sales_persons else None
-    if branch:
-        branch_names_list = [branch]
-    elif branch_names:
-        branch_names_list = branch_names.split(",")
-    else:
-        branch_names_list = None
-    df = await fetch_sales_data(
-        start_date=start_date,
-        end_date=end_date,
-        item_names=item_names_list,
-        sales_persons=sales_persons_list,
-        branch_names=branch_names_list,
-    )
-    if product_line and product_line != "all":
-        df = df.filter(pl.col("ProductLine") == product_line)
     result = await run_in_threadpool(kpi_service.get_product_performance, df, n)
     return envelope(result, request)
 
 
 @router.get("/branch-product-heatmap")
+@cache(expire=3600)
 async def branch_product_heatmap(
     request: Request,
-    start_date: str = Query("2024-06-01"),
-    end_date: str = Query("2024-06-30"),
-    item_names: Optional[str] = Query(None),
-    sales_persons: Optional[str] = Query(None),
-    branch_names: Optional[str] = Query(None),
-    branch: Optional[str] = Query(None),
-    product_line: Optional[str] = Query(None),
+    df: pl.DataFrame = Depends(get_sales_data_df),
 ):
     """
     Create a heatmap of product sales by branch.
@@ -269,23 +189,6 @@ async def branch_product_heatmap(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    item_names_list = item_names.split(",") if item_names else None
-    sales_persons_list = sales_persons.split(",") if sales_persons else None
-    if branch:
-        branch_names_list = [branch]
-    elif branch_names:
-        branch_names_list = branch_names.split(",")
-    else:
-        branch_names_list = None
-    df = await fetch_sales_data(
-        start_date=start_date,
-        end_date=end_date,
-        item_names=item_names_list,
-        sales_persons=sales_persons_list,
-        branch_names=branch_names_list,
-    )
-    if product_line and product_line != "all":
-        df = df.filter(pl.col("ProductLine") == product_line)
     result_df = await run_in_threadpool(
         kpi_service.create_branch_product_heatmap_data, df
     )
@@ -294,15 +197,10 @@ async def branch_product_heatmap(
 
 # Apply fail-safe fallback to all remaining endpoints
 @router.get("/branch-performance")
+@cache(expire=3600)
 async def branch_performance(
     request: Request,
-    start_date: str = Query("2024-06-01"),
-    end_date: str = Query("2024-06-30"),
-    item_names: Optional[str] = Query(None),
-    sales_persons: Optional[str] = Query(None),
-    branch_names: Optional[str] = Query(None),
-    branch: Optional[str] = Query(None),
-    product_line: Optional[str] = Query(None),
+    df: pl.DataFrame = Depends(get_sales_data_df),
 ):
     """
     Calculate branch performance metrics.
@@ -329,37 +227,15 @@ async def branch_performance(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    item_names_list = item_names.split(",") if item_names else None
-    sales_persons_list = sales_persons.split(",") if sales_persons else None
-    if branch:
-        branch_names_list = [branch]
-    elif branch_names:
-        branch_names_list = branch_names.split(",")
-    else:
-        branch_names_list = None
-    df = await fetch_sales_data(
-        start_date=start_date,
-        end_date=end_date,
-        item_names=item_names_list,
-        sales_persons=sales_persons_list,
-        branch_names=branch_names_list,
-    )
-    if product_line and product_line != "all":
-        df = df.filter(pl.col("ProductLine") == product_line)
     result_df = await run_in_threadpool(kpi_service.calculate_branch_performance, df)
     return envelope(result_df.to_dicts(), request)
 
 
 @router.get("/branch-list")
+@cache(expire=86400)  # Cache for 24 hours (Tier 1)
 async def branch_list(
     request: Request,
-    start_date: str = Query("2024-06-01"),
-    end_date: str = Query("2024-06-30"),
-    item_names: Optional[str] = Query(None),
-    sales_persons: Optional[str] = Query(None),
-    branch_names: Optional[str] = Query(None),
-    branch: Optional[str] = Query(None),
-    product_line: Optional[str] = Query(None),
+    df: pl.DataFrame = Depends(get_sales_data_df),
 ):
     """
     Get a list of branches.
@@ -386,37 +262,15 @@ async def branch_list(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    item_names_list = item_names.split(",") if item_names else None
-    sales_persons_list = sales_persons.split(",") if sales_persons else None
-    if branch:
-        branch_names_list = [branch]
-    elif branch_names:
-        branch_names_list = branch_names.split(",")
-    else:
-        branch_names_list = None
-    df = await fetch_sales_data(
-        start_date=start_date,
-        end_date=end_date,
-        item_names=item_names_list,
-        sales_persons=sales_persons_list,
-        branch_names=branch_names_list,
-    )
-    if product_line and product_line != "all":
-        df = df.filter(pl.col("ProductLine") == product_line)
     result_df = await run_in_threadpool(kpi_service.get_branch_list, df)
     return envelope(result_df.to_dicts(), request)
 
 
 @router.get("/branch-growth")
+@cache(expire=3600)
 async def branch_growth(
     request: Request,
-    start_date: str = Query("2024-06-01"),
-    end_date: str = Query("2024-06-30"),
-    item_names: Optional[str] = Query(None),
-    sales_persons: Optional[str] = Query(None),
-    branch_names: Optional[str] = Query(None),
-    branch: Optional[str] = Query(None),
-    product_line: Optional[str] = Query(None),
+    df: pl.DataFrame = Depends(get_sales_data_df),
 ):
     """
     Calculate branch growth trends.
@@ -443,23 +297,6 @@ async def branch_growth(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    item_names_list = item_names.split(",") if item_names else None
-    sales_persons_list = sales_persons.split(",") if sales_persons else None
-    if branch:
-        branch_names_list = [branch]
-    elif branch_names:
-        branch_names_list = branch_names.split(",")
-    else:
-        branch_names_list = None
-    df = await fetch_sales_data(
-        start_date=start_date,
-        end_date=end_date,
-        item_names=item_names_list,
-        sales_persons=sales_persons_list,
-        branch_names=branch_names_list,
-    )
-    if product_line and product_line != "all":
-        df = df.filter(pl.col("ProductLine") == product_line)
     try:
         result_df = await run_in_threadpool(kpi_service.calculate_branch_growth, df)
         return envelope(result_df.to_dicts(), request)
@@ -469,15 +306,10 @@ async def branch_growth(
 
 
 @router.get("/sales-performance")
+@cache(expire=3600)
 async def sales_performance(
     request: Request,
-    start_date: str = Query("2024-06-01"),
-    end_date: str = Query("2024-06-30"),
-    item_names: Optional[str] = Query(None),
-    sales_persons: Optional[str] = Query(None),
-    branch_names: Optional[str] = Query(None),
-    branch: Optional[str] = Query(None),
-    product_line: Optional[str] = Query(None),
+    df: pl.DataFrame = Depends(get_sales_data_df),
 ):
     """
     Get sales performance metrics.
@@ -504,37 +336,15 @@ async def sales_performance(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    item_names_list = item_names.split(",") if item_names else None
-    sales_persons_list = sales_persons.split(",") if sales_persons else None
-    if branch:
-        branch_names_list = [branch]
-    elif branch_names:
-        branch_names_list = branch_names.split(",")
-    else:
-        branch_names_list = None
-    df = await fetch_sales_data(
-        start_date=start_date,
-        end_date=end_date,
-        item_names=item_names_list,
-        sales_persons=sales_persons_list,
-        branch_names=branch_names_list,
-    )
-    if product_line and product_line != "all":
-        df = df.filter(pl.col("ProductLine") == product_line)
     result_df = await run_in_threadpool(kpi_service.get_sales_performance, df)
     return envelope(result_df.to_dicts(), request)
 
 
 @router.get("/product-analytics")
+@cache(expire=3600)
 async def product_analytics(
     request: Request,
-    start_date: str = Query("2024-06-01"),
-    end_date: str = Query("2024-06-30"),
-    item_names: Optional[str] = Query(None),
-    sales_persons: Optional[str] = Query(None),
-    branch_names: Optional[str] = Query(None),
-    branch: Optional[str] = Query(None),
-    product_line: Optional[str] = Query(None),
+    df: pl.DataFrame = Depends(get_sales_data_df),
 ):
     """
     Get detailed product analytics including performance metrics for the specified time period.
@@ -560,37 +370,15 @@ async def product_analytics(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    item_names_list = item_names.split(",") if item_names else None
-    sales_persons_list = sales_persons.split(",") if sales_persons else None
-    if branch:
-        branch_names_list = [branch]
-    elif branch_names:
-        branch_names_list = branch_names.split(",")
-    else:
-        branch_names_list = None
-    df = await fetch_sales_data(
-        start_date=start_date,
-        end_date=end_date,
-        item_names=item_names_list,
-        sales_persons=sales_persons_list,
-        branch_names=branch_names_list,
-    )
-    if product_line and product_line != "all":
-        df = df.filter(pl.col("ProductLine") == product_line)
     result_df = await run_in_threadpool(kpi_service.get_product_analytics, df)
     return envelope(result_df.to_dicts(), request)
 
 
 @router.get("/revenue-summary")
+@cache(expire=3600)
 async def revenue_summary(
     request: Request,
-    start_date: str = Query("2024-06-01"),
-    end_date: str = Query("2024-06-30"),
-    item_names: Optional[str] = Query(None),
-    sales_persons: Optional[str] = Query(None),
-    branch_names: Optional[str] = Query(None),
-    branch: Optional[str] = Query(None),
-    product_line: Optional[str] = Query(None),
+    df: pl.DataFrame = Depends(get_sales_data_df),
 ):
     """
     Calculate revenue summary for the specified time period.
@@ -617,37 +405,15 @@ async def revenue_summary(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    item_names_list = item_names.split(",") if item_names else None
-    sales_persons_list = sales_persons.split(",") if sales_persons else None
-    if branch:
-        branch_names_list = [branch]
-    elif branch_names:
-        branch_names_list = branch_names.split(",")
-    else:
-        branch_names_list = None
-    df = await fetch_sales_data(
-        start_date=start_date,
-        end_date=end_date,
-        item_names=item_names_list,
-        sales_persons=sales_persons_list,
-        branch_names=branch_names_list,
-    )
-    if product_line and product_line != "all":
-        df = df.filter(pl.col("ProductLine") == product_line)
     result = await run_in_threadpool(kpi_service.calculate_revenue_summary, df)
     return envelope(result, request)
 
 
 @router.get("/customer-value")
+@cache(expire=3600)
 async def customer_value(
     request: Request,
-    start_date: str = Query("2024-06-01"),
-    end_date: str = Query("2024-06-30"),
-    item_names: Optional[str] = Query(None),
-    sales_persons: Optional[str] = Query(None),
-    branch_names: Optional[str] = Query(None),
-    branch: Optional[str] = Query(None),
-    product_line: Optional[str] = Query(None),
+    df: pl.DataFrame = Depends(get_sales_data_df),
 ):
     """
     Get customer value analysis grouped by CardName (customer name) for the specified time period.
@@ -673,23 +439,6 @@ async def customer_value(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    item_names_list = item_names.split(",") if item_names else None
-    sales_persons_list = sales_persons.split(",") if sales_persons else None
-    if branch:
-        branch_names_list = [branch]
-    elif branch_names:
-        branch_names_list = branch_names.split(",")
-    else:
-        branch_names_list = None
-    df = await fetch_sales_data(
-        start_date=start_date,
-        end_date=end_date,
-        item_names=item_names_list,
-        sales_persons=sales_persons_list,
-        branch_names=branch_names_list,
-    )
-    if product_line and product_line != "all":
-        df = df.filter(pl.col("ProductLine") == product_line)
     if df.is_empty():
         return envelope([], request)
     result_df = (
@@ -716,6 +465,7 @@ async def customer_value(
 
 
 @router.get("/employee-performance")
+@cache(expire=3600)
 async def employee_performance(
     request: Request,
     start_date: str = Query(...),
@@ -745,7 +495,9 @@ async def employee_performance(
       - 500: Internal server error
     """
     df = await sales_data.fetch_sales_data(start_date, end_date)
-    quotas_df = await run_in_threadpool(sales_data.get_employee_quotas)
+    quotas_df = await run_in_threadpool(
+        sales_data.get_employee_quotas, start_date, end_date
+    )
     result = await run_in_threadpool(
         kpi_service.calculate_employee_performance, df, quotas_df
     )
@@ -753,10 +505,10 @@ async def employee_performance(
 
 
 @router.get("/top-customers")
+@cache(expire=3600)
 async def top_customers(
     request: Request,
-    start_date: str = Query("2024-06-01"),
-    end_date: str = Query("2024-06-30"),
+    df: pl.DataFrame = Depends(get_sales_data_df),
     n: int = 5,
 ):
     """
@@ -783,7 +535,6 @@ async def top_customers(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    df = await fetch_sales_data(start_date, end_date)
     if df.is_empty():
         return envelope([], request)
     result_df = (
@@ -811,10 +562,10 @@ async def top_customers(
 
 
 @router.get("/margin-trends")
+@cache(expire=3600)
 async def margin_trends(
     request: Request,
-    start_date: str = Query("2024-06-01"),
-    end_date: str = Query("2024-06-30"),
+    df: pl.DataFrame = Depends(get_sales_data_df),
 ):
     """
     Calculate margin trends for the specified time period.
@@ -841,7 +592,6 @@ async def margin_trends(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    df = await fetch_sales_data(start_date, end_date)
     if df.is_empty():
         return envelope([], request)
     result = kpi_service.calculate_margin_trends(df)
@@ -849,11 +599,11 @@ async def margin_trends(
 
 
 @router.get("/profitability-by-dimension")
+@cache(expire=3600)
 async def profitability_by_dimension(
     request: Request,
     dimension: str = Query("Branch"),
-    start_date: str = Query("2024-06-01"),
-    end_date: str = Query("2024-06-30"),
+    df: pl.DataFrame = Depends(get_sales_data_df),
 ):
     """
     Calculate profitability by a specified dimension.
@@ -880,7 +630,6 @@ async def profitability_by_dimension(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    df = await fetch_sales_data(start_date, end_date)
     if df.is_empty():
         return envelope([], request)
     group_col = dimension
@@ -913,10 +662,10 @@ async def profitability_by_dimension(
 
 
 @router.get("/returns-analysis")
+@cache(expire=3600)
 async def returns_analysis(
     request: Request,
-    start_date: str = Query("2024-06-01"),
-    end_date: str = Query("2024-06-30"),
+    df: pl.DataFrame = Depends(get_sales_data_df),
 ):
     """
     Analyze product returns for the specified time period.
@@ -943,7 +692,6 @@ async def returns_analysis(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    df = await fetch_sales_data(start_date, end_date)
     if df.is_empty() or "returnsValue" not in df.columns:
         return envelope([], request)
     result_df = (

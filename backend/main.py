@@ -4,13 +4,15 @@ import os
 from dotenv import load_dotenv
 from backend.api.routes import router
 from backend.api.kpi_routes import router as kpi_router
-from backend.core.druid_client import lifespan
+from backend.core.druid_client import lifespan, druid_conn
 from backend.schema import schema
 import strawberry.fastapi
 from backend.schema import Query
 import strawberry
 from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
+from fastapi import Request, Response
+from fastapi_redis_cache import FastApiRedisCache
 
 # import sentry_sdk
 
@@ -39,27 +41,9 @@ DEBUG = os.getenv("DEBUG", "true").lower() == "true"
 # Create the FastAPI app
 app = FastAPI(
     lifespan=lifespan,
-    title="Kenyan Sales Analytics Dashboard API",
+    title="Sales Analytics Dashboard API",
     description="""
-    A high-performance analytics API for Kenyan businesses, serving sales data from Apache Druid using FastAPI and Polars.
-    
-    ## Features
-    - **Sales Analytics**: Comprehensive sales performance metrics and KPIs
-    - **Branch Performance**: Multi-branch analysis and comparison
-    - **Product Analytics**: Product performance and profitability insights
-    - **Multi-dimensional Filtering**: Filter by date ranges, branches, products, and sales personnel
-    
-    ## Authentication
-    Currently open for development. Production deployment should include authentication.
-    
-    ## Data Sources
-    - Primary: Apache Druid for real-time analytics
-    - All monetary values are in Kenyan Shillings (KES)
-    
-    ## API Structure
-    - `/api/kpis/*` - Key Performance Indicators and analytics endpoints
-    - `/api/sales` - Raw sales data with filtering
-    - `/health*` - System health and connectivity checks
+    A high-performance analytics API for CARGEN, serving sales data from Apache Druid using FastAPI and Polars.
     """,
     version="1.0.0",
     debug=DEBUG,
@@ -87,8 +71,8 @@ if ENV == "development":
             "http://localhost:5174",  # Vite alternative port
             "http://127.0.0.1:5173",
             "http://127.0.0.1:5174",
-            "http://localhost:5175",  # Added for your current frontend
-            "http://127.0.0.1:5175",  # Added for your current frontend
+            "http://localhost:5175",  
+            "http://127.0.0.1:5175", 
         ]
     )
 

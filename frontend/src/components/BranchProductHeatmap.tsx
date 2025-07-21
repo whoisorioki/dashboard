@@ -7,19 +7,11 @@ import {
   IconButton,
 } from "@mui/material";
 import { HelpOutline as HelpOutlineIcon } from "@mui/icons-material";
-import {
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-  Cell,
-} from "recharts";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
 import ChartEmptyState from "./states/ChartEmptyState";
 import type { BranchProductHeatmap } from "../types/graphql";
+import ReactECharts from "echarts-for-react";
+import { formatKshAbbreviated } from "../lib/numberFormat";
 
 interface BranchProductHeatmapProps {
   data: BranchProductHeatmap[] | undefined;
@@ -69,28 +61,58 @@ const BranchProductHeatmap: React.FC<BranchProductHeatmapProps> = ({
 
   const maxSales = Math.max(...data.map((d: any) => d.sales));
 
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div
-          style={{
-            backgroundColor: "white",
-            padding: "10px",
-            border: "1px solid #ccc",
-            borderRadius: "4px",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
-          }}
-        >
-          <p>{`Branch: ${data.branch}`}</p>
-          <p>{`Product: ${data.product}`}</p>
-          <p>{`Sales: KSh ${Math.round(data.sales).toLocaleString(
-            "en-KE"
-          )}`}</p>
-        </div>
-      );
-    }
-    return null;
+  // Prepare ECharts option
+  const option = {
+    tooltip: {
+      trigger: "item",
+      formatter: (params: any) => {
+        const d = params.data;
+        return `
+          <div>
+            <strong>Branch: ${d[0]}</strong><br/>
+            Product: ${d[1]}<br/>
+            Sales: ${formatKshAbbreviated(d[2])}
+          </div>
+        `;
+      },
+    },
+    xAxis: {
+      type: "category",
+      name: "Branch",
+      data: Array.from(new Set(data.map((d) => d.branch))),
+      axisLabel: { rotate: 30 },
+    },
+    yAxis: {
+      type: "category",
+      name: "Product",
+      data: Array.from(new Set(data.map((d) => d.product))),
+      axisLabel: { width: 100, overflow: "truncate" },
+    },
+    grid: { left: 80, right: 30, top: 40, bottom: 40 },
+    visualMap: {
+      min: 0,
+      max: maxSales,
+      orient: "vertical",
+      left: "right",
+      top: "center",
+      text: ["High", "Low"],
+      inRange: {
+        color: ["#e0ffe0", "#82ca9d", "#2e7d32", "#ff0000"],
+      },
+      calculable: true,
+      itemHeight: 120,
+    },
+    series: [
+      {
+        name: "Sales",
+        type: "scatter",
+        symbolSize: 24,
+        data: data.map((d) => [d.branch, d.product, d.sales]),
+        itemStyle: {
+          color: (params: any) => getColor(params.data[2], maxSales),
+        },
+      },
+    ],
   };
 
   return (
@@ -120,25 +142,8 @@ const BranchProductHeatmap: React.FC<BranchProductHeatmapProps> = ({
         <Typography variant="h5" gutterBottom>
           Branch-Product Sales Heatmap
         </Typography>
-
         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <ResponsiveContainer width="80%" height={300}>
-            <ScatterChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="branch" />
-              <YAxis dataKey="product" />
-              <RechartsTooltip content={CustomTooltip} />
-              <Scatter dataKey="sales" fill="#8884d8">
-                {data.map((entry: any, index: number) => (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={getColor(entry.sales, maxSales)}
-                  />
-                ))}
-              </Scatter>
-            </ScatterChart>
-          </ResponsiveContainer>
-
+          <ReactECharts option={option} style={{ height: 300, width: "80%" }} />
           <Box sx={{ ml: 2 }}>
             <Typography variant="body2" gutterBottom>
               Sales Volume

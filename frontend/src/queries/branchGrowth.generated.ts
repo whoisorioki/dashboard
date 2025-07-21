@@ -14,6 +14,8 @@ function fetcher<TData, TVariables extends { [key: string]: any }>(client: Graph
 export type BranchGrowthQueryVariables = Types.Exact<{
   startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
 }>;
 
 
@@ -22,8 +24,13 @@ export type BranchGrowthQuery = { __typename?: 'Query', branchGrowth: Array<{ __
 
 
 export const BranchGrowthDocument = `
-    query BranchGrowth($startDate: String, $endDate: String) {
-  branchGrowth(startDate: $startDate, endDate: $endDate) {
+    query BranchGrowth($startDate: String, $endDate: String, $branch: String, $productLine: String) {
+  branchGrowth(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
     branch
     monthYear
     monthlySales

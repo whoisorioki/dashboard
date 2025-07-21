@@ -26,6 +26,7 @@ import {
   Api,
   Dashboard as DashboardIcon,
 } from "@mui/icons-material";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 interface ServiceStatus {
   name: string;
@@ -41,139 +42,107 @@ interface SystemHealth {
   lastUpdate: string;
 }
 
+// Add types for the API responses
+interface HealthApiResponse { data: { status: string }; }
+interface DruidHealthApiResponse { data: { druid_status: string; is_available: boolean }; }
+interface DatasourcesApiResponse { data: { datasources: string[]; count: number }; }
+
+const HEALTH_QUERY_KEY = ["health-status"];
+const DRUID_QUERY_KEY = ["druid-health-status"];
+const DATASOURCES_QUERY_KEY = ["druid-datasources-status"];
+
+const fetchHealth = async (baseUrl: string) => {
+  const res = await fetch(`${baseUrl}/api/health`);
+  return res.json();
+};
+const fetchDruidHealth = async (baseUrl: string) => {
+  const res = await fetch(`${baseUrl}/api/health/druid`);
+  return res.json();
+};
+const fetchDatasources = async (baseUrl: string) => {
+  const res = await fetch(`${baseUrl}/api/druid/datasources`);
+  return res.json();
+};
+
 const ConnectionStatus: React.FC = () => {
-  const [health, setHealth] = useState<SystemHealth | null>(null);
-  const [loading, setLoading] = useState(false);
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+  const queryClient = useQueryClient();
+  const currentTime = new Date().toLocaleTimeString();
 
-  const checkHealth = async () => {
-    setLoading(true);
-    const baseUrl =
-      import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-    const currentTime = new Date().toLocaleTimeString();
+  const {
+    data: healthData,
+    isFetching: loadingHealth,
+    refetch: refetchHealth,
+  } = useQuery<HealthApiResponse>({
+    queryKey: HEALTH_QUERY_KEY,
+    queryFn: () => fetchHealth(baseUrl),
+    staleTime: 60 * 1000,
+  });
+  const {
+    data: druidData,
+    isFetching: loadingDruid,
+    refetch: refetchDruid,
+  } = useQuery<DruidHealthApiResponse>({
+    queryKey: DRUID_QUERY_KEY,
+    queryFn: () => fetchDruidHealth(baseUrl),
+    staleTime: 60 * 1000,
+  });
+  const {
+    data: datasourcesData,
+    isFetching: loadingDatasources,
+    refetch: refetchDatasources,
+  } = useQuery<DatasourcesApiResponse>({
+    queryKey: DATASOURCES_QUERY_KEY,
+    queryFn: () => fetchDatasources(baseUrl),
+    staleTime: 60 * 1000,
+  });
 
-    const services: ServiceStatus[] = [];
+  const loading = loadingHealth || loadingDruid || loadingDatasources;
 
-    // Test Backend API
-    try {
-      const response = await fetch(`${baseUrl}/api/health`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      services.push({
-        name: "Backend API",
-        status: response.ok ? "connected" : "disconnected",
-        url: `${baseUrl}/api/health`,
-        details: response.ok ? "API is responding" : `HTTP ${response.status}`,
-        lastCheck: currentTime,
-      });
-    } catch (error: any) {
-      services.push({
-        name: "Backend API",
-        status: "disconnected",
-        url: `${baseUrl}/api/health`,
-        details: error?.message || "Connection failed",
-        lastCheck: currentTime,
-      });
-    }
-
-    // Test Druid Connection through Backend
-    try {
-      const response = await fetch(`${baseUrl}/api/health/druid`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        services.push({
-          name: "Druid Database",
-          status: data.is_available ? "connected" : "disconnected",
-          url: `${baseUrl}/api/health/druid`,
-          details: data.druid_status || "Unknown status",
-          lastCheck: currentTime,
-        });
-      } else {
-        services.push({
-          name: "Druid Database",
-          status: "disconnected",
-          url: `${baseUrl}/api/health/druid`,
-          details: `HTTP ${response.status}`,
-          lastCheck: currentTime,
-        });
-      }
-    } catch (error: any) {
-      services.push({
-        name: "Druid Database",
-        status: "disconnected",
-        url: `${baseUrl}/api/health/druid`,
-        details: error?.message || "Connection failed",
-        lastCheck: currentTime,
-      });
-    }
-
-    // Test Datasources
-    try {
-      const response = await fetch(`${baseUrl}/api/druid/datasources`, {
-        method: "GET",
-        headers: { "Content-Type": "application/json" },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        services.push({
-          name: "Data Sources",
-          status: data.count > 0 ? "connected" : "warning",
-          url: `${baseUrl}/api/druid/datasources`,
-          details: `${data.count} datasources available`,
-          lastCheck: currentTime,
-        });
-      } else {
-        services.push({
-          name: "Data Sources",
-          status: "disconnected",
-          url: `${baseUrl}/api/druid/datasources`,
-          details: `HTTP ${response.status}`,
-          lastCheck: currentTime,
-        });
-      }
-    } catch (error: any) {
-      services.push({
-        name: "Data Sources",
-        status: "disconnected",
-        url: `${baseUrl}/api/druid/datasources`,
-        details: error?.message || "Connection failed",
-        lastCheck: currentTime,
-      });
-    }
-
-    // Determine overall health
-    const connectedCount = services.filter(
-      (s) => s.status === "connected"
-    ).length;
-    const totalCount = services.length;
-
-    let overall: "healthy" | "degraded" | "down";
-    if (connectedCount === totalCount) {
-      overall = "healthy";
-    } else if (connectedCount > 0) {
-      overall = "degraded";
-    } else {
-      overall = "down";
-    }
-
-    setHealth({
-      services,
-      overall,
-      lastUpdate: currentTime,
-    });
-
-    setLoading(false);
+  const handleRefresh = () => {
+    refetchHealth();
+    refetchDruid();
+    refetchDatasources();
   };
 
-  useEffect(() => {
-    checkHealth();
-  }, []);
+  // Compose services array from query results
+  const services: ServiceStatus[] = [
+    {
+      name: "Backend API",
+      status: healthData?.data?.status === "ok" ? "connected" : "disconnected",
+      url: `${baseUrl}/api/health`,
+      details: healthData?.data?.status === "ok" ? "API is responding" : `Status: ${healthData?.data?.status}`,
+      lastCheck: currentTime,
+    },
+    {
+      name: "Druid Database",
+      status: druidData?.data?.is_available ? "connected" : "disconnected",
+      url: `${baseUrl}/api/health/druid`,
+      details: druidData?.data?.druid_status || "Unknown status",
+      lastCheck: currentTime,
+    },
+    {
+      name: "Data Sources",
+      status: datasourcesData?.data?.count > 0 ? "connected" : "warning",
+      url: `${baseUrl}/api/druid/datasources`,
+      details: typeof datasourcesData?.data?.count === "number"
+        ? `${datasourcesData.data.count} datasources available`
+        : "undefined datasources available",
+      lastCheck: currentTime,
+    },
+  ];
+
+  // Determine overall health
+  const connectedCount = services.filter((s) => s.status === "connected").length;
+  const totalCount = services.length;
+  let overall: "healthy" | "degraded" | "down";
+  if (connectedCount === totalCount) {
+    overall = "healthy";
+  } else if (connectedCount > 0) {
+    overall = "degraded";
+  } else {
+    overall = "down";
+  }
 
   const getStatusIcon = (status: ServiceStatus["status"]) => {
     switch (status) {
@@ -198,23 +167,13 @@ const ConnectionStatus: React.FC = () => {
   };
 
   const getOverallAlert = () => {
-    if (!health) return null;
-
-    switch (health.overall) {
+    switch (overall) {
       case "healthy":
         return <Alert severity="success">All systems operational</Alert>;
       case "degraded":
-        return (
-          <Alert severity="warning">
-            Some services are experiencing issues
-          </Alert>
-        );
+        return <Alert severity="warning">Some services are experiencing issues</Alert>;
       case "down":
-        return (
-          <Alert severity="error">
-            System is down - please check your services
-          </Alert>
-        );
+        return <Alert severity="error">System is down - please check your services</Alert>;
     }
   };
 
@@ -234,7 +193,7 @@ const ConnectionStatus: React.FC = () => {
         <Button
           variant="outlined"
           startIcon={<Refresh />}
-          onClick={checkHealth}
+          onClick={handleRefresh}
           disabled={loading}
         >
           {loading ? "Checking..." : "Refresh"}
@@ -244,7 +203,7 @@ const ConnectionStatus: React.FC = () => {
       {getOverallAlert()}
 
       <Grid container spacing={3} sx={{ mt: 2 }}>
-        {health?.services.map((service, index) => (
+        {services.map((service, index) => (
           <Grid item xs={12} md={4} key={index}>
             <Card>
               <CardContent>
@@ -292,9 +251,7 @@ const ConnectionStatus: React.FC = () => {
               </ListItemIcon>
               <ListItemText
                 primary="Backend API"
-                secondary={`${
-                  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
-                }`}
+                secondary={`${baseUrl}`}
               />
             </ListItem>
             <ListItem>
@@ -310,15 +267,13 @@ const ConnectionStatus: React.FC = () => {
         </AccordionDetails>
       </Accordion>
 
-      {health && (
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ mt: 2, display: "block" }}
-        >
-          Last updated: {health.lastUpdate}
-        </Typography>
-      )}
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ mt: 2, display: "block" }}
+      >
+        Last updated: {currentTime}
+      </Typography>
     </Box>
   );
 };

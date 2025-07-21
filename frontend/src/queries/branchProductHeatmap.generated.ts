@@ -12,8 +12,10 @@ function fetcher<TData, TVariables extends { [key: string]: any }>(client: Graph
   });
 }
 export type BranchProductHeatmapQueryVariables = Types.Exact<{
-  startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
-  endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  startDate: Types.Scalars['String']['input'];
+  endDate: Types.Scalars['String']['input'];
+  branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
 }>;
 
 
@@ -22,8 +24,13 @@ export type BranchProductHeatmapQuery = { __typename?: 'Query', branchProductHea
 
 
 export const BranchProductHeatmapDocument = `
-    query BranchProductHeatmap($startDate: String, $endDate: String) {
-  branchProductHeatmap(startDate: $startDate, endDate: $endDate) {
+    query branchProductHeatmap($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+  branchProductHeatmap(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
     branch
     product
     sales
@@ -36,14 +43,14 @@ export const useBranchProductHeatmapQuery = <
       TError = unknown
     >(
       client: GraphQLClient,
-      variables?: BranchProductHeatmapQueryVariables,
+      variables: BranchProductHeatmapQueryVariables,
       options?: Omit<UseQueryOptions<BranchProductHeatmapQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<BranchProductHeatmapQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<BranchProductHeatmapQuery, TError, TData>(
       {
-    queryKey: variables === undefined ? ['BranchProductHeatmap'] : ['BranchProductHeatmap', variables],
+    queryKey: ['branchProductHeatmap', variables],
     queryFn: fetcher<BranchProductHeatmapQuery, BranchProductHeatmapQueryVariables>(client, BranchProductHeatmapDocument, variables, headers),
     ...options
   }
