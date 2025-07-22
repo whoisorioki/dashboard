@@ -5,20 +5,29 @@ import ChartSkeleton from "./skeletons/ChartSkeleton";
 import ChartEmptyState from "./states/ChartEmptyState";
 import ChartCard from "./ChartCard";
 import ReactECharts from "echarts-for-react";
+import { useFilters } from "../context/FilterContext";
+import { queryKeys } from "../lib/queryKeys";
+import { useMemo } from "react";
 
-interface ReturnsAnalysisProps {
-  startDate: string | null;
-  endDate: string | null;
-}
-
-const ReturnsAnalysis: React.FC<ReturnsAnalysisProps> = ({
-  startDate,
-  endDate,
-}) => {
-  const { data, error, isLoading } = useReturnsAnalysisQuery(graphqlClient, {
-    startDate: startDate ?? undefined,
-    endDate: endDate ?? undefined,
-  });
+const ReturnsAnalysis: React.FC = () => {
+  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const filters = useMemo(() => ({
+    dateRange: { start: start_date, end: end_date },
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+    productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+  }), [start_date, end_date, selected_branch, selected_product_line]);
+  const { data, error, isLoading } = useReturnsAnalysisQuery(
+    graphqlClient,
+    {
+      startDate: start_date ?? undefined,
+      endDate: end_date ?? undefined,
+      branch: selected_branch !== "all" ? selected_branch : undefined,
+      productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+    },
+    {
+      queryKey: queryKeys.returnsAnalysis(filters),
+    }
+  );
   const returnsData = data?.returnsAnalysis ?? [];
   if (isLoading) {
     return (

@@ -39,12 +39,17 @@ import { useFilters } from "../context/FilterContext";
 import { useBranchesPageDataQuery } from "../queries/branchesPageData.generated";
 import { graphqlClient } from "../lib/graphqlClient";
 import ChartEmptyState from "../components/states/ChartEmptyState";
-import { formatKshAbbreviated } from "../lib/numberFormat";
+import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
+import { queryKeys } from "../lib/queryKeys";
+import { useMemo } from "react";
 
 const Branches = () => {
-  const { start_date, end_date, selected_branch, selected_product_line } =
-    useFilters();
-
+  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const filters = useMemo(() => ({
+    dateRange: { start: start_date, end: end_date },
+    productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+  }), [start_date, end_date, selected_product_line, selected_branch]);
   const [selectedMetric, setSelectedMetric] = useState<string>("sales");
   const [sortBy, setSortBy] = useState<string>("sales");
 
@@ -53,19 +58,22 @@ const Branches = () => {
     setSortBy("sales");
   };
 
-  const { data, error, isLoading } = useBranchesPageDataQuery(graphqlClient, {
-    startDate: start_date,
-    endDate: end_date,
-  });
+  const { data, error, isLoading } = useBranchesPageDataQuery(
+    graphqlClient,
+    {
+      startDate: start_date,
+      endDate: end_date,
+      branch: selected_branch !== "all" ? selected_branch : undefined,
+      productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+    },
+    {
+      queryKey: queryKeys.branchPerformance ? queryKeys.branchPerformance(filters) : ["branchPerformance", filters],
+    }
+  );
   const safeBranchPerformanceData =
     data?.branchPerformance || [];
 
   const safeBranchGrowthData = data?.branchGrowth || [];
-
-  const formatCurrency = (value: number) => {
-    if (value == null || isNaN(value)) return "KSh 0";
-    return `KSh ${Math.round(value).toLocaleString("en-KE")}`;
-  };
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat("en-US").format(value);
@@ -186,8 +194,8 @@ const Branches = () => {
   return (
     <Box
       sx={{
-        mt: { xs: 6, sm: 8 },
-        p: { xs: 2, sm: 3 },
+        mt: { xs: 2, sm: 3 },
+        p: { xs: 1, sm: 2 },
       }}
     >
       <PageHeader
@@ -209,7 +217,7 @@ const Branches = () => {
             tooltipText="Combined revenue across all branches for the selected period"
             isLoading={isLoading}
             trend={averageGrowth >= 0 ? "up" : "down"}
-            trendValue={`${averageGrowth.toFixed(1)}%`}
+            trendValue={`${formatPercentage(averageGrowth)}`}
             color="primary"
             metricKey="totalSales"
           />
@@ -246,7 +254,7 @@ const Branches = () => {
             tooltipText="Unique products sold across all branches"
             isLoading={isLoading}
             trend={averageGrowth >= 0 ? "up" : "down"}
-            trendValue={`${averageGrowth.toFixed(1)}% avg growth`}
+            trendValue={`${formatPercentage(averageGrowth)} avg growth`}
             color="warning"
           />
         </Grid>
@@ -293,16 +301,6 @@ const Branches = () => {
                       <MenuItem value="products">Products</MenuItem>
                     </Select>
                   </FormControl>
-                  <Button
-                    variant="outlined"
-                    startIcon={<RotateLeftIcon />}
-                    onClick={handleResetLocalFilters}
-                    sx={{
-                      height: "40px",
-                    }}
-                  >
-                    Reset
-                  </Button>
                 </Stack>
               </Box>
               {safeBranchPerformanceData.length === 0 ? (
@@ -390,7 +388,7 @@ const Branches = () => {
                               <Chip
                                 label={`${
                                   growth >= 0 ? "+" : ""
-                                }${growth.toFixed(1)}%`}
+                                }${formatPercentage(growth)}`}
                                 color={getGrowthColor(growth)}
                                 size="small"
                                 variant="filled"
@@ -414,8 +412,8 @@ const Branches = () => {
                                   variant="caption"
                                   color="text.secondary"
                                 >
-                                  {((branch.totalSales / target) * 100).toFixed(
-                                    0
+                                  {formatPercentage(
+                                    (branch.totalSales / target) * 100
                                   )}
                                   %
                                 </Typography>
@@ -511,7 +509,7 @@ const Branches = () => {
                         </Typography>
                       </Box>
                       <Chip
-                        label={`${growth >= 0 ? "+" : ""}${growth.toFixed(1)}%`}
+                        label={`${growth >= 0 ? "+" : ""}${formatPercentage(growth)}`}
                         color={getGrowthColor(growth)}
                         size="small"
                         variant="filled"

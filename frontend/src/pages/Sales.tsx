@@ -39,33 +39,39 @@ import MonthlySalesTrendChart from "../components/MonthlySalesTrendChart";
 import { useSalesPageDataQuery } from "../queries/salesPageData.generated";
 import { graphqlClient } from "../lib/graphqlClient";
 import { useFilters } from "../context/FilterContext";
+import { queryKeys } from "../lib/queryKeys";
+import { useMemo } from "react";
 import ChartEmptyState from "../components/states/ChartEmptyState";
-import { formatKshAbbreviated } from "../lib/numberFormat";
+import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
+import SalespersonProductMixTable from "../components/SalespersonProductMixTable";
 
 const Sales = () => {
-  const { start_date, end_date, selected_branch, selected_product_line } =
-    useFilters();
-
+  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const filters = useMemo(() => ({
+    dateRange: { start: start_date, end: end_date },
+    productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+  }), [start_date, end_date, selected_product_line, selected_branch]);
   const [sortBy, setSortBy] = useState<string>("totalSales");
 
   const handleResetLocalFilters = () => {
     setSortBy("totalSales");
   };
 
-  const { data, error, isLoading } = useSalesPageDataQuery(graphqlClient, {
-    startDate: start_date,
-    endDate: end_date,
-    branch: selected_branch !== "all" ? selected_branch : undefined,
-    productLine:
-      selected_product_line !== "all" ? selected_product_line : undefined,
-  });
+  const { data, error, isLoading } = useSalesPageDataQuery(
+    graphqlClient,
+    {
+      startDate: start_date,
+      endDate: end_date,
+      branch: selected_branch !== "all" ? selected_branch : undefined,
+      productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+    },
+    {
+      queryKey: queryKeys.salesPerformance(filters),
+    }
+  );
 
   const safeSalesData = data?.salesPerformance || [];
-
-  const formatCurrency = (value: number) => {
-    if (value == null || isNaN(value)) return "KSh 0";
-    return `KSh ${Math.round(value).toLocaleString("en-KE")}`;
-  };
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat("en-US").format(value);
@@ -136,8 +142,8 @@ const Sales = () => {
   return (
     <Box
       sx={{
-        mt: { xs: 6, sm: 8 },
-        p: { xs: 2, sm: 3 },
+        mt: { xs: 2, sm: 3 },
+        p: { xs: 1, sm: 2 },
       }}
     >
       <PageHeader
@@ -148,43 +154,7 @@ const Sales = () => {
 
       <Grid container spacing={{ xs: 2, sm: 3 }}>
         {/* Controls */}
-        <Grid item xs={12}>
-          <Box
-            sx={{
-              display: "flex",
-              gap: 2,
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "flex-end",
-            }}
-          >
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Sort By</InputLabel>
-              <Select
-                value={sortBy}
-                label="Sort By"
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                <MenuItem value="totalSales">Total Sales</MenuItem>
-                <MenuItem value="grossProfit">Gross Profit</MenuItem>
-                <MenuItem value="transactionCount">Transactions</MenuItem>
-                <MenuItem value="averageSale">Avg Sale</MenuItem>
-                <MenuItem value="uniqueBranches">Branches</MenuItem>
-              </Select>
-            </FormControl>
-            <Button
-              variant="outlined"
-              startIcon={<RotateLeftIcon />}
-              onClick={handleResetLocalFilters}
-              sx={{
-                height: '40px',
-              }}
-            >
-              Reset
-            </Button>
-          </Box>
-        </Grid>
-
+        {/* Removed local Reset and Sort By from here */}
         {/* Summary KPI Cards */}
         <Grid item xs={12} sm={6} md={3}>
           <KpiCard
@@ -275,7 +245,7 @@ const Sales = () => {
                       </Typography>
                     </Box>
                     <Typography variant="body2" fontWeight="medium">
-                      {formatCurrency(employee.totalSales)}
+                      {formatKshAbbreviated(employee.totalSales)}
                     </Typography>
                   </Box>
                 ))}
@@ -288,6 +258,22 @@ const Sales = () => {
         <Grid item xs={12}>
           <Card>
             <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                  <InputLabel>Sort By</InputLabel>
+                  <Select
+                    value={sortBy}
+                    label="Sort By"
+                    onChange={(e) => setSortBy(e.target.value)}
+                  >
+                    <MenuItem value="totalSales">Total Sales</MenuItem>
+                    <MenuItem value="grossProfit">Gross Profit</MenuItem>
+                    <MenuItem value="transactionCount">Transactions</MenuItem>
+                    <MenuItem value="averageSale">Avg Sale</MenuItem>
+                    <MenuItem value="uniqueBranches">Branches</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
               <Typography variant="h6" gutterBottom>
                 Sales Employee Performance
               </Typography>
@@ -338,17 +324,17 @@ const Sales = () => {
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2" fontWeight="medium">
-                            {formatCurrency(employee.totalSales)}
+                            {formatKshAbbreviated(employee.totalSales)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2" fontWeight="medium" color="success.main">
-                            {formatCurrency(employee.grossProfit)}
+                            {formatKshAbbreviated(employee.grossProfit)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2">
-                            {`${((employee.avgMargin || 0) * 100).toFixed(1)}%`}
+                            {formatPercentage(employee.avgMargin || 0)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
@@ -358,7 +344,7 @@ const Sales = () => {
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2">
-                            {formatCurrency(employee.averageSale)}
+                            {formatKshAbbreviated(employee.averageSale)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
@@ -392,11 +378,10 @@ const Sales = () => {
                               variant="caption"
                               color="text.secondary"
                             >
-                              {(
+                              {formatPercentage(
                                 (employee.totalSales / (avgSales || 1)) *
                                 100
-                              ).toFixed(0)}
-                              %
+                              )}
                             </Typography>
                           </Box>
                         </TableCell>
@@ -407,6 +392,10 @@ const Sales = () => {
               </TableContainer>
             </CardContent>
           </Card>
+        </Grid>
+        {/* Salesperson Product Mix Table */}
+        <Grid item xs={12}>
+          <SalespersonProductMixTable />
         </Grid>
       </Grid>
     </Box>

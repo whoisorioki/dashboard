@@ -13,4 +13,9 @@ export function formatKshAbbreviated(value: number): string {
     formatted = value.toString();
   }
   return `KSh ${formatted}`;
+}
+
+export function formatPercentage(value: number | null | undefined): string {
+  if (value == null || isNaN(value)) return '--';
+  return `${value.toFixed(1)}%`;
 } 

@@ -12,6 +12,7 @@ import ChartEmptyState from "./states/ChartEmptyState";
 import ReactECharts from "echarts-for-react";
 import { MonthlySalesGrowth } from "../types/graphql";
 import { formatKshAbbreviated } from "../lib/numberFormat";
+import ExpandableCard from "./ExpandableCard";
 
 interface MonthlySalesTrendChartProps {
   data: MonthlySalesGrowth[] | undefined;
@@ -24,30 +25,20 @@ const MonthlySalesTrendChart: React.FC<MonthlySalesTrendChartProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <Card>
-        <CardContent>
-          <Typography variant="h5" gutterBottom>
-            Monthly Sales Trend
-          </Typography>
-          <ChartSkeleton />
-        </CardContent>
-      </Card>
+      <ExpandableCard title="Monthly Sales Trend" minHeight={300}>
+        <ChartSkeleton />
+      </ExpandableCard>
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <Card>
-        <CardContent>
-          <Typography variant="h5" gutterBottom>
-            Monthly Sales Trend
-          </Typography>
-          <ChartEmptyState
-            message="No Sales Data Available"
-            subtitle="There are no sales records for the selected time period. Try adjusting your date range or check if data has been properly recorded."
-          />
-        </CardContent>
-      </Card>
+      <ExpandableCard title="Monthly Sales Trend" minHeight={300}>
+        <ChartEmptyState
+          message="No Sales Data Available"
+          subtitle="There are no sales records for the selected time period. Try adjusting your date range or check if data has been properly recorded."
+        />
+      </ExpandableCard>
     );
   }
 
@@ -93,36 +84,19 @@ const MonthlySalesTrendChart: React.FC<MonthlySalesTrendChartProps> = ({
     ],
   };
 
+  // Info content for modal
+  const infoContent = (
+    <>
+      <Typography gutterBottom>
+        This line chart shows sales performance over time. Hover over data points to see detailed values for each period.
+      </Typography>
+    </>
+  );
+
   return (
-    <Card sx={{ position: "relative" }}>
-      <Tooltip
-        title="Line chart showing sales performance over time. Hover over data points to see detailed values for each period."
-        arrow
-      >
-        <IconButton
-          size="small"
-          sx={{
-            position: "absolute",
-            top: 16,
-            right: 16,
-            zIndex: 1,
-            color: "text.secondary",
-            "&:hover": {
-              color: "primary.main",
-              backgroundColor: "action.hover",
-            },
-          }}
-        >
-          <HelpOutlineIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
-      <CardContent>
-        <Typography variant="h5" gutterBottom>
-          Monthly Sales Trend
-        </Typography>
-        <ReactECharts option={option} style={{ height: 300, width: "100%" }} />
-      </CardContent>
-    </Card>
+    <ExpandableCard title="Monthly Sales Trend" infoContent={infoContent} minHeight={300}>
+      <ReactECharts option={option} style={{ height: 300, width: "100%" }} />
+    </ExpandableCard>
   );
 };
 

@@ -261,9 +261,16 @@ class Query:
         if product_line and product_line != "all":
             df = df.filter(pl.col("ProductLine") == product_line)
 
-        performance_df = df.group_by("ItemName").agg(
-            pl.sum("grossRevenue").alias("sales")
-        ).sort("sales", descending=True).head(n).collect()
+        performance_df = (
+            df.lazy()
+            .group_by("ItemName")
+            .agg([
+                pl.sum("grossRevenue").alias("sales")
+            ])
+            .sort("sales", descending=True)
+            .head(n)
+            .collect()
+        )
 
         return [
             ProductPerformance(
@@ -296,9 +303,14 @@ class Query:
         if product_line and product_line != "all":
             df = df.filter(pl.col("ProductLine") == product_line)
 
-        heatmap_df = df.group_by(["Branch", "ProductLine"]).agg(
-            pl.sum("grossRevenue").alias("sales")
-        ).collect()
+        heatmap_df = (
+            df.lazy()
+            .group_by(["Branch", "ProductLine"])
+            .agg([
+                pl.sum("grossRevenue").alias("sales")
+            ])
+            .collect()
+        )
 
         return [
             BranchProductHeatmap(
@@ -332,13 +344,18 @@ class Query:
         if product_line and product_line != "all":
             df = df.filter(pl.col("ProductLine") == product_line)
 
-        performance_df = df.group_by("Branch").agg(
-            pl.sum("grossRevenue").alias("total_sales"),
-            pl.count("Branch").alias("transaction_count"),
-            pl.mean("grossRevenue").alias("average_sale"),
-            pl.n_unique("CardName").alias("unique_customers"),
-            pl.n_unique("ItemName").alias("unique_products")
-        ).collect()
+        performance_df = (
+            df.lazy()
+            .group_by("Branch")
+            .agg([
+                pl.sum("grossRevenue").alias("total_sales"),
+                pl.count("Branch").alias("transaction_count"),
+                pl.mean("grossRevenue").alias("average_sale"),
+                pl.n_unique("CardName").alias("unique_customers"),
+                pl.n_unique("ItemName").alias("unique_products")
+            ])
+            .collect()
+        )
 
         return [
             BranchPerformance(
@@ -375,15 +392,20 @@ class Query:
         if product_line and product_line != "all":
             df = df.filter(pl.col("ProductLine") == product_line)
 
-        performance_df = df.group_by("SalesPerson").agg(
-            pl.sum("grossRevenue").alias("total_sales"),
-            (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("gross_profit"),
-            ((pl.sum("grossRevenue") - pl.sum("totalCost")) / pl.sum("grossRevenue")).alias("avg_margin"),
-            pl.count("SalesPerson").alias("transaction_count"),
-            pl.mean("grossRevenue").alias("average_sale"),
-            pl.n_unique("Branch").alias("unique_branches"),
-            pl.n_unique("ItemName").alias("unique_products")
-        ).collect()
+        performance_df = (
+            df.lazy()
+            .group_by("SalesPerson")
+            .agg([
+                pl.sum("grossRevenue").alias("total_sales"),
+                (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("gross_profit"),
+                ((pl.sum("grossRevenue") - pl.sum("totalCost")) / pl.sum("grossRevenue")).alias("avg_margin"),
+                pl.count("SalesPerson").alias("transaction_count"),
+                pl.mean("grossRevenue").alias("average_sale"),
+                pl.n_unique("Branch").alias("unique_branches"),
+                pl.n_unique("ItemName").alias("unique_products")
+            ])
+            .collect()
+        )
 
         return [
             SalesPerformance(
@@ -422,15 +444,24 @@ class Query:
         if product_line and product_line != "all":
             df = df.filter(pl.col("ProductLine") == product_line)
 
-        analytics_df = df.group_by(["ItemName", "ProductLine", "ItemGroup"]).agg(
+        # Use only columns that exist in Druid schema (see md/args.md)
+        # unitsSold, unitsReturned, grossRevenue, totalCost, etc.
+        agg_exprs = [
             pl.sum("grossRevenue").alias("total_sales"),
             (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("gross_profit"),
             ((pl.sum("grossRevenue") - pl.sum("totalCost")) / pl.sum("grossRevenue")).alias("margin"),
-            pl.sum("Quantity").alias("total_qty"),
+            pl.sum("unitsSold").alias("total_qty"),
             pl.count("ItemName").alias("transaction_count"),
             pl.n_unique("Branch").alias("unique_branches"),
             pl.mean("grossRevenue").alias("average_price")
-        ).collect()
+        ]
+
+        analytics_df = (
+            df.lazy()
+            .group_by(["ItemName", "ProductLine", "ItemGroup"])
+            .agg(agg_exprs)
+            .collect()
+        )
 
         return [
             ProductAnalytics(
@@ -440,7 +471,7 @@ class Query:
                 total_sales=sanitize(row["total_sales"]),
                 gross_profit=sanitize(row["gross_profit"]),
                 margin=sanitize(row["margin"]),
-                total_qty=row["total_qty"],
+                total_qty=sanitize(row.get("total_qty", 0)),
                 transaction_count=row["transaction_count"],
                 unique_branches=row["unique_branches"],
                 average_price=sanitize(row["average_price"]),

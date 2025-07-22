@@ -4,11 +4,28 @@
 
 This document outlines the system design and architecture of the Sales Analytics Dashboard, a full-stack application engineered to provide real-time, interactive analytics for a Kenyan business.
 
-**Business Goal:** The primary objective is to transform raw sales data into actionable insights. This enables data-driven decision-making to improve sales performance, enhance profitability, and optimize operational efficiency. The dashboard is designed to answer critical business questions, such as:
-- Who are our most profitable salespeople?
-- What are our most profitable products and product lines?
-- How are different branches performing against each other and over time?
-- What is the profile of our most valuable customers based on purchase history?
+**Primary Business Goal:** The primary objective is to transform raw sales data into actionable insights. This enables data-driven decision-making to improve sales performance, enhance profitability, and optimize operational efficiency. The project is divided into two strategic phases.
+
+### Phase 1 Goal: Maximize Value from Existing Sales Data
+
+The immediate goal is to build a "State of the Business" analysis using the current sales data. This demonstrates analytical capability and establishes a performance baseline that highlights what's missing.
+
+**Key Business Questions (Phase 1):** The dashboard must provide clear, data-backed answers to the following:
+
+1.  **Salesperson Performance:**
+    -   Who are our most profitable salespeople, ranked by Gross Profit, not just sales volume?
+    -   What is the product mix for each salesperson?
+    -   Who excels at selling high-margin products (i.e., has the highest average profit margin per sale)?
+
+2.  **Product & Product Line Profitability:**
+    -   What are our most profitable products and product lines?
+    -   Are sales and marketing efforts aligned with our most profitable offerings?
+
+3.  **Branch Performance:**
+    -   How are different branches performing against each other and over time in terms of sales and profitability?
+
+4.  **Customer Profile:**
+    -   What is the profile of our most valuable customers based on total sales and gross profit? This will help build an initial Ideal Customer Profile (ICP).
 
 ---
 
@@ -107,6 +124,32 @@ The data pipeline is designed for robustness and data quality, from ingestion to
 
 ## 10. Project Roadmap
 
--   **Phase 1 (Complete)**: This phase focuses on extracting maximum value from the existing sales data. It includes the implementation of all core KPIs related to salesperson performance, product profitability, branch analytics, and customer value based on historical sales.
--   **Phase 2 (Future)**: This phase aims to integrate new data sources, such as a CRM or inquiry database. This will enable the dashboard to answer more complex business questions related to sales win/loss rates, lead conversion funnels, and the impact of pre-sales activities on revenue. This will require developing new ingestion pipelines, API endpoints, and frontend visualizations.
+The project follows a two-phase strategic plan to deliver incremental value and build a business case for expanded data access.
 
+### Phase 1 (Complete): Reveal the "What" with Sales Data
+
+This phase focuses on extracting maximum value from the existing `sales_analytics` datasource. It answers critical questions about business performance based on *successful* deals.
+
+-   **Status:** Complete
+-   **Key Deliverables:**
+    -   A **Salesperson Leaderboard** ranking reps by Gross Profit and other key metrics.
+    -   A **Product Analytics** view showing profitability by product line and item.
+    -   A **Branch Performance** dashboard for comparing locations over time.
+    -   A **Customer Value** analysis to identify top accounts.
+-   **Strategic Outcome:** Provides a comprehensive "State of the Business" dashboard, demonstrating the value of data analytics and establishing a baseline of current performance.
+
+### Phase 2 (Future): Unlock the "Why" with CRM Data
+
+This phase aims to build an undeniable business case for integrating CRM or inquiry data. The core argument is that the current data, while valuable, contains no record of failure and thus cannot explain why the vast majority of inquiries do not convert to sales.
+
+-   **Status:** Proposed
+-   **Business Case:** By integrating CRM data (which includes both "Successful" and "Unsuccessful" outcomes), we can move from analyzing *what* we won to understanding *why* we lose.
+-   **Key Questions to Answer:**
+    -   **What is our true Win Rate?** (Successful / Total Inquiries) per salesperson, product, etc.
+    -   **Where is our sales funnel leaking?** Are we losing deals early (poor qualification) or late (poor closing)?
+    -   **How efficient is our sales process?** What is the average sales cycle length per rep?
+    -   **Are we assigning the right leads to the right people?** Are our best closers working on low-quality leads?
+-   **Technical Requirements:**
+    -   New data ingestion pipelines for CRM data.
+    -   Expanded backend services and API endpoints.
+    -   New frontend visualizations for funnel analysis, win/loss rates, and sales cycle trends.

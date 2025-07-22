@@ -18,7 +18,12 @@ const ProfitabilityAnalysis = () => {
     });
 
     return (
-        <Box sx={{ mt: { xs: 6, sm: 8 }, p: { xs: 2, sm: 3 } }}>
+        <Box
+            sx={{
+                mt: { xs: 2, sm: 3 },
+                p: { xs: 1, sm: 2 },
+            }}
+        >
             <PageHeader
                 title="Profitability Analysis"
                 subtitle="Explore margins, costs, and profitability drivers"

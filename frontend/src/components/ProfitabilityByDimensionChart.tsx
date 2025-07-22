@@ -13,24 +13,31 @@ import { graphqlClient } from "../lib/graphqlClient";
 import { useFilters } from "../context/FilterContext";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
 import ChartEmptyState from "./states/ChartEmptyState";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import ChartCard from "./ChartCard";
 import ReactECharts from "echarts-for-react";
+import { queryKeys } from "../lib/queryKeys";
 
-interface ProfitabilityByDimensionChartProps {
-  startDate: string | null;
-  endDate: string | null;
-}
-
-const ProfitabilityByDimensionChart: React.FC<
-  ProfitabilityByDimensionChartProps
-> = ({ startDate, endDate }) => {
+const ProfitabilityByDimensionChart: React.FC = () => {
   const [dimension, setDimension] = useState("Branch");
-  const { data, error, isLoading } = useProfitabilityByDimensionQuery(graphqlClient, {
+  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const filters = useMemo(() => ({
+    dateRange: { start: start_date, end: end_date },
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+    productLine: selected_product_line !== "all" ? selected_product_line : undefined,
     dimension,
-    startDate,
-    endDate,
-  });
+  }), [start_date, end_date, selected_branch, selected_product_line, dimension]);
+  const { data, error, isLoading } = useProfitabilityByDimensionQuery(
+    graphqlClient,
+    {
+      dimension,
+      startDate: start_date,
+      endDate: end_date,
+    },
+    {
+      queryKey: queryKeys.profitabilityByDimension(filters),
+    }
+  );
   const chartData = data?.profitabilityByDimension ?? [];
 
   if (isLoading) {

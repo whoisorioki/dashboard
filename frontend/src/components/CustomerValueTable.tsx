@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -15,9 +15,28 @@ import {
 import { useCustomerValueQuery } from "../queries/customerValue.generated";
 import { graphqlClient } from "../lib/graphqlClient";
 import { formatKshAbbreviated } from "../lib/numberFormat";
+import { useFilters } from "../context/FilterContext";
+import { queryKeys } from "../lib/queryKeys";
 
 const CustomerValueTable: React.FC = () => {
-  const { data, isLoading, error } = useCustomerValueQuery(graphqlClient, {});
+  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const filters = useMemo(() => ({
+    dateRange: { start: start_date, end: end_date },
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+    productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+  }), [start_date, end_date, selected_branch, selected_product_line]);
+  const { data, isLoading, error } = useCustomerValueQuery(
+    graphqlClient,
+    {
+      startDate: start_date,
+      endDate: end_date,
+      branch: selected_branch !== "all" ? selected_branch : undefined,
+      productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+    },
+    {
+      queryKey: queryKeys.customerValue(filters),
+    }
+  );
   const customers = Array.isArray(data?.customerValue)
     ? [...data.customerValue]
     : [];

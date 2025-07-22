@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useDataRangeQuery } from "./generated/graphql";
 import { graphqlClient } from "../lib/graphqlClient";
+import { queryKeys } from "../lib/queryKeys";
 
 interface DataRangeResult {
   minDate: Date | null;
@@ -16,13 +17,16 @@ interface DruidDataRange {
 }
 
 export const useDataRange = (): DataRangeResult => {
+  const filters = useMemo(() => ({}), []); // No filters, but memoized for consistency
+  const { data, error, isLoading } = useDataRangeQuery(
+    { client: graphqlClient },
+    {
+      queryKey: queryKeys.dataRange ? queryKeys.dataRange(filters) : ["dataRange", filters],
+    }
+  );
+
   const [minDate, setMinDate] = useState<Date | null>(null);
   const [maxDate, setMaxDate] = useState<Date | null>(null);
-
-  // Fetch the data range from Druid
-  const { data, error, isLoading } = useDataRangeQuery({
-    client: graphqlClient,
-  });
 
   useEffect(() => {
     if (data && data.dataRange && data.dataRange.length > 0) {

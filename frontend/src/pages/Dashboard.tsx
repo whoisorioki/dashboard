@@ -22,6 +22,7 @@ import {
   Dashboard as DashboardIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
+import { differenceInCalendarDays, subDays, parseISO } from "date-fns";
 import PageHeader from "../components/PageHeader";
 import KpiCard from "../components/KpiCard";
 import MonthlySalesTrendChart from "../components/MonthlySalesTrendChart";
@@ -31,28 +32,47 @@ import QuotaAttainmentGauge from "../components/QuotaAttainmentGauge";
 import ChartEmptyState from "../components/states/ChartEmptyState";
 import { useDashboardDataQuery } from "../queries/dashboardData.generated";
 import { useFilters } from "../context/FilterContext";
+import { queryKeys } from "../lib/queryKeys";
+import { useMemo } from "react";
 
 import { useNavigate } from "react-router-dom";
 import { graphqlClient } from "../lib/graphqlClient";
-import { formatKshAbbreviated } from "../lib/numberFormat";
+import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
 
 // Type guards for API responses
 // Remove legacy type guards; use generated types directly
 
 const Dashboard = () => {
   const [debugMode, setDebugMode] = useState(false);
-  const {
-    start_date,
-    end_date,
-    selected_branch,
-    selected_product_line,
-    sales_target,
-    setSalesTarget,
-  } = useFilters();
+  const { date_range, start_date, end_date, selected_branch, selected_product_line, sales_target, setSalesTarget } = useFilters();
 
-  const navigate = useNavigate();
+  // Calculate previous period
+  const [currentStart, currentEnd] = date_range;
+  let prevStart: Date | null = null;
+  let prevEnd: Date | null = null;
+  if (currentStart && currentEnd) {
+    const duration = differenceInCalendarDays(currentEnd, currentStart);
+    prevEnd = subDays(currentStart, 1);
+    prevStart = subDays(prevEnd, duration);
+  }
+  const prevStartStr = prevStart ? format(prevStart, 'yyyy-MM-dd') : undefined;
+  const prevEndStr = prevEnd ? format(prevEnd, 'yyyy-MM-dd') : undefined;
 
-  // Single API call for all dashboard data
+  // Memoized filters for query keys
+  const filters = useMemo(() => ({
+    dateRange: { start: start_date, end: end_date },
+    branch: selected_branch !== 'all' ? selected_branch : undefined,
+    productLine: selected_product_line !== 'all' ? selected_product_line : undefined,
+    target: sales_target ? parseFloat(sales_target) : undefined,
+  }), [start_date, end_date, selected_branch, selected_product_line, sales_target]);
+  const prevFilters = useMemo(() => ({
+    dateRange: { start: prevStartStr, end: prevEndStr },
+    branch: selected_branch !== 'all' ? selected_branch : undefined,
+    productLine: selected_product_line !== 'all' ? selected_product_line : undefined,
+    target: sales_target ? parseFloat(sales_target) : undefined,
+  }), [prevStartStr, prevEndStr, selected_branch, selected_product_line, sales_target]);
+
+  // Parallel fetch: current and previous period
   const { data: dashboardData, isLoading: loadingDashboard } = useDashboardDataQuery(
     graphqlClient,
     {
@@ -61,14 +81,33 @@ const Dashboard = () => {
       branch: selected_branch !== 'all' ? selected_branch : undefined,
       productLine: selected_product_line !== 'all' ? selected_product_line : undefined,
       target: sales_target ? parseFloat(sales_target) : undefined,
+    },
+    {
+      queryKey: queryKeys.kpis, // Use a broad key for the dashboard aggregate, or split by section if needed
+    }
+  );
+  const { data: prevDashboardData, isLoading: loadingPrevDashboard } = useDashboardDataQuery(
+    graphqlClient,
+    {
+      startDate: prevStartStr,
+      endDate: prevEndStr,
+      branch: selected_branch !== 'all' ? selected_branch : undefined,
+      productLine: selected_product_line !== 'all' ? selected_product_line : undefined,
+      target: sales_target ? parseFloat(sales_target) : undefined,
+    },
+    {
+      queryKey: queryKeys.kpis, // Use a broad key for the dashboard aggregate, or split by section if needed
     }
   );
 
   // Use all fields from backend output directly
   const safeMonthlySalesGrowth = dashboardData?.monthlySalesGrowth ?? [];
+  const safePrevMonthlySalesGrowth = prevDashboardData?.monthlySalesGrowth ?? [];
   const safeRevenueSummary = dashboardData?.revenueSummary || null;
+  const safePrevRevenueSummary = prevDashboardData?.revenueSummary || null;
   const safeProductAnalytics = dashboardData?.productAnalytics ?? [];
   const safeTargetAttainment = dashboardData?.targetAttainment || null;
+  const safePrevTargetAttainment = prevDashboardData?.targetAttainment || null;
   const safeProductPerformance = dashboardData?.productPerformance ?? [];
   const safeHeatmapData = dashboardData?.branchProductHeatmap ?? [];
   const safeTopCustomers = dashboardData?.topCustomers ?? [];
@@ -78,20 +117,19 @@ const Dashboard = () => {
 
   // TODO: Add and display all other KPIs as needed
 
-  const formatCurrency = (value: number | undefined | null) => {
-    if (value == null || isNaN(value)) return "KSh 0";
-    return `KSh ${Math.round(value).toLocaleString("en-KE")}`;
-  };
-
-  const formatPercentage = (value: number | undefined | null) => {
-    if (value == null || isNaN(value) || !isFinite(value)) return "0%";
-    return `${value.toFixed(1)}%`;
-  };
-
-  // Helper functions for canonical calculations
+  // Calculate KPI values for current and previous period
   const totalSales = Array.isArray(safeMonthlySalesGrowth)
     ? safeMonthlySalesGrowth.reduce((sum, entry) => sum + (entry.totalSales || 0), 0)
     : 0;
+  const prevTotalSales = Array.isArray(safePrevMonthlySalesGrowth)
+    ? safePrevMonthlySalesGrowth.reduce((sum, entry) => sum + (entry.totalSales || 0), 0)
+    : 0;
+  const totalSalesChange = totalSales - prevTotalSales;
+  const totalSalesChangePct = prevTotalSales ? (totalSalesChange / prevTotalSales) * 100 : 0;
+  const totalSalesDirection = totalSalesChange > 0 ? 'up' : totalSalesChange < 0 ? 'down' : 'neutral';
+  const totalSalesColor = totalSalesDirection === 'up' ? 'success' : totalSalesDirection === 'down' ? 'error' : 'default';
+
+  // Sales Growth
   const salesGrowth =
     Array.isArray(safeMonthlySalesGrowth) && safeMonthlySalesGrowth.length > 1
       ? ((safeMonthlySalesGrowth[safeMonthlySalesGrowth.length - 1].totalSales -
@@ -99,18 +137,59 @@ const Dashboard = () => {
           safeMonthlySalesGrowth[0].totalSales) *
         100
       : 0;
-  // Avg Deal Size: Not available until backend provides totalTransactions
-  // (Backend already provides totalTransactions in revenue summary)
+  const prevSalesGrowth =
+    Array.isArray(safePrevMonthlySalesGrowth) && safePrevMonthlySalesGrowth.length > 1
+      ? ((safePrevMonthlySalesGrowth[safePrevMonthlySalesGrowth.length - 1].totalSales -
+          safePrevMonthlySalesGrowth[0].totalSales) /
+          safePrevMonthlySalesGrowth[0].totalSales) *
+        100
+      : 0;
+  const salesGrowthChange = salesGrowth - prevSalesGrowth;
+  const salesGrowthDirection = salesGrowthChange > 0 ? 'up' : salesGrowthChange < 0 ? 'down' : 'neutral';
+  const salesGrowthColor = salesGrowthDirection === 'up' ? 'success' : salesGrowthDirection === 'down' ? 'error' : 'default';
+
+  // Avg Deal Size
   const avgDealSize = safeRevenueSummary?.totalTransactions
     ? safeRevenueSummary.totalRevenue / safeRevenueSummary.totalTransactions
     : null;
+  const prevAvgDealSize = safePrevRevenueSummary?.totalTransactions
+    ? safePrevRevenueSummary.totalRevenue / safePrevRevenueSummary.totalTransactions
+    : null;
+  const avgDealSizeChange = (avgDealSize ?? 0) - (prevAvgDealSize ?? 0);
+  const avgDealSizeChangePct = prevAvgDealSize ? (avgDealSizeChange / prevAvgDealSize) * 100 : 0;
+  const avgDealSizeDirection = avgDealSizeChange > 0 ? 'up' : avgDealSizeChange < 0 ? 'down' : 'neutral';
+  const avgDealSizeColor = avgDealSizeDirection === 'up' ? 'success' : avgDealSizeDirection === 'down' ? 'error' : 'default';
 
-  const getTargetAttainmentPercentage = () => {
-    if (!safeTargetAttainment || typeof safeTargetAttainment.attainmentPercentage !== "number") {
+  // Target Attainment
+  const getTargetAttainmentPercentage = (dataObj: any) => {
+    if (!dataObj || typeof dataObj.attainmentPercentage !== "number") {
       return 0;
     }
-    return safeTargetAttainment.attainmentPercentage;
+    return dataObj.attainmentPercentage;
   };
+  const targetAttainment = getTargetAttainmentPercentage(safeTargetAttainment);
+  const prevTargetAttainment = getTargetAttainmentPercentage(safePrevTargetAttainment);
+  const targetAttainmentChange = targetAttainment - prevTargetAttainment;
+  const targetAttainmentDirection = targetAttainmentChange > 0 ? 'up' : targetAttainmentChange < 0 ? 'down' : 'neutral';
+  const targetAttainmentColor = targetAttainmentDirection === 'up' ? 'success' : targetAttainmentDirection === 'down' ? 'error' : 'default';
+
+  // Helper functions for canonical calculations
+  // These are now calculated directly above
+  // const totalSales = Array.isArray(safeMonthlySalesGrowth)
+  //   ? safeMonthlySalesGrowth.reduce((sum, entry) => sum + (entry.totalSales || 0), 0)
+  //   : 0;
+  // const salesGrowth =
+  //   Array.isArray(safeMonthlySalesGrowth) && safeMonthlySalesGrowth.length > 1
+  //     ? ((safeMonthlySalesGrowth[safeMonthlySalesGrowth.length - 1].totalSales -
+  //         safeMonthlySalesGrowth[0].totalSales) /
+  //         safeMonthlySalesGrowth[0].totalSales) *
+  //       100
+  //     : 0;
+  // // Avg Deal Size: Not available until backend provides totalTransactions
+  // // (Backend already provides totalTransactions in revenue summary)
+  // const avgDealSize = safeRevenueSummary?.totalTransactions
+  //   ? safeRevenueSummary.totalRevenue / safeRevenueSummary.totalTransactions
+  //   : null;
 
   // Show loading state
   if (loadingDashboard) {
@@ -148,11 +227,18 @@ const Dashboard = () => {
   // For branch performance, show Branch, total_sales, transaction_count, etc.
   // For customer value, show cardName, salesAmount, grossProfit, etc.
 
+  // For each KPI card, calculate vs previous period
+  // Example for Total Sales:
+  // const previousTotalSales = ... (calculate from previous period data)
+  // const totalSalesChange = totalSales - previousTotalSales;
+  // const totalSalesChangePct = previousTotalSales ? (totalSalesChange / previousTotalSales) * 100 : 0;
+  // Pass these as props to KpiCard: vsValue, vsPercent, vsDirection ('up'|'down'|'flat'), vsColor
+
   return (
     <Box
       sx={{
-        mt: { xs: 6, sm: 8 },
-        p: { xs: 2, sm: 3 },
+        mt: { xs: 2, sm: 3 },
+        p: { xs: 1, sm: 2 },
       }}
     >
       <PageHeader
@@ -163,14 +249,7 @@ const Dashboard = () => {
 
       {/* Add summary sentence and refactor KPI card layout */}
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" sx={{ fontWeight: 600, mb: 1 }}>
-          {/* Dynamic summary: Example logic, can be improved */}
-          {salesGrowth > 0
-            ? `Sales are trending up this quarter.`
-            : salesGrowth < 0
-            ? `Sales are trending down this quarter.`
-            : `Sales are steady this quarter.`}
-        </Typography>
+        {/* Dynamic summary: Example logic, can be improved */}
       </Box>
       <Grid container spacing={4} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} lg={3}>
@@ -180,8 +259,12 @@ const Dashboard = () => {
             icon={<AttachMoneyIcon />}
             tooltipText="Total sales revenue for the selected period."
             isLoading={loadingDashboard}
-            trend={salesGrowth >= 0 ? "up" : "down"}
-            trendValue={formatPercentage(salesGrowth)}
+            vsValue={totalSalesChange}
+            vsPercent={totalSalesChangePct}
+            vsDirection={totalSalesDirection}
+            vsColor={totalSalesColor}
+            trend={totalSalesDirection}
+            trendValue={formatKshAbbreviated(totalSales)}
             color="primary"
             metricKey="totalSales"
           />
@@ -189,11 +272,14 @@ const Dashboard = () => {
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
             title="Sales Growth (YoY)"
-            value={salesGrowth}
+            value={formatPercentage(salesGrowth)}
             icon={<TrendingUpIcon />}
             tooltipText="Year-over-year sales growth rate."
             isLoading={loadingDashboard}
-            trend={salesGrowth >= 0 ? "up" : "down"}
+            vsValue={salesGrowthChange}
+            vsDirection={salesGrowthDirection}
+            vsColor={salesGrowthColor}
+            trend={salesGrowthDirection}
             trendValue={formatPercentage(salesGrowth)}
             color="primary"
             metricKey="salesGrowth"
@@ -206,8 +292,12 @@ const Dashboard = () => {
             icon={<ReceiptLongIcon />}
             tooltipText="Average value per transaction (requires backend update)."
             isLoading={loadingDashboard}
-            trend={undefined}
-            trendValue={undefined}
+            vsValue={avgDealSizeChange}
+            vsPercent={avgDealSizeChangePct}
+            vsDirection={avgDealSizeDirection}
+            vsColor={avgDealSizeColor}
+            trend={avgDealSizeDirection}
+            trendValue={formatKshAbbreviated(avgDealSize ?? 0)}
             color="primary"
             metricKey="avgDealSize"
           />
@@ -216,10 +306,15 @@ const Dashboard = () => {
           {/* Target Attainment card with inline edit prep */}
           <KpiCard
             title="Target Attainment"
-            value={getTargetAttainmentPercentage()}
+            value={formatPercentage(targetAttainment)}
             icon={<TargetIcon />}
             tooltipText="Percentage of sales target achieved. Click edit to update target."
             isLoading={loadingDashboard}
+            vsValue={targetAttainmentChange}
+            vsDirection={targetAttainmentDirection}
+            vsColor={targetAttainmentColor}
+            trend={targetAttainmentDirection}
+            trendValue={formatPercentage(targetAttainment)}
             color="warning"
             metricKey="targetAttainment"
             editableTarget

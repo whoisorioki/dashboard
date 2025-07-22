@@ -12,6 +12,7 @@ import ChartEmptyState from "./states/ChartEmptyState";
 import type { BranchProductHeatmap } from "../types/graphql";
 import ReactECharts from "echarts-for-react";
 import { formatKshAbbreviated } from "../lib/numberFormat";
+import ExpandableCard from "./ExpandableCard";
 
 interface BranchProductHeatmapProps {
   data: BranchProductHeatmap[] | undefined;
@@ -24,30 +25,17 @@ const BranchProductHeatmap: React.FC<BranchProductHeatmapProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <Card>
-        <CardContent>
-          <Typography variant="h5" gutterBottom>
-            Branch-Product Sales Heatmap
-          </Typography>
-          <ChartSkeleton />
-        </CardContent>
-      </Card>
+      <ExpandableCard title="Branch-Product Sales Heatmap" minHeight={300}>
+        <ChartSkeleton />
+      </ExpandableCard>
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <Card>
-        <CardContent>
-          <Typography variant="h5" gutterBottom>
-            Branch-Product Sales Heatmap
-          </Typography>
-          <ChartEmptyState
-            message="No Branch-Product Data Available"
-            subtitle="There are no sales records by branch and product for the selected time period. Try adjusting your date range or ensure sales data is properly recorded across branches."
-          />
-        </CardContent>
-      </Card>
+      <ExpandableCard title="Branch-Product Sales Heatmap" minHeight={300}>
+        <ChartEmptyState message="No heatmap data available." />
+      </ExpandableCard>
     );
   }
 
@@ -115,82 +103,19 @@ const BranchProductHeatmap: React.FC<BranchProductHeatmapProps> = ({
     ],
   };
 
+  // Info content for modal
+  const infoContent = (
+    <>
+      <Typography gutterBottom>
+        This heatmap shows sales volume by branch and product. Darker colors indicate higher sales.
+      </Typography>
+    </>
+  );
+
   return (
-    <Card sx={{ position: "relative" }}>
-      <Tooltip
-        title="Scatter plot visualization showing sales performance across different branches and products. Color intensity represents sales volume - darker colors indicate higher sales."
-        arrow
-      >
-        <IconButton
-          size="small"
-          sx={{
-            position: "absolute",
-            top: 16,
-            right: 16,
-            zIndex: 1,
-            color: "text.secondary",
-            "&:hover": {
-              color: "primary.main",
-              backgroundColor: "action.hover",
-            },
-          }}
-        >
-          <HelpOutlineIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
-      <CardContent>
-        <Typography variant="h5" gutterBottom>
-          Branch-Product Sales Heatmap
-        </Typography>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <ReactECharts option={option} style={{ height: 300, width: "80%" }} />
-          <Box sx={{ ml: 2 }}>
-            <Typography variant="body2" gutterBottom>
-              Sales Volume
-            </Typography>
-            <Box
-              sx={{
-                height: 200,
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Box
-                  sx={{
-                    width: 20,
-                    height: 20,
-                    backgroundColor: "rgb(255, 0, 100)",
-                  }}
-                />
-                <Typography variant="caption">High</Typography>
-              </Box>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Box
-                  sx={{
-                    width: 20,
-                    height: 20,
-                    backgroundColor: "rgb(128, 128, 100)",
-                  }}
-                />
-                <Typography variant="caption">Medium</Typography>
-              </Box>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Box
-                  sx={{
-                    width: 20,
-                    height: 20,
-                    backgroundColor: "rgb(0, 255, 100)",
-                  }}
-                />
-                <Typography variant="caption">Low</Typography>
-              </Box>
-            </Box>
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
+    <ExpandableCard title="Branch-Product Sales Heatmap" infoContent={infoContent} minHeight={300}>
+      <ReactECharts option={option} style={{ height: 300, width: "100%" }} />
+    </ExpandableCard>
   );
 };
 export default BranchProductHeatmap;

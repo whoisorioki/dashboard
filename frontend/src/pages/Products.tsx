@@ -39,12 +39,17 @@ import { useFilters } from "../context/FilterContext";
 import { useProductsPageDataQuery } from "../queries/productsPageData.generated";
 import { graphqlClient } from "../lib/graphqlClient";
 import ChartEmptyState from "../components/states/ChartEmptyState";
-import { formatKshAbbreviated } from "../lib/numberFormat";
+import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
+import { queryKeys } from "../lib/queryKeys";
+import { useMemo } from "react";
 
 const Products = () => {
-  const { start_date, end_date, selected_branch, selected_product_line } =
-    useFilters();
-
+  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const filters = useMemo(() => ({
+    dateRange: { start: start_date, end: end_date },
+    productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+  }), [start_date, end_date, selected_product_line, selected_branch]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("totalSales");
 
@@ -53,21 +58,21 @@ const Products = () => {
     setSortBy("totalSales");
   };
 
-  const { data, error, isLoading } = useProductsPageDataQuery(graphqlClient, {
-    startDate: start_date,
-    endDate: end_date,
-    branch: selected_branch !== "all" ? selected_branch : undefined,
-    productLine:
-      selected_product_line !== "all" ? selected_product_line : undefined,
-  });
+  const { data, error, isLoading } = useProductsPageDataQuery(
+    graphqlClient,
+    {
+      startDate: start_date,
+      endDate: end_date,
+      branch: selected_branch !== "all" ? selected_branch : undefined,
+      productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+    },
+    {
+      queryKey: queryKeys.productAnalytics(filters),
+    }
+  );
   const safeProductData = data?.productAnalytics || [];
 
   const safeRevenueSummary = data?.revenueSummary;
-
-  const formatCurrency = (value: number) => {
-    if (value == null || isNaN(value)) return "KSh 0";
-    return `KSh ${Math.round(value).toLocaleString("en-KE")}`;
-  };
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat("en-US").format(value);
@@ -153,8 +158,8 @@ const Products = () => {
   return (
     <Box
       sx={{
-        mt: { xs: 6, sm: 8 },
-        p: { xs: 2, sm: 3 },
+        mt: { xs: 2, sm: 3 },
+        p: { xs: 1, sm: 2 },
       }}
     >
       <PageHeader
@@ -401,7 +406,7 @@ const Products = () => {
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2">
-                            {`${((product.margin || 0) * 100).toFixed(1)}%`}
+                            {formatPercentage(product.margin || 0)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">

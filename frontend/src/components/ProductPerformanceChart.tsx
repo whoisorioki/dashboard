@@ -16,6 +16,7 @@ import { ProductPerformanceQuery } from "../queries/productPerformance.generated
 import ChartCard from "./ChartCard";
 import ReactECharts from "echarts-for-react";
 import { formatKshAbbreviated } from "../lib/numberFormat";
+import ExpandableCard from "./ExpandableCard";
 
 interface ProductPerformanceChartProps {
   data: ProductPerformanceQuery["productPerformance"] | undefined;
@@ -40,20 +41,20 @@ const ProductPerformanceChart: React.FC<ProductPerformanceChartProps> = ({
 
   if (isLoading) {
     return (
-      <ChartCard title="Product Performance" isLoading={true}>
+      <ExpandableCard title="Product Performance" minHeight={300}>
         <ChartSkeleton />
-      </ChartCard>
+      </ExpandableCard>
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <ChartCard title="Product Performance" isLoading={false}>
+      <ExpandableCard title="Product Performance" minHeight={300}>
         <ChartEmptyState
-          isError={false}
           message="No Product Performance Data"
+          subtitle="There are no product performance records for the selected time period. Try adjusting your date range or check if data has been properly recorded."
         />
-      </ChartCard>
+      </ExpandableCard>
     );
   }
 
@@ -104,52 +105,19 @@ const ProductPerformanceChart: React.FC<ProductPerformanceChartProps> = ({
     ],
   };
 
+  // Info content for modal
+  const infoContent = (
+    <>
+      <Typography gutterBottom>
+        This bar chart shows the top and bottom performing products by sales. Hover over bars to see detailed values.
+      </Typography>
+    </>
+  );
+
   return (
-    <Card sx={{ position: "relative" }}>
-      <Tooltip
-        title="Horizontal bar chart showing top or bottom performing products by sales. Use the toggle to switch between top 5 and bottom 5 performers."
-        arrow
-      >
-        <IconButton
-          size="small"
-          sx={{
-            position: "absolute",
-            top: 16,
-            right: 16,
-            zIndex: 1,
-            color: "text.secondary",
-            "&:hover": {
-              color: "primary.main",
-              backgroundColor: "action.hover",
-            },
-          }}
-        >
-          <HelpOutlineIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
-      <CardContent>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Typography variant="h5">Product Performance</Typography>
-          <ToggleButtonGroup
-            value={viewType}
-            exclusive
-            onChange={handleViewTypeChange}
-            size="small"
-          >
-            <ToggleButton value="top">Top 5</ToggleButton>
-            <ToggleButton value="bottom">Bottom 5</ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-        <ReactECharts option={option} style={{ height: 300, width: "100%" }} />
-      </CardContent>
-    </Card>
+    <ExpandableCard title="Product Performance" infoContent={infoContent} minHeight={300}>
+      <ReactECharts option={option} style={{ height: 300, width: "100%" }} />
+    </ExpandableCard>
   );
 };
 
