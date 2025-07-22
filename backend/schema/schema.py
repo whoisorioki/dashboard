@@ -4,9 +4,9 @@ from backend.services.sales_data import fetch_sales_data, get_data_range_from_dr
 from backend.services.kpi_service import calculate_revenue_summary
 import asyncio
 import datetime
-import math
 import logging
 import polars as pl
+import math
 
 def sanitize(val):
     if val is None or (isinstance(val, float) and (math.isinf(val) or math.isnan(val))):
@@ -17,8 +17,8 @@ def sanitize(val):
 @strawberry.type
 class MonthlySalesGrowth:
     date: str
-    total_sales: Optional[float] = strawberry.field(name="totalSales")
-    gross_profit: Optional[float] = strawberry.field(name="grossProfit")
+    total_sales: Optional[float]
+    gross_profit: Optional[float]
 
 
 @strawberry.type
@@ -56,8 +56,8 @@ class BranchGrowth:
 class SalesPerformance:
     sales_person: str
     total_sales: float
-    gross_profit: Optional[float] = strawberry.field(name="grossProfit")
-    avg_margin: Optional[float] = strawberry.field(name="avgMargin")
+    gross_profit: Optional[float]
+    avg_margin: Optional[float]
     transaction_count: int
     average_sale: float
     unique_branches: int
@@ -70,8 +70,8 @@ class ProductAnalytics:
     product_line: str
     item_group: str
     total_sales: float
-    gross_profit: Optional[float] = strawberry.field(name="grossProfit")
-    margin: Optional[float] = strawberry.field(name="margin")
+    gross_profit: Optional[float]
+    margin: Optional[float]
     total_qty: float
     transaction_count: int
     unique_branches: int
@@ -127,9 +127,9 @@ class ProfitabilityByDimension:
 
 @strawberry.type
 class DataRange:
-    earliest_date: str = strawberry.field(name="earliestDate")
-    latest_date: str = strawberry.field(name="latestDate")
-    total_records: int = strawberry.field(name="totalRecords")
+    earliest_date: str
+    latest_date: str
+    total_records: int
 
 
 @strawberry.type
@@ -140,9 +140,9 @@ class ReturnsAnalysisEntry:
 
 @strawberry.type
 class TopCustomerEntry:
-    card_name: str = strawberry.field(name="cardName")
-    sales_amount: Optional[float] = strawberry.field(name="salesAmount")
-    gross_profit: Optional[float] = strawberry.field(name="grossProfit")
+    card_name: str
+    sales_amount: Optional[float]
+    gross_profit: Optional[float]
 
 
 @strawberry.type
@@ -153,37 +153,37 @@ class BranchListEntry:
 @strawberry.type
 class MarginTrendEntry:
     date: str
-    margin_pct: Optional[float] = strawberry.field(name="marginPct")
+    margin_pct: Optional[float]
 
 
 @strawberry.type
 class ProductProfitabilityEntry:
-    product_line: str = strawberry.field(name="productLine")
-    item_name: str = strawberry.field(name="itemName")
-    gross_profit: Optional[float] = strawberry.field(name="grossProfit")
+    product_line: str
+    item_name: str
+    gross_profit: Optional[float]
 
 
 @strawberry.type
 class SalespersonLeaderboardEntry:
     salesperson: str
-    sales_amount: Optional[float] = strawberry.field(name="salesAmount")
-    gross_profit: Optional[float] = strawberry.field(name="grossProfit")
-    quota: Optional[float] = strawberry.field(name="quota")
-    attainment_percentage: Optional[float] = strawberry.field(name="attainmentPercentage")
+    sales_amount: Optional[float]
+    gross_profit: Optional[float]
+    quota: Optional[float]
+    attainment_percentage: Optional[float]
 
 
 @strawberry.type
 class SalespersonProductMixEntry:
     salesperson: str
-    product_line: str = strawberry.field(name="productLine")
-    avg_profit_margin: Optional[float] = strawberry.field(name="avgProfitMargin")
+    product_line: str
+    avg_profit_margin: Optional[float]
 
 
 @strawberry.type
 class CustomerValueEntry:
-    card_name: str = strawberry.field(name="cardName")
-    sales_amount: Optional[float] = strawberry.field(name="salesAmount")
-    gross_profit: Optional[float] = strawberry.field(name="grossProfit")
+    card_name: str
+    sales_amount: Optional[float]
+    gross_profit: Optional[float]
 
 
 @strawberry.type
@@ -556,9 +556,6 @@ class Query:
         branch: Optional[str] = None,
         product_line: Optional[str] = None,
     ) -> List[ProfitabilityByDimension]:
-        from backend.services.sales_data import fetch_sales_data
-        import polars as pl
-        import datetime
         today = datetime.date.today().isoformat()
         start = start_date or today
         end = end_date or today
@@ -608,9 +605,6 @@ class Query:
         product_line: Optional[str] = None,
         mock_data: Optional[bool] = False,
     ) -> List[ReturnsAnalysisEntry]:
-        from backend.services.sales_data import fetch_sales_data
-        import polars as pl
-        import datetime
         today = datetime.date.today().isoformat()
         start = start_date or today
         end = end_date or today
@@ -651,9 +645,6 @@ class Query:
         branch_names: Optional[List[str]] = None,
         product_line: Optional[str] = None,
     ) -> List[TopCustomerEntry]:
-        from backend.services.sales_data import fetch_sales_data
-        import polars as pl
-        import datetime
         # Provide default dates if not supplied
         today = datetime.date.today().isoformat()
         start = start_date or today
@@ -716,10 +707,6 @@ class Query:
         branch: Optional[str] = None,
         product_line: Optional[str] = None,
     ) -> List[MarginTrendEntry]:
-        from backend.services.sales_data import fetch_sales_data
-        import polars as pl
-        import datetime
-        import math
         today = datetime.date.today().isoformat()
         start = start_date or today
         end = end_date or today

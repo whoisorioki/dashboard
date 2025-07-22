@@ -1,6 +1,6 @@
 Sales Analytics Dashboard ![MIT License](https://img.shields.io/badge/license-MIT-green.svg)
 
-> **A modern, robust, and fully localized sales analytics platform for Kenyan businesses built with React, FastAPI, and Apache Druid.**
+> **A modern, robust, and fully localized sales analytics platform for CARGEN built with React, FastAPI, and Apache Druid.**
 
 ---
 
@@ -25,6 +25,7 @@ Sales Analytics Dashboard ![MIT License](https://img.shields.io/badge/license-MI
 - [API Reference](#api-reference)
 - [Architecture](#architecture)
   - [Frontend](#frontend-1)
+  - [Architecture Document](#architecture-document)
   - [Backend](#backend-1)
   - [Analytics Database](#analytics-database)
   - [Infrastructure \& Observability](#infrastructure--observability)
@@ -186,9 +187,7 @@ npm run dev
 #### Docker Compose (Recommended for Full Stack)
 
 ```bash
-
 docker compose up -d
-
 ```
 
 #### Access the Application
@@ -266,6 +265,10 @@ docker compose up -d
 ## Architecture
 
 ### Frontend
+
+For a detailed breakdown of the system architecture, please see the [ARCHITECTURE.md](ARCHITECTURE.md) file.
+
+---
 
 - **Framework:** React 18 + TypeScript
 
