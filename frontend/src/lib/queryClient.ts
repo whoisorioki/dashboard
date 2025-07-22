@@ -1,6 +1,6 @@
 import { QueryClient, QueryCache, MutationCache } from '@tanstack/react-query';
 import { persistQueryClient } from "@tanstack/react-query-persist-client";
-import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { createSyncStoragePersister, SyncStoragePersister } from "@tanstack/query-sync-storage-persister";
 
 const TWENTY_FOUR_HOURS = 1000 * 60 * 60 * 24;
 
@@ -37,24 +37,26 @@ export const queryClient = new QueryClient({
   }),
 });
 
-// Cache persistence (localStorage)
-// Only run in browser
-if (typeof window !== 'undefined') {
-  import('@tanstack/react-query-persist-client').then(({ persistQueryClient }) => {
-    import('@tanstack/query-sync-storage-persister').then(({ createSyncStoragePersister }) => {
-      const persister = createSyncStoragePersister({
+/**
+ * A persister for react-query that uses localStorage.
+ * It is only defined in the browser environment to ensure SSR compatibility.
+ */
+export const localStoragePersister: SyncStoragePersister | undefined =
+  typeof window !== "undefined"
+    ? createSyncStoragePersister({
         storage: window.localStorage,
-        key: 'SALES_ANALYTICS_CACHE',
+        key: "SALES_ANALYTICS_CACHE",
         serialize: JSON.stringify,
         deserialize: JSON.parse,
         throttleTime: 1000,
-      });
-      persistQueryClient({
-        queryClient,
-        persister,
-        maxAge: 1000 * 60 * 60 * 24, // 24 hours
-        buster: 'v1.0.0',
-      });
-    });
+      })
+    : undefined;
+
+if (localStoragePersister) {
+  persistQueryClient({
+    queryClient,
+    persister: localStoragePersister,
+    maxAge: TWENTY_FOUR_HOURS,
+    buster: "v1.0.0",
   });
 }

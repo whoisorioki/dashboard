@@ -37,64 +37,64 @@ class BranchProductHeatmap:
 @strawberry.type
 class BranchPerformance:
     branch: str
-    total_sales: float
-    transaction_count: int
-    average_sale: float
-    unique_customers: int
-    unique_products: int
+    total_sales: float = strawberry.field(name="totalSales")
+    transaction_count: int = strawberry.field(name="transactionCount")
+    average_sale: float = strawberry.field(name="averageSale")
+    unique_customers: int = strawberry.field(name="uniqueCustomers")
+    unique_products: int = strawberry.field(name="uniqueProducts")
 
 
 @strawberry.type
 class BranchGrowth:
     branch: str
-    month_year: str
-    monthly_sales: float
-    growth_pct: float
+    month_year: str = strawberry.field(name="monthYear")
+    monthly_sales: float = strawberry.field(name="monthlySales")
+    growth_pct: float = strawberry.field(name="growthPct")
 
 
 @strawberry.type
 class SalesPerformance:
-    sales_person: str
-    total_sales: float
+    sales_person: str = strawberry.field(name="salesPerson")
+    total_sales: float = strawberry.field(name="totalSales")
     gross_profit: Optional[float] = strawberry.field(name="grossProfit")
     avg_margin: Optional[float] = strawberry.field(name="avgMargin")
-    transaction_count: int
-    average_sale: float
-    unique_branches: int
-    unique_products: int
+    transaction_count: int = strawberry.field(name="transactionCount")
+    average_sale: float = strawberry.field(name="averageSale")
+    unique_branches: int = strawberry.field(name="uniqueBranches")
+    unique_products: int = strawberry.field(name="uniqueProducts")
 
 
 @strawberry.type
 class ProductAnalytics:
-    item_name: str
-    product_line: str
-    item_group: str
-    total_sales: float
+    item_name: str = strawberry.field(name="itemName")
+    product_line: str = strawberry.field(name="productLine")
+    item_group: str = strawberry.field(name="itemGroup")
+    total_sales: float = strawberry.field(name="totalSales")
     gross_profit: Optional[float] = strawberry.field(name="grossProfit")
     margin: Optional[float] = strawberry.field(name="margin")
-    total_qty: float
-    transaction_count: int
-    unique_branches: int
-    average_price: float
+    total_qty: float = strawberry.field(name="totalQty")
+    transaction_count: int = strawberry.field(name="transactionCount")
+    unique_branches: int = strawberry.field(name="uniqueBranches")
+    average_price: float = strawberry.field(name="averagePrice")
 
 
 @strawberry.type
 class TargetAttainment:
-    attainment_percentage: float
-    total_sales: float
+    attainment_percentage: float = strawberry.field(name="attainmentPercentage")
+    total_sales: float = strawberry.field(name="totalSales")
     target: float
 
 
 @strawberry.type
 class RevenueSummary:
-    total_revenue: Optional[float]
-    gross_profit: Optional[float]
-    net_profit: Optional[float]
-    total_transactions: int
-    average_transaction: Optional[float]
-    unique_products: int
-    unique_branches: int
-    unique_employees: int
+    total_revenue: Optional[float] = strawberry.field(name="totalRevenue")
+    gross_profit: Optional[float] = strawberry.field(name="grossProfit")
+    net_profit: Optional[float] = strawberry.field(name="netProfit")
+    total_transactions: int = strawberry.field(name="totalTransactions")
+    average_transaction: Optional[float] = strawberry.field(name="averageTransaction")
+    unique_products: int = strawberry.field(name="uniqueProducts")
+    unique_branches: int = strawberry.field(name="uniqueBranches")
+    unique_employees: int = strawberry.field(name="uniqueEmployees")
 
 
 @strawberry.type
@@ -121,8 +121,8 @@ class ProfitabilityByDimension:
     branch: Optional[str] = None
     product_line: Optional[str] = None
     item_group: Optional[str] = None
-    gross_margin: Optional[float] = None
-    gross_profit: Optional[float] = None
+    gross_margin: Optional[float] = strawberry.field(name="grossMargin")
+    gross_profit: Optional[float] = strawberry.field(name="grossProfit")
 
 
 @strawberry.type
@@ -932,7 +932,34 @@ class Query:
         branch: Optional[str] = None,
         product_line: Optional[str] = None,
     ) -> List[BranchGrowth]:
-        return []
+        from backend.services.kpi_service import calculate_branch_growth
+
+        if not all([start_date, end_date]):
+            start_date, end_date = self._get_default_dates()
+
+        df = await fetch_sales_data(
+            start_date=start_date,
+            end_date=end_date,
+            branch_names=[branch] if branch else None
+        )
+
+        if df.is_empty():
+            return []
+
+        if product_line and product_line != "all":
+            df = df.filter(pl.col("ProductLine") == product_line)
+
+        growth_df = calculate_branch_growth(df)
+
+        return [
+            BranchGrowth(
+                branch=row["Branch"],
+                month_year=row["month_year"],
+                monthly_sales=sanitize(row["monthly_sales"]),
+                growth_pct=sanitize(row["growth_pct"]),
+            )
+            for row in growth_df.to_dicts()
+        ]
 
 
 def safe_parse_datetime_column(df, col="__time"):
@@ -947,7 +974,6 @@ def safe_parse_datetime_column(df, col="__time"):
         return df.with_columns([
             (pl.col(col) * 1000).cast(pl.Datetime).alias(col)
         ])
-    # Try ISO8601 parse
     try:
         return df.with_columns([
             pl.col(col).str.strptime(pl.Datetime, format="%Y-%m-%dT%H:%M:%S.%fZ", strict=False).alias(col)
