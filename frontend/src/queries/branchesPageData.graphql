@@ -1,0 +1,16 @@
+query branchesPageData($startDate: String!, $endDate: String!) {
+  branchPerformance(startDate: $startDate, endDate: $endDate) {
+    branch
+    totalSales
+    transactionCount
+    averageSale
+    uniqueCustomers
+    uniqueProducts
+  }
+  branchGrowth(startDate: $startDate, endDate: $endDate) {
+    branch
+    monthYear
+    monthlySales
+    growthPct
+  }
+} 

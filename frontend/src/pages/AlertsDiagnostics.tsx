@@ -5,7 +5,12 @@ import ConnectionStatus from '../components/ConnectionStatus';
 
 const AlertsDiagnostics = () => {
     return (
-        <Box sx={{ p: 3 }}>
+        <Box
+            sx={{
+                mt: { xs: 2, sm: 3 },
+                p: { xs: 1, sm: 2 },
+            }}
+        >
             <PageHeader
                 title="Alerts & Diagnostics"
                 subtitle="System health, data quality, and important notifications"

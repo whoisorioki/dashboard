@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -12,24 +12,36 @@ import {
   TableBody,
   CircularProgress,
 } from "@mui/material";
-import { useProductAnalyticsQuery } from "../queries/productAnalytics.generated";
-import { ProductAnalytics } from "../types/graphql";
-import { graphqlClient } from "../graphqlClient";
+import { useCustomerValueQuery } from "../queries/customerValue.generated";
+import { graphqlClient } from "../lib/graphqlClient";
+import { formatKshAbbreviated } from "../lib/numberFormat";
+import { useFilters } from "../context/FilterContext";
+import { queryKeys } from "../lib/queryKeys";
 
 const CustomerValueTable: React.FC = () => {
-  const { data, isLoading, error } = useProductAnalyticsQuery(
+  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const filters = useMemo(() => ({
+    dateRange: { start: start_date, end: end_date },
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+    productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+  }), [start_date, end_date, selected_branch, selected_product_line]);
+  const { data, isLoading, error } = useCustomerValueQuery(
     graphqlClient,
-    {}
+    {
+      startDate: start_date,
+      endDate: end_date,
+      branch: selected_branch !== "all" ? selected_branch : undefined,
+      productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+    },
+    {
+      queryKey: queryKeys.customerValue(filters),
+    }
   );
-  const customers = Array.isArray(data?.productAnalytics)
-    ? [...data.productAnalytics]
+  const customers = Array.isArray(data?.customerValue)
+    ? [...data.customerValue]
     : [];
-  // Sort by grossProfit descending (if available), fallback to totalSales
-  const sorted = customers.sort(
-    (a, b) =>
-      (b as any).grossProfit - (a as any).grossProfit ||
-      b.totalSales - a.totalSales
-  );
+  // Sort by grossProfit descending
+  const sorted = customers.sort((a, b) => b.grossProfit - a.grossProfit);
   const topCustomers = sorted.slice(0, 5);
 
   if (isLoading)
@@ -70,12 +82,10 @@ const CustomerValueTable: React.FC = () => {
             </TableHead>
             <TableBody>
               {topCustomers.map((row, index) => (
-                <TableRow key={`${row.itemName}-${index}`}>
-                  <TableCell>{row.itemName}</TableCell>
-                  <TableCell>{row.totalSales.toLocaleString()}</TableCell>
-                  <TableCell>
-                    {(row as any).grossProfit?.toLocaleString() ?? "-"}
-                  </TableCell>
+                <TableRow key={`${row.cardName}-${index}`}>
+                  <TableCell>{row.cardName}</TableCell>
+                  <TableCell>{formatKshAbbreviated(row.salesAmount)}</TableCell>
+                  <TableCell>{formatKshAbbreviated(row.grossProfit)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

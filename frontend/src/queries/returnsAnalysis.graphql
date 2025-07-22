@@ -6,7 +6,6 @@ query ReturnsAnalysis(
   $branchNames: [String!]
   $branch: String
   $productLine: String
-  $mockData: Boolean
 ) {
   returnsAnalysis(
     startDate: $startDate
@@ -16,7 +15,6 @@ query ReturnsAnalysis(
     branchNames: $branchNames
     branch: $branch
     productLine: $productLine
-    mockData: $mockData
   ) {
     reason
     count

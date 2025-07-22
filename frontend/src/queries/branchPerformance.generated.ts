@@ -14,6 +14,8 @@ function fetcher<TData, TVariables extends { [key: string]: any }>(client: Graph
 export type BranchPerformanceQueryVariables = Types.Exact<{
   startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
 }>;
 
 
@@ -22,8 +24,13 @@ export type BranchPerformanceQuery = { __typename?: 'Query', branchPerformance: 
 
 
 export const BranchPerformanceDocument = `
-    query BranchPerformance($startDate: String, $endDate: String) {
-  branchPerformance(startDate: $startDate, endDate: $endDate) {
+    query BranchPerformance($startDate: String, $endDate: String, $branch: String, $productLine: String) {
+  branchPerformance(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
     branch
     totalSales
     transactionCount
@@ -40,12 +47,14 @@ export const useBranchPerformanceQuery = <
     >(
       client: GraphQLClient,
       variables?: BranchPerformanceQueryVariables,
-      options?: UseQueryOptions<BranchPerformanceQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<BranchPerformanceQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<BranchPerformanceQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<BranchPerformanceQuery, TError, TData>(
-      variables === undefined ? ['BranchPerformance'] : ['BranchPerformance', variables],
-      fetcher<BranchPerformanceQuery, BranchPerformanceQueryVariables>(client, BranchPerformanceDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['BranchPerformance'] : ['BranchPerformance', variables],
+    queryFn: fetcher<BranchPerformanceQuery, BranchPerformanceQueryVariables>(client, BranchPerformanceDocument, variables, headers),
+    ...options
+  }
     )};

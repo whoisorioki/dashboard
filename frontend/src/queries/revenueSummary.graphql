@@ -1,10 +1,8 @@
-query RevenueSummary($startDate: String, $endDate: String) {
-  revenueSummary(startDate: $startDate, endDate: $endDate) {
+query RevenueSummary($startDate: String, $endDate: String, $branch: String, $productLine: String) {
+  revenueSummary(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
     totalRevenue
-    grossProfit
-    netProfit
     totalTransactions
-    averageTransaction
+    averageTransaction 
     uniqueProducts
     uniqueBranches
     uniqueEmployees

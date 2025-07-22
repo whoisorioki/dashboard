@@ -1,13 +1,14 @@
 import { Box, FormControl, FormHelperText } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import React, { useState } from "react";
+import dayjs, { Dayjs } from "dayjs";
 
 interface DateRangePickerProps {
-  startDate: Date | null;
-  endDate: Date | null;
-  minDate?: Date;
-  maxDate?: Date;
-  onChange: (range: [Date | null, Date | null]) => void;
+  startDate: Dayjs | null;
+  endDate: Dayjs | null;
+  minDate?: Dayjs;
+  maxDate?: Dayjs;
+  onChange: (range: [Dayjs | null, Dayjs | null]) => void;
 }
 
 const DateRangePicker: React.FC<DateRangePickerProps> = ({
@@ -19,8 +20,8 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
 }) => {
   const [error, setError] = useState<string | null>(null);
 
-  const handleStartChange = (date: Date | null) => {
-    if (date && endDate && date > endDate) {
+  const handleStartChange = (date: Dayjs | null) => {
+    if (date && endDate && date.isAfter(endDate)) {
       setError("Start date cannot be after end date.");
       onChange([date, date]);
     } else {
@@ -29,8 +30,8 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
     }
   };
 
-  const handleEndChange = (date: Date | null) => {
-    if (startDate && date && startDate > date) {
+  const handleEndChange = (date: Dayjs | null) => {
+    if (startDate && date && startDate.isAfter(date)) {
       setError("End date cannot be before start date.");
       onChange([date, date]);
     } else {
@@ -44,7 +45,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
       <FormControl error={!!error} size="small">
         <DatePicker
           label="Start Date"
-          value={startDate}
+          value={startDate ? dayjs(startDate) : null}
           onChange={handleStartChange}
           minDate={minDate}
           maxDate={maxDate}
@@ -54,7 +55,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
       <FormControl error={!!error} size="small">
         <DatePicker
           label="End Date"
-          value={endDate}
+          value={endDate ? dayjs(endDate) : null}
           onChange={handleEndChange}
           minDate={minDate}
           maxDate={maxDate}

@@ -29,60 +29,51 @@ import {
   People as PeopleIcon,
   Store as StoreIcon,
   LocationOn as LocationIcon,
+  RotateLeft as RotateLeftIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import PageHeader from "../components/PageHeader";
 import KpiCard from "../components/KpiCard";
 import BranchProductHeatmap from "../components/BranchProductHeatmap";
 import { useFilters } from "../context/FilterContext";
-import { useBranchPerformanceQuery } from "../queries/branchPerformance.generated";
-import { useBranchGrowthQuery } from "../queries/branchGrowth.generated";
-import { graphqlClient } from "../graphqlClient";
+import { useBranchesPageDataQuery } from "../queries/branchesPageData.generated";
+import { graphqlClient } from "../lib/graphqlClient";
 import ChartEmptyState from "../components/states/ChartEmptyState";
+import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
+import { queryKeys } from "../lib/queryKeys";
+import { useMemo } from "react";
 
 const Branches = () => {
-  const { start_date, end_date, selected_branch, selected_product_line } =
-    useFilters();
-
+  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const filters = useMemo(() => ({
+    dateRange: { start: start_date, end: end_date },
+    productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+  }), [start_date, end_date, selected_product_line, selected_branch]);
   const [selectedMetric, setSelectedMetric] = useState<string>("sales");
   const [sortBy, setSortBy] = useState<string>("sales");
 
-  // Fetch branch performance data from real API
-  const {
-    data: branchPerformanceData,
-    error: branchError,
-    isLoading: branchLoading,
-  } = useBranchPerformanceQuery(graphqlClient, {
-    startDate: start_date,
-    endDate: end_date,
-    branch: selected_branch !== "all" ? selected_branch : undefined,
-    productLine:
-      selected_product_line !== "all" ? selected_product_line : undefined,
-  });
-  const safeBranchPerformanceData = Array.isArray(branchPerformanceData)
-    ? branchPerformanceData
-    : [];
-
-  // Fetch branch growth data from real API
-  const {
-    data: branchGrowthData,
-    error: growthError,
-    isLoading: growthLoading,
-  } = useBranchGrowthQuery(graphqlClient, {
-    startDate: start_date,
-    endDate: end_date,
-    branch: selected_branch !== "all" ? selected_branch : undefined,
-    productLine:
-      selected_product_line !== "all" ? selected_product_line : undefined,
-  });
-  const safeBranchGrowthData = Array.isArray(branchGrowthData)
-    ? branchGrowthData
-    : [];
-
-  const formatCurrency = (value: number) => {
-    if (value == null || isNaN(value)) return "KSh 0";
-    return `KSh ${Math.round(value).toLocaleString("en-KE")}`;
+  const handleResetLocalFilters = () => {
+    setSelectedMetric("sales");
+    setSortBy("sales");
   };
+
+  const { data, error, isLoading } = useBranchesPageDataQuery(
+    graphqlClient,
+    {
+      startDate: start_date,
+      endDate: end_date,
+      branch: selected_branch !== "all" ? selected_branch : undefined,
+      productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+    },
+    {
+      queryKey: queryKeys.branchPerformance ? queryKeys.branchPerformance(filters) : ["branchPerformance", filters],
+    }
+  );
+  const safeBranchPerformanceData =
+    data?.branchPerformance || [];
+
+  const safeBranchGrowthData = data?.branchGrowth || [];
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat("en-US").format(value);
@@ -124,19 +115,23 @@ const Branches = () => {
     ) || 0;
 
   // Calculate average growth from growth data
-  const latestGrowthData = safeBranchGrowthData?.reduce((acc, item) => {
-    if (!acc[item.branch] || item.monthYear > acc[item.branch].monthYear) {
-      acc[item.branch] = item;
-    }
-    return acc;
-  }, {} as Record<string, any>);
+  const latestGrowthData = safeBranchGrowthData?.reduce(
+    (acc: Record<string, { monthYear: string; growthPct: number }>, item) => {
+      if (!acc[item.branch] || item.monthYear > acc[item.branch].monthYear) {
+        acc[item.branch] = item;
+      }
+      return acc;
+    },
+    {}
+  );
 
-  const averageGrowth = latestGrowthData
-    ? Object.values(latestGrowthData).reduce(
-        (sum, item) => sum + item.growthPct,
-        0
-      ) / Object.values(latestGrowthData).length
-    : 0;
+  const averageGrowth =
+    latestGrowthData && Object.values(latestGrowthData).length > 0
+      ? Object.values(latestGrowthData).reduce(
+          (sum, item) => sum + item.growthPct,
+          0
+        ) / Object.values(latestGrowthData).length
+      : 0;
 
   // Sort branches based on selected criteria
   const sortedBranches = safeBranchPerformanceData
@@ -170,7 +165,7 @@ const Branches = () => {
   }));
 
   // Show loading state
-  if (branchLoading || growthLoading) {
+  if (isLoading) {
     return (
       <Box
         sx={{
@@ -188,12 +183,10 @@ const Branches = () => {
   }
 
   // Standardize error state
-  if (branchError || growthError) {
+  if (error) {
     const errorMsg =
-      branchError instanceof Error
-        ? branchError.message
-        : growthError instanceof Error
-        ? growthError.message
+      error instanceof Error
+        ? error.message
         : "Error loading branch data.";
     return <ChartEmptyState isError message={errorMsg} />;
   }
@@ -201,10 +194,8 @@ const Branches = () => {
   return (
     <Box
       sx={{
-        p: 0,
-        pl: { xs: 1.5, sm: 2 },
-        pr: { xs: 2, sm: 3 },
-        pb: { xs: 2, sm: 3 },
+        mt: { xs: 2, sm: 3 },
+        p: { xs: 1, sm: 2 },
       }}
     >
       <PageHeader
@@ -221,13 +212,14 @@ const Branches = () => {
         <Grid item xs={12} sm={6} md={3}>
           <KpiCard
             title="Total Sales"
-            value={formatCurrency(totalSales)}
+            value={totalSales}
             icon={<StoreIcon />}
             tooltipText="Combined revenue across all branches for the selected period"
-            isLoading={branchLoading}
+            isLoading={isLoading}
             trend={averageGrowth >= 0 ? "up" : "down"}
-            trendValue={`${averageGrowth.toFixed(1)}%`}
+            trendValue={`${formatPercentage(averageGrowth)}`}
             color="primary"
+            metricKey="totalSales"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -236,7 +228,7 @@ const Branches = () => {
             value={formatNumber(totalTransactions)}
             icon={<RegionIcon />}
             tooltipText="Total number of transactions across all branches"
-            isLoading={branchLoading}
+            isLoading={isLoading}
             trend="up"
             trendValue="All branches"
             color="info"
@@ -248,7 +240,7 @@ const Branches = () => {
             value={formatNumber(totalCustomers)}
             icon={<PeopleIcon />}
             tooltipText="Number of unique customers/employees served"
-            isLoading={branchLoading}
+            isLoading={isLoading}
             trend="up"
             trendValue="Active"
             color="success"
@@ -260,9 +252,9 @@ const Branches = () => {
             value={formatNumber(totalProducts)}
             icon={<GrowthIcon />}
             tooltipText="Unique products sold across all branches"
-            isLoading={branchLoading}
+            isLoading={isLoading}
             trend={averageGrowth >= 0 ? "up" : "down"}
-            trendValue={`${averageGrowth.toFixed(1)}% avg growth`}
+            trendValue={`${formatPercentage(averageGrowth)} avg growth`}
             color="warning"
           />
         </Grid>
@@ -279,10 +271,10 @@ const Branches = () => {
                   mb: 2,
                 }}
               >
-                <Typography variant="h6" gutterBottom>
+                <Typography variant="h6" sx={{ flexGrow: 1 }}>
                   Branch Performance Overview
                 </Typography>
-                <Box sx={{ display: "flex", gap: 2 }}>
+                <Stack direction="row" spacing={2}>
                   <FormControl size="small" sx={{ minWidth: 120 }}>
                     <InputLabel>Metric</InputLabel>
                     <Select
@@ -309,7 +301,7 @@ const Branches = () => {
                       <MenuItem value="products">Products</MenuItem>
                     </Select>
                   </FormControl>
-                </Box>
+                </Stack>
               </Box>
               {safeBranchPerformanceData.length === 0 ? (
                 <ChartEmptyState message="No branch performance data available." />
@@ -374,7 +366,7 @@ const Branches = () => {
                             </TableCell>
                             <TableCell align="right">
                               <Typography variant="body2" fontWeight="medium">
-                                {formatCurrency(branch.totalSales)}
+                                {formatKshAbbreviated(branch.totalSales)}
                               </Typography>
                             </TableCell>
                             <TableCell align="right">
@@ -384,7 +376,7 @@ const Branches = () => {
                             </TableCell>
                             <TableCell align="right">
                               <Typography variant="body2">
-                                {formatCurrency(branch.averageSale)}
+                                {formatKshAbbreviated(branch.averageSale)}
                               </Typography>
                             </TableCell>
                             <TableCell align="right">
@@ -396,7 +388,7 @@ const Branches = () => {
                               <Chip
                                 label={`${
                                   growth >= 0 ? "+" : ""
-                                }${growth.toFixed(1)}%`}
+                                }${formatPercentage(growth)}`}
                                 color={getGrowthColor(growth)}
                                 size="small"
                                 variant="filled"
@@ -420,8 +412,8 @@ const Branches = () => {
                                   variant="caption"
                                   color="text.secondary"
                                 >
-                                  {((branch.totalSales / target) * 100).toFixed(
-                                    0
+                                  {formatPercentage(
+                                    (branch.totalSales / target) * 100
                                   )}
                                   %
                                 </Typography>
@@ -447,7 +439,7 @@ const Branches = () => {
               </Typography>
               <BranchProductHeatmap
                 data={heatmapData}
-                isLoading={branchLoading}
+                isLoading={isLoading}
               />
             </CardContent>
           </Card>
@@ -480,7 +472,7 @@ const Branches = () => {
                       </Typography>
                     </Box>
                     <Typography variant="body2" fontWeight="medium">
-                      {formatCurrency(branch.totalSales)}
+                      {formatKshAbbreviated(branch.totalSales)}
                     </Typography>
                   </Box>
                 ))}
@@ -517,7 +509,7 @@ const Branches = () => {
                         </Typography>
                       </Box>
                       <Chip
-                        label={`${growth >= 0 ? "+" : ""}${growth.toFixed(1)}%`}
+                        label={`${growth >= 0 ? "+" : ""}${formatPercentage(growth)}`}
                         color={getGrowthColor(growth)}
                         size="small"
                         variant="filled"

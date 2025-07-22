@@ -1,5 +1,5 @@
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import CssBaseline from "@mui/material/CssBaseline";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ThemeContextProvider } from "./context/ThemeContext";
@@ -11,15 +11,16 @@ import Products from "./pages/Products";
 import Branches from "./pages/Branches";
 import MainLayout from "./components/layout/MainLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { graphqlClient } from "./graphqlClient";
+import { graphqlClient } from "./lib/graphqlClient";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ProfitabilityAnalysis from "./pages/ProfitabilityAnalysis";
 import AlertsDiagnostics from "./pages/AlertsDiagnostics";
-import {
-  LocalFilterResetProvider,
-} from "./context/LocalFilterResetContext";
+import { LocalFilterResetProvider } from "./context/LocalFilterResetContext";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { queryClient, localStoragePersister } from "./lib/queryClient";
+import { useDataVersionPoll } from "./lib/useDataVersionPoll";
 
 // Create a client
 // const queryClient = new QueryClient({
@@ -36,87 +37,94 @@ function LayoutWithReset({ children }: { children: React.ReactNode }) {
 }
 
 function App() {
+  useDataVersionPoll(); // Enable monthly data version polling
   return (
-    // <QueryClientProvider client={queryClient}>
-    <ThemeContextProvider>
-      <NotificationProvider>
-        <FilterProvider>
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <CssBaseline />
-            <LocalFilterResetProvider>
-              <LayoutWithReset>
-                <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                  <Route
-                    path="/*"
-                    element={
-                      <ProtectedRoute>
-                        <Routes>
-                          <Route
-                            path="/"
-                            element={<Navigate to="/overview" replace />}
-                          />
-                          <Route
-                            path="/overview"
-                            element={
-                              <ErrorBoundary>
-                                <Dashboard />
-                              </ErrorBoundary>
-                            }
-                          />
-                          <Route
-                            path="/sales"
-                            element={
-                              <ErrorBoundary>
-                                <Sales />
-                              </ErrorBoundary>
-                            }
-                          />
-                          <Route
-                            path="/products"
-                            element={
-                              <ErrorBoundary>
-                                <Products />
-                              </ErrorBoundary>
-                            }
-                          />
-                          <Route
-                            path="/branches"
-                            element={
-                              <ErrorBoundary>
-                                <Branches />
-                              </ErrorBoundary>
-                            }
-                          />
-                          <Route
-                            path="/profitability"
-                            element={
-                              <ErrorBoundary>
-                                <ProfitabilityAnalysis />
-                              </ErrorBoundary>
-                            }
-                          />
-                          <Route
-                            path="/alerts"
-                            element={
-                              <ErrorBoundary>
-                                <AlertsDiagnostics />
-                              </ErrorBoundary>
-                            }
-                          />
-                        </Routes>
-                      </ProtectedRoute>
-                    }
-                  />
-                </Routes>
-              </LayoutWithReset>
-            </LocalFilterResetProvider>
-          </LocalizationProvider>
-        </FilterProvider>
-      </NotificationProvider>
-    </ThemeContextProvider>
-    // </QueryClientProvider>
+    <PersistQueryClientProvider
+      client={queryClient}
+      persistOptions={{ persister: localStoragePersister }}
+      onSuccess={() => {
+        queryClient.resumePausedMutations();
+      }}
+    >
+      <LocalizationProvider dateAdapter={AdapterDayjs}>
+        <ThemeContextProvider>
+          <NotificationProvider>
+            <FilterProvider>
+              <CssBaseline />
+              <LocalFilterResetProvider>
+                <LayoutWithReset>
+                  <Routes>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route
+                      path="/*"
+                      element={
+                        <ProtectedRoute>
+                          <Routes>
+                            <Route
+                              path="/"
+                              element={<Navigate to="/overview" replace />}
+                            />
+                            <Route
+                              path="/overview"
+                              element={
+                                <ErrorBoundary>
+                                  <Dashboard />
+                                </ErrorBoundary>
+                              }
+                            />
+                            <Route
+                              path="/sales"
+                              element={
+                                <ErrorBoundary>
+                                  <Sales />
+                                </ErrorBoundary>
+                              }
+                            />
+                            <Route
+                              path="/products"
+                              element={
+                                <ErrorBoundary>
+                                  <Products />
+                                </ErrorBoundary>
+                              }
+                            />
+                            <Route
+                              path="/branches"
+                              element={
+                                <ErrorBoundary>
+                                  <Branches />
+                                </ErrorBoundary>
+                              }
+                            />
+                            <Route
+                              path="/profitability"
+                              element={
+                                <ErrorBoundary>
+                                  <ProfitabilityAnalysis />
+                                </ErrorBoundary>
+                              }
+                            />
+                            <Route
+                              path="/alerts"
+                              element={
+                                <ErrorBoundary>
+                                  <AlertsDiagnostics />
+                                </ErrorBoundary>
+                              }
+                            />
+                          </Routes>
+                        </ProtectedRoute>
+                      }
+                    />
+                  </Routes>
+                </LayoutWithReset>
+              </LocalFilterResetProvider>
+            </FilterProvider>
+          </NotificationProvider>
+        </ThemeContextProvider>
+      </LocalizationProvider>
+    </PersistQueryClientProvider>
   );
 }
 

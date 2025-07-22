@@ -1,37 +1,24 @@
 import { Card, CardContent, Typography } from "@mui/material";
-import {
-  ScatterChart,
-  Scatter,
-  XAxis,
-  YAxis,
-  ZAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
-import { useProductAnalyticsQuery } from "../queries/productAnalytics.generated";
-import { graphqlClient } from "../graphqlClient";
+import { useMarginTrendsQuery } from "../queries/marginTrends.generated";
+import { graphqlClient } from "../lib/graphqlClient";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
 import ChartEmptyState from "./states/ChartEmptyState";
 import ChartCard from "./ChartCard";
+import ReactECharts from "echarts-for-react";
 
 interface ProductPerformanceMatrixProps {
-  startDate: string | null;
-  endDate: string | null;
+  startDate: string;
+  endDate: string;
 }
 
 const ProductPerformanceMatrix: React.FC<ProductPerformanceMatrixProps> = ({
   startDate,
   endDate,
 }) => {
-  const { data, error, isLoading, refetch } = useProductAnalyticsQuery(
-    graphqlClient,
-    {
-      startDate,
-      endDate,
-    }
-  );
+  const { data, error, isLoading } = useMarginTrendsQuery(graphqlClient, { startDate, endDate });
+
+  const chartData = data?.marginTrends ?? [];
+
   if (isLoading) {
     return (
       <ChartCard title="Product Performance Matrix" isLoading={true}>
@@ -53,35 +40,54 @@ const ProductPerformanceMatrix: React.FC<ProductPerformanceMatrixProps> = ({
       </ChartCard>
     );
   }
-  if (!data || data.productAnalytics.length === 0) {
+  if (!chartData.length) {
     return (
       <ChartCard title="Product Performance Matrix" isLoading={false}>
         <ChartEmptyState message="No product data available." />
       </ChartCard>
     );
   }
+
+  // Prepare ECharts option
+  const option = {
+    tooltip: {
+      trigger: "item",
+      formatter: (params: any) => {
+        return `
+          <div>
+            <strong>Date: ${params.data[0]}</strong><br/>
+            Margin (%): ${(params.data[1] * 100).toFixed(2)}%
+          </div>
+        `;
+      },
+    },
+    xAxis: {
+      type: "category",
+      name: "Date",
+      data: chartData.map((d) => d.date),
+    },
+    yAxis: {
+      type: "value",
+      name: "Margin (%)",
+      axisLabel: {
+        formatter: (v: number) => `${(v * 100).toFixed(1)}%`,
+      },
+    },
+    grid: { left: 60, right: 30, top: 40, bottom: 40 },
+    series: [
+      {
+        name: "Margin Trends",
+        type: "scatter",
+        data: chartData.map((d) => [d.date, d.marginPct]),
+        symbolSize: 16,
+        itemStyle: { color: "#8884d8" },
+      },
+    ],
+  };
+
   return (
     <ChartCard title="Product Performance Matrix" isLoading={false}>
-      <ResponsiveContainer width="100%" height={300}>
-        <ScatterChart>
-          <CartesianGrid />
-          <XAxis type="number" dataKey="total_qty" name="Units Sold" />
-          <YAxis type="number" dataKey="gross_margin" name="Gross Margin (%)" />
-          <ZAxis
-            type="number"
-            dataKey="total_sales"
-            name="Total Sales"
-            range={[100, 1000]}
-          />
-          <Tooltip cursor={{ strokeDasharray: "3 3" }} />
-          <Legend />
-          <Scatter
-            name="Products"
-            data={data.productAnalytics}
-            fill="#8884d8"
-          />
-        </ScatterChart>
-      </ResponsiveContainer>
+      <ReactECharts option={option} style={{ height: 300, width: "100%" }} />
     </ChartCard>
   );
 };

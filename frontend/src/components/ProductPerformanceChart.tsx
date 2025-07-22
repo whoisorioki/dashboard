@@ -10,19 +10,13 @@ import {
   IconButton,
 } from "@mui/material";
 import { HelpOutline as HelpOutlineIcon } from "@mui/icons-material";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  ResponsiveContainer,
-} from "recharts";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
 import ChartEmptyState from "./states/ChartEmptyState";
 import { ProductPerformanceQuery } from "../queries/productPerformance.generated";
 import ChartCard from "./ChartCard";
+import ReactECharts from "echarts-for-react";
+import { formatKshAbbreviated } from "../lib/numberFormat";
+import ExpandableCard from "./ExpandableCard";
 
 interface ProductPerformanceChartProps {
   data: ProductPerformanceQuery["productPerformance"] | undefined;
@@ -45,55 +39,22 @@ const ProductPerformanceChart: React.FC<ProductPerformanceChartProps> = ({
     }
   };
 
-  // Custom tooltip for better data presentation
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div
-          style={{
-            backgroundColor: "white",
-            padding: "12px",
-            border: "1px solid #ccc",
-            borderRadius: "8px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-            fontSize: "14px",
-          }}
-        >
-          <p
-            style={{ margin: "0 0 4px 0", fontWeight: "bold" }}
-          >{`Product: ${label}`}</p>
-          <p
-            style={{
-              margin: "0",
-              color: viewType === "top" ? "#2e7d32" : "#d32f2f",
-            }}
-          >
-            {`Sales: KSh ${Math.round(payload[0].value).toLocaleString(
-              "en-KE"
-            )}`}
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
   if (isLoading) {
     return (
-      <ChartCard title="Product Performance" isLoading={true}>
+      <ExpandableCard title="Product Performance" minHeight={300}>
         <ChartSkeleton />
-      </ChartCard>
+      </ExpandableCard>
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <ChartCard title="Product Performance" isLoading={false}>
+      <ExpandableCard title="Product Performance" minHeight={300}>
         <ChartEmptyState
-          isError={false}
           message="No Product Performance Data"
+          subtitle="There are no product performance records for the selected time period. Try adjusting your date range or check if data has been properly recorded."
         />
-      </ChartCard>
+      </ExpandableCard>
     );
   }
 
@@ -104,64 +65,59 @@ const ProductPerformanceChart: React.FC<ProductPerformanceChartProps> = ({
       ? sortedData.slice(0, n)
       : sortedData.slice(-n).reverse();
 
-  return (
-    <Card sx={{ position: "relative" }}>
-      <Tooltip
-        title="Horizontal bar chart showing top or bottom performing products by sales. Use the toggle to switch between top 5 and bottom 5 performers."
-        arrow
-      >
-        <IconButton
-          size="small"
-          sx={{
-            position: "absolute",
-            top: 16,
-            right: 16,
-            zIndex: 1,
-            color: "text.secondary",
-            "&:hover": {
-              color: "primary.main",
-              backgroundColor: "action.hover",
-            },
-          }}
-        >
-          <HelpOutlineIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
-      <CardContent>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Typography variant="h5">Product Performance</Typography>
-          <ToggleButtonGroup
-            value={viewType}
-            exclusive
-            onChange={handleViewTypeChange}
-            size="small"
-          >
-            <ToggleButton value="top">Top 5</ToggleButton>
-            <ToggleButton value="bottom">Bottom 5</ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
+  // Prepare ECharts option
+  const option = {
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "shadow" },
+      formatter: (params: any) => {
+        const p = params[0];
+        return `
+          <div>
+            <strong>Product: ${p.name}</strong><br/>
+            Sales: ${formatKshAbbreviated(p.value[1])}
+          </div>
+        `;
+      },
+    },
+    grid: { left: 100, right: 30, top: 40, bottom: 40 },
+    xAxis: {
+      type: "value",
+      name: "Sales (KSh)",
+      axisLabel: {
+        formatter: (v: number) => formatKshAbbreviated(v),
+      },
+    },
+    yAxis: {
+      type: "category",
+      data: displayData.map((d) => d.product),
+      name: "Product",
+      axisLabel: { width: 120, overflow: "truncate" },
+    },
+    series: [
+      {
+        name: "Sales",
+        type: "bar",
+        data: displayData.map((d) => [d.product, d.sales]),
+        itemStyle: { color: viewType === "top" ? "#2e7d32" : "#d32f2f" },
+        barWidth: 24,
+      },
+    ],
+  };
 
-        <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={displayData} layout="horizontal">
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis type="number" />
-            <YAxis dataKey="product" type="category" width={100} />
-            <RechartsTooltip content={CustomTooltip} />
-            <Bar
-              dataKey="sales"
-              fill={viewType === "top" ? "#2e7d32" : "#d32f2f"}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
+  // Info content for modal
+  const infoContent = (
+    <>
+      <Typography gutterBottom>
+        This bar chart shows the top and bottom performing products by sales. Hover over bars to see detailed values.
+      </Typography>
+    </>
+  );
+
+  return (
+    <ExpandableCard title="Product Performance" infoContent={infoContent} minHeight={300}>
+      <ReactECharts option={option} style={{ height: 300, width: "100%" }} />
+    </ExpandableCard>
   );
 };
 

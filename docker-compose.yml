@@ -79,8 +79,6 @@ services:
   druid-broker:
     image: apache/druid:0.23.0
     container_name: druid-broker
-    ports:
-      - "8888:8888"
     environment:
       - DRUID_XMX=1g
       - DRUID_XMS=1g

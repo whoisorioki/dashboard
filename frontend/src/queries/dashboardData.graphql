@@ -1,0 +1,60 @@
+query dashboardData($startDate: String!, $endDate: String!, $branch: String, $productLine: String, $target: Float) {
+  revenueSummary(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    totalRevenue
+    grossProfit
+    totalTransactions
+    averageTransaction
+    uniqueProducts
+    uniqueBranches
+    uniqueEmployees
+  }
+  monthlySalesGrowth(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    date
+    totalSales
+    grossProfit
+  }
+  targetAttainment(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine, target: $target) {
+    attainmentPercentage
+    totalSales
+    target
+  }
+  productPerformance(startDate: $startDate, endDate: $endDate, n: 10) {
+    product
+    sales
+  }
+  branchProductHeatmap(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    branch
+    product
+    sales
+  }
+  topCustomers(startDate: $startDate, endDate: $endDate, n: 5) {
+    cardName
+    salesAmount
+    grossProfit
+  }
+  marginTrends(startDate: $startDate, endDate: $endDate) {
+    date
+    marginPct
+  }
+  returnsAnalysis(startDate: $startDate, endDate: $endDate) {
+    reason
+    count
+  }
+  profitabilityByDimension(dimension: "Branch", startDate: $startDate, endDate: $endDate) {
+    branch
+    grossProfit
+    grossMargin
+  }
+  productAnalytics(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    itemName
+    productLine
+    itemGroup
+    totalSales
+    grossProfit
+    margin
+    totalQty
+    transactionCount
+    uniqueBranches
+    averagePrice
+  }
+} 

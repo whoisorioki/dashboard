@@ -44,12 +44,14 @@ export const useProfitabilityByDimensionQuery = <
     >(
       client: GraphQLClient,
       variables: ProfitabilityByDimensionQueryVariables,
-      options?: UseQueryOptions<ProfitabilityByDimensionQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<ProfitabilityByDimensionQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<ProfitabilityByDimensionQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<ProfitabilityByDimensionQuery, TError, TData>(
-      ['ProfitabilityByDimension', variables],
-      fetcher<ProfitabilityByDimensionQuery, ProfitabilityByDimensionQueryVariables>(client, ProfitabilityByDimensionDocument, variables, headers),
-      options
+      {
+    queryKey: ['ProfitabilityByDimension', variables],
+    queryFn: fetcher<ProfitabilityByDimensionQuery, ProfitabilityByDimensionQueryVariables>(client, ProfitabilityByDimensionDocument, variables, headers),
+    ...options
+  }
     )};

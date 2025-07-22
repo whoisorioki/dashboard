@@ -1,0 +1,25 @@
+query salesPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+  salesPerformance(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    salesPerson
+    totalSales
+    grossProfit
+    transactionCount
+    averageSale
+    uniqueBranches
+    uniqueProducts
+    avgMargin
+  }
+  revenueSummary(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    totalRevenue
+    totalTransactions
+    averageTransaction
+    uniqueEmployees
+    uniqueProducts
+    uniqueBranches
+  }
+  monthlySalesGrowth(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    date
+    totalSales
+    grossProfit
+  }
+} 

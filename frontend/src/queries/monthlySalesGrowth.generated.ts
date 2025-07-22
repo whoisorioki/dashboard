@@ -12,20 +12,28 @@ function fetcher<TData, TVariables extends { [key: string]: any }>(client: Graph
   });
 }
 export type MonthlySalesGrowthQueryVariables = Types.Exact<{
-  startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
-  endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  startDate: Types.Scalars['String']['input'];
+  endDate: Types.Scalars['String']['input'];
+  branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
 }>;
 
 
-export type MonthlySalesGrowthQuery = { __typename?: 'Query', monthlySalesGrowth: Array<{ __typename?: 'MonthlySalesGrowth', date: string, sales: number }> };
+export type MonthlySalesGrowthQuery = { __typename?: 'Query', monthlySalesGrowth: Array<{ __typename?: 'MonthlySalesGrowth', date: string, totalSales?: number | null, grossProfit?: number | null }> };
 
 
 
 export const MonthlySalesGrowthDocument = `
-    query MonthlySalesGrowth($startDate: String, $endDate: String) {
-  monthlySalesGrowth(startDate: $startDate, endDate: $endDate) {
+    query monthlySalesGrowth($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+  monthlySalesGrowth(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
     date
-    sales
+    totalSales
+    grossProfit
   }
 }
     `;
@@ -35,13 +43,15 @@ export const useMonthlySalesGrowthQuery = <
       TError = unknown
     >(
       client: GraphQLClient,
-      variables?: MonthlySalesGrowthQueryVariables,
-      options?: UseQueryOptions<MonthlySalesGrowthQuery, TError, TData>,
+      variables: MonthlySalesGrowthQueryVariables,
+      options?: Omit<UseQueryOptions<MonthlySalesGrowthQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<MonthlySalesGrowthQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<MonthlySalesGrowthQuery, TError, TData>(
-      variables === undefined ? ['MonthlySalesGrowth'] : ['MonthlySalesGrowth', variables],
-      fetcher<MonthlySalesGrowthQuery, MonthlySalesGrowthQueryVariables>(client, MonthlySalesGrowthDocument, variables, headers),
-      options
+      {
+    queryKey: ['monthlySalesGrowth', variables],
+    queryFn: fetcher<MonthlySalesGrowthQuery, MonthlySalesGrowthQueryVariables>(client, MonthlySalesGrowthDocument, variables, headers),
+    ...options
+  }
     )};

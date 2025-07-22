@@ -3,7 +3,8 @@ from starlette.concurrency import run_in_threadpool
 import polars as pl
 from pydantic import BaseModel
 from typing import Optional
-from datetime import datetime
+import requests
+from datetime import datetime, timezone
 from backend.services.sales_data import fetch_sales_data
 from backend.core.druid_client import druid_conn
 from backend.utils.response_envelope import envelope
@@ -187,15 +188,6 @@ async def get_sales(
         branch_names=branch_names_list,
     )
 
-    # Filter out mock data if requested
-    if ignore_mock_data and not df.is_empty():
-        # Filter out obvious mock data patterns (this would need to be customized based on actual mock data patterns)
-        df = df.filter(
-            ~pl.col("ItemName").str.contains("mock", literal=False)
-            & ~pl.col("ItemName").str.contains("test", literal=False)
-            & ~pl.col("Branch").str.contains("test", literal=False)
-        )
-
     return envelope(df.to_dicts(), request)
 
 
@@ -223,7 +215,16 @@ async def get_data_range(request: Request):
     **Error Responses:**
     - 500: Internal server error
     """
-    import requests
+
+
+    def to_iso8601(val):
+        if isinstance(val, int) or (isinstance(val, str) and val.isdigit()):
+            # Convert milliseconds to seconds
+            ts = int(val) / 1000
+            return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+        if isinstance(val, str) and "T" in val:
+            return val  # Already ISO8601
+        return str(val)
 
     try:
         # Query Druid directly for min/max dates
@@ -292,6 +293,9 @@ async def get_data_range(request: Request):
                 if "events" in segment:
                     total_records += len(segment["events"])
 
+        # Convert to ISO8601
+        earliest_date = to_iso8601(earliest_date)
+        latest_date = to_iso8601(latest_date)
         return envelope(
             [
                 {

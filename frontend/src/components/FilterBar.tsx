@@ -8,12 +8,13 @@ import {
   MenuItem,
 } from "@mui/material";
 import DateRangePicker from "./DateRangePicker";
+import dayjs, { Dayjs } from "dayjs";
 
 interface FilterBarProps {
-  startDate?: Date | null;
-  endDate?: Date | null;
-  minDate?: Date;
-  maxDate?: Date;
+  startDate?: Dayjs | null;
+  endDate?: Dayjs | null;
+  minDate?: Dayjs;
+  maxDate?: Dayjs;
   onDateRangeChange?: (range: [Date | null, Date | null]) => void;
   branch?: string;
   onBranchChange?: (branch: string) => void;
@@ -65,11 +66,16 @@ const FilterBar: React.FC<FilterBarProps> = ({
     >
       {onDateRangeChange && (
         <DateRangePicker
-          startDate={startDate || null}
-          endDate={endDate || null}
-          minDate={minDate}
-          maxDate={maxDate}
-          onChange={onDateRangeChange}
+          startDate={startDate ? dayjs(startDate) : null}
+          endDate={endDate ? dayjs(endDate) : null}
+          minDate={minDate ? dayjs(minDate) : undefined}
+          maxDate={maxDate ? dayjs(maxDate) : undefined}
+          onChange={([start, end]) => {
+            onDateRangeChange([
+              start ? start.toDate() : null,
+              end ? end.toDate() : null,
+            ]);
+          }}
         />
       )}
       {onBranchChange && (

@@ -32,3 +32,5 @@ config:
     inputValue: false
   skipTypename: false # Keep __typename for union/discriminated types
   preResolveTypes: true # Ensures all types are fully resolved
+  reactQueryVersion: 5
+  useQueryObjectSyntax: true

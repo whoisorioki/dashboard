@@ -20,6 +20,7 @@ import {
   FormControl,
   InputLabel,
   CircularProgress,
+  Button,
 } from "@mui/material";
 import {
   Inventory2 as InventoryIcon,
@@ -28,55 +29,50 @@ import {
   ShoppingCart as CartIcon,
   Inventory as ProductsIcon,
   Category as CategoryIcon,
+  RotateLeft as RotateLeftIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import PageHeader from "../components/PageHeader";
 import KpiCard from "../components/KpiCard";
 import ProductPerformanceChart from "../components/ProductPerformanceChart";
 import { useFilters } from "../context/FilterContext";
-import { useProductAnalyticsQuery } from "../queries/productAnalytics.generated";
-import { useRevenueSummaryQuery } from "../queries/revenueSummary.generated";
-import { graphqlClient } from "../graphqlClient";
+import { useProductsPageDataQuery } from "../queries/productsPageData.generated";
+import { graphqlClient } from "../lib/graphqlClient";
 import ChartEmptyState from "../components/states/ChartEmptyState";
+import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
+import { queryKeys } from "../lib/queryKeys";
+import { useMemo } from "react";
 
 const Products = () => {
-  const { start_date, end_date, selected_branch, selected_product_line } =
-    useFilters();
-
+  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const filters = useMemo(() => ({
+    dateRange: { start: start_date, end: end_date },
+    productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+    branch: selected_branch !== "all" ? selected_branch : undefined,
+  }), [start_date, end_date, selected_product_line, selected_branch]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("total_sales");
+  const [sortBy, setSortBy] = useState<string>("totalSales");
 
-  // Fetch product analytics data from real API
-  const {
-    data: productData,
-    error: productError,
-    isLoading: productLoading,
-  } = useProductAnalyticsQuery(graphqlClient, {
-    startDate: start_date,
-    endDate: end_date,
-    branch: selected_branch !== "all" ? selected_branch : undefined,
-    productLine:
-      selected_product_line !== "all" ? selected_product_line : undefined,
-  });
-  const safeProductData = Array.isArray(productData) ? productData : [];
-
-  // Fetch revenue summary data
-  const {
-    data: revenueSummary,
-    error: revenueError,
-    isLoading: revenueLoading,
-  } = useRevenueSummaryQuery(graphqlClient, {
-    startDate: start_date,
-    endDate: end_date,
-    branch: selected_branch !== "all" ? selected_branch : undefined,
-    productLine:
-      selected_product_line !== "all" ? selected_product_line : undefined,
-  });
-
-  const formatCurrency = (value: number) => {
-    if (value == null || isNaN(value)) return "KSh 0";
-    return `KSh ${Math.round(value).toLocaleString("en-KE")}`;
+  const handleResetLocalFilters = () => {
+    setSelectedCategory("all");
+    setSortBy("totalSales");
   };
+
+  const { data, error, isLoading } = useProductsPageDataQuery(
+    graphqlClient,
+    {
+      startDate: start_date,
+      endDate: end_date,
+      branch: selected_branch !== "all" ? selected_branch : undefined,
+      productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+    },
+    {
+      queryKey: queryKeys.productAnalytics(filters),
+    }
+  );
+  const safeProductData = data?.productAnalytics || [];
+
+  const safeRevenueSummary = data?.revenueSummary;
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat("en-US").format(value);
@@ -100,13 +96,15 @@ const Products = () => {
 
   const sortedProductData = [...filteredData].sort((a, b) => {
     switch (sortBy) {
-      case "total_sales":
+      case "totalSales":
         return b.totalSales - a.totalSales;
-      case "total_qty":
+      case "grossProfit":
+        return b.grossProfit - a.grossProfit;
+      case "totalQty":
         return b.totalQty - a.totalQty;
-      case "transaction_count":
+      case "transactionCount":
         return b.transactionCount - a.transactionCount;
-      case "average_price":
+      case "averagePrice":
         return b.averagePrice - a.averagePrice;
       default:
         return 0;
@@ -125,18 +123,13 @@ const Products = () => {
   const avgProductSales =
     filteredData.length > 0 ? totalProductSales / filteredData.length : 0;
 
-  // Get unique categories and product lines for filters
+  // Get unique categories for filters
   const uniqueCategories = [
     ...new Set(safeProductData.map((p) => p.itemGroup) || []),
   ];
-  const uniqueProductLines = [
-    ...new Set(safeProductData.map((p) => p.productLine) || []),
-  ];
-
-  const isUsingMockData = false; // Removed usingMockProductAnalytics and usingMockRevenueSummary
 
   // Show loading state
-  if (productLoading || revenueLoading) {
+  if (isLoading) {
     return (
       <Box
         sx={{
@@ -154,12 +147,10 @@ const Products = () => {
   }
 
   // Standardize error state
-  if (productError || revenueError) {
+  if (error) {
     const errorMsg =
-      productError instanceof Error
-        ? productError.message
-        : revenueError instanceof Error
-        ? revenueError.message
+      error instanceof Error
+        ? error.message
         : "Error loading product data.";
     return <ChartEmptyState isError message={errorMsg} />;
   }
@@ -167,10 +158,8 @@ const Products = () => {
   return (
     <Box
       sx={{
-        p: 0,
-        pl: { xs: 1.5, sm: 2 },
-        pr: { xs: 2, sm: 3 },
-        pb: { xs: 2, sm: 3 },
+        mt: { xs: 2, sm: 3 },
+        p: { xs: 1, sm: 2 },
       }}
     >
       <PageHeader
@@ -184,7 +173,7 @@ const Products = () => {
         <Grid item xs={12} sm={6} md={3}>
           <KpiCard
             title="Total Products"
-            value={formatNumber(revenueSummary?.uniqueProducts || 0)}
+            value={formatNumber(safeRevenueSummary?.uniqueProducts || 0)}
             icon={<InventoryIcon />}
             tooltipText="Total number of unique products"
             isLoading={false}
@@ -194,11 +183,12 @@ const Products = () => {
         <Grid item xs={12} sm={6} md={3}>
           <KpiCard
             title="Product Revenue"
-            value={formatCurrency(totalProductSales)}
+            value={totalProductSales}
             icon={<PriceIcon />}
             tooltipText="Total revenue from selected products"
             isLoading={false}
             color="success"
+            metricKey="totalSales"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -214,11 +204,12 @@ const Products = () => {
         <Grid item xs={12} sm={6} md={3}>
           <KpiCard
             title="Avg Product Value"
-            value={formatCurrency(avgProductSales)}
+            value={avgProductSales}
             icon={<TrendingUpIcon />}
             tooltipText="Average sales value per product"
             isLoading={false}
             color="warning"
+            metricKey="avgDealSize"
           />
         </Grid>
 
@@ -239,7 +230,7 @@ const Products = () => {
                       sales: p.totalSales,
                     })) ?? []
                   }
-                  isLoading={productLoading}
+                  isLoading={isLoading}
                 />
               )}
             </CardContent>
@@ -274,7 +265,7 @@ const Products = () => {
                       </Typography>
                     </Box>
                     <Typography variant="body2" fontWeight="medium">
-                      {formatCurrency(product.totalSales)}
+                      {formatKshAbbreviated(product.totalSales)}
                     </Typography>
                   </Box>
                 ))}
@@ -321,14 +312,25 @@ const Products = () => {
                       label="Sort By"
                       onChange={(e) => setSortBy(e.target.value)}
                     >
-                      <MenuItem value="total_sales">Total Sales</MenuItem>
-                      <MenuItem value="total_qty">Quantity Sold</MenuItem>
-                      <MenuItem value="transaction_count">
+                      <MenuItem value="totalSales">Total Sales</MenuItem>
+                      <MenuItem value="grossProfit">Gross Profit</MenuItem>
+                      <MenuItem value="totalQty">Quantity Sold</MenuItem>
+                      <MenuItem value="transactionCount">
                         Transactions
                       </MenuItem>
-                      <MenuItem value="average_price">Avg Price</MenuItem>
+                      <MenuItem value="averagePrice">Avg Price</MenuItem>
                     </Select>
                   </FormControl>
+                  <Button
+                    variant="outlined"
+                    startIcon={<RotateLeftIcon />}
+                    onClick={handleResetLocalFilters}
+                    sx={{
+                      height: '40px',
+                    }}
+                  >
+                    Reset
+                  </Button>
                 </Box>
               </Box>
               <TableContainer component={Paper} variant="outlined">
@@ -339,6 +341,8 @@ const Products = () => {
                       <TableCell>Category</TableCell>
                       <TableCell>Brand</TableCell>
                       <TableCell align="right">Sales</TableCell>
+                      <TableCell align="right">Gross Profit</TableCell>
+                      <TableCell align="right">Margin</TableCell>
                       <TableCell align="right">Qty Sold</TableCell>
                       <TableCell align="right">Avg Price</TableCell>
                       <TableCell align="right">Transactions</TableCell>
@@ -392,7 +396,17 @@ const Products = () => {
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2" fontWeight="medium">
-                            {formatCurrency(product.totalSales)}
+                            {formatKshAbbreviated(product.totalSales)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" color="success.main">
+                            {formatKshAbbreviated(product.grossProfit)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2">
+                            {formatPercentage(product.margin || 0)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
@@ -402,7 +416,7 @@ const Products = () => {
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2">
-                            {formatCurrency(product.averagePrice)}
+                            {formatKshAbbreviated(product.averagePrice)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">

@@ -1,3 +1,5 @@
 query BranchList($startDate: String, $endDate: String) {
-  branchList(startDate: $startDate, endDate: $endDate)
+  branchList(startDate: $startDate, endDate: $endDate) {
+    branch
+  }
 }

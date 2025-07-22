@@ -1,7 +1,8 @@
 # Monthly Sales Growth Query
-query MonthlySalesGrowth($startDate: String, $endDate: String) {
-  monthlySalesGrowth(startDate: $startDate, endDate: $endDate) {
+query monthlySalesGrowth($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+  monthlySalesGrowth(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
     date
-    sales
+    totalSales
+    grossProfit
   }
 }

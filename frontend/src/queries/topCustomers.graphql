@@ -7,7 +7,6 @@ query TopCustomers(
   $salesPersons: [String!]
   $branchNames: [String!]
   $productLine: String
-  $mockData: Boolean
 ) {
   topCustomers(
     startDate: $startDate
@@ -18,9 +17,8 @@ query TopCustomers(
     salesPersons: $salesPersons
     branchNames: $branchNames
     productLine: $productLine
-    mockData: $mockData
   ) {
-    acctName
+    cardName
     salesAmount
     grossProfit
   }

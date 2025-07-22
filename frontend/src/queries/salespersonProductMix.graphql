@@ -2,11 +2,13 @@ query SalespersonProductMix(
   $startDate: String
   $endDate: String
   $branch: String
+  $productLine: String
 ) {
   salespersonProductMix(
     startDate: $startDate
     endDate: $endDate
     branch: $branch
+    productLine: $productLine
   ) {
     salesperson
     productLine

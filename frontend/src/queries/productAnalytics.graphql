@@ -1,10 +1,12 @@
 # Product Analytics Query
-query ProductAnalytics($startDate: String, $endDate: String) {
-  productAnalytics(startDate: $startDate, endDate: $endDate) {
+query productAnalytics($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+  productAnalytics(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
     itemName
     productLine
     itemGroup
     totalSales
+    grossProfit
+    margin
     totalQty
     transactionCount
     uniqueBranches

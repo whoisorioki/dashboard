@@ -21,6 +21,7 @@ import {
   CircularProgress,
   Avatar,
   Stack,
+  Button,
 } from "@mui/material";
 import {
   TrendingUp as TrendingUpIcon,
@@ -29,55 +30,48 @@ import {
   Receipt as ReceiptIcon,
   ShoppingCart as SalesIcon,
   Person as PersonIcon,
+  RotateLeft as RotateLeftIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import PageHeader from "../components/PageHeader";
 import KpiCard from "../components/KpiCard";
 import MonthlySalesTrendChart from "../components/MonthlySalesTrendChart";
-import { useSalesPerformanceQuery } from "../queries/salesPerformance.generated";
-import { useRevenueSummaryQuery } from "../queries/revenueSummary.generated";
-import { graphqlClient } from "../graphqlClient";
+import { useSalesPageDataQuery } from "../queries/salesPageData.generated";
+import { graphqlClient } from "../lib/graphqlClient";
 import { useFilters } from "../context/FilterContext";
+import { queryKeys } from "../lib/queryKeys";
+import { useMemo } from "react";
 import ChartEmptyState from "../components/states/ChartEmptyState";
+import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
+import SalespersonProductMixTable from "../components/SalespersonProductMixTable";
 
 const Sales = () => {
-  const { start_date, end_date, selected_branch, selected_product_line } =
-    useFilters();
-
-  const [sortBy, setSortBy] = useState<string>("total_sales");
-
-  // Fetch sales performance data from real API
-  const {
-    data: salesData,
-    error: salesError,
-    isLoading: salesLoading,
-  } = useSalesPerformanceQuery(graphqlClient, {
-    startDate: start_date,
-    endDate: end_date,
+  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const filters = useMemo(() => ({
+    dateRange: { start: start_date, end: end_date },
+    productLine: selected_product_line !== "all" ? selected_product_line : undefined,
     branch: selected_branch !== "all" ? selected_branch : undefined,
-    productLine:
-      selected_product_line !== "all" ? selected_product_line : undefined,
-  });
+  }), [start_date, end_date, selected_product_line, selected_branch]);
+  const [sortBy, setSortBy] = useState<string>("totalSales");
 
-  // Fetch revenue summary data
-  const {
-    data: revenueSummary,
-    error: revenueError,
-    isLoading: revenueLoading,
-  } = useRevenueSummaryQuery(graphqlClient, {
-    startDate: start_date,
-    endDate: end_date,
-    branch: selected_branch !== "all" ? selected_branch : undefined,
-    productLine:
-      selected_product_line !== "all" ? selected_product_line : undefined,
-  });
-
-  const safeSalesData = Array.isArray(salesData) ? salesData : [];
-
-  const formatCurrency = (value: number) => {
-    if (value == null || isNaN(value)) return "KSh 0";
-    return `KSh ${Math.round(value).toLocaleString("en-KE")}`;
+  const handleResetLocalFilters = () => {
+    setSortBy("totalSales");
   };
+
+  const { data, error, isLoading } = useSalesPageDataQuery(
+    graphqlClient,
+    {
+      startDate: start_date,
+      endDate: end_date,
+      branch: selected_branch !== "all" ? selected_branch : undefined,
+      productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+    },
+    {
+      queryKey: queryKeys.salesPerformance(filters),
+    }
+  );
+
+  const safeSalesData = data?.salesPerformance || [];
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat("en-US").format(value);
@@ -92,7 +86,7 @@ const Sales = () => {
 
   // Calculate metrics
   const totalSales =
-    safeSalesData?.reduce((sum, emp) => sum + emp.total_sales, 0) || 0;
+    safeSalesData?.reduce((sum, emp) => sum + emp.totalSales, 0) || 0;
   const avgSales =
     safeSalesData && safeSalesData.length > 0
       ? totalSales / safeSalesData.length
@@ -102,24 +96,24 @@ const Sales = () => {
   const sortedSalesData = safeSalesData
     ? [...safeSalesData].sort((a, b) => {
         switch (sortBy) {
-          case "total_sales":
-            return b.total_sales - a.total_sales;
-          case "transaction_count":
-            return b.transaction_count - a.transaction_count;
-          case "average_sale":
-            return b.average_sale - a.average_sale;
-          case "unique_branches":
-            return b.unique_branches - a.unique_branches;
+          case "totalSales":
+            return (b.totalSales || 0) - (a.totalSales || 0);
+          case "grossProfit":
+            return (b.grossProfit || 0) - (a.grossProfit || 0);
+          case "transactionCount":
+            return (b.transactionCount || 0) - (a.transactionCount || 0);
+          case "averageSale":
+            return (b.averageSale || 0) - (a.averageSale || 0);
+          case "uniqueBranches":
+            return (b.uniqueBranches || 0) - (a.uniqueBranches || 0);
           default:
             return 0;
         }
       })
     : [];
 
-  const isUsingMockData = false; // Removed usingMockSalesPerformance and usingMockRevenueSummary
-
   // Show loading state
-  if (salesLoading || revenueLoading) {
+  if (isLoading) {
     return (
       <Box
         sx={{
@@ -137,12 +131,10 @@ const Sales = () => {
   }
 
   // Standardize error state
-  if (salesError || revenueError) {
+  if (error) {
     const errorMsg =
-      salesError instanceof Error
-        ? salesError.message
-        : revenueError instanceof Error
-        ? revenueError.message
+      error instanceof Error
+        ? error.message
         : "Error loading sales data.";
     return <ChartEmptyState isError message={errorMsg} />;
   }
@@ -150,10 +142,8 @@ const Sales = () => {
   return (
     <Box
       sx={{
-        p: 0,
-        pl: { xs: 1.5, sm: 2 },
-        pr: { xs: 2, sm: 3 },
-        pb: { xs: 2, sm: 3 },
+        mt: { xs: 2, sm: 3 },
+        p: { xs: 1, sm: 2 },
       }}
     >
       <PageHeader
@@ -164,47 +154,23 @@ const Sales = () => {
 
       <Grid container spacing={{ xs: 2, sm: 3 }}>
         {/* Controls */}
-        <Grid item xs={12}>
-          <Box
-            sx={{
-              display: "flex",
-              gap: 2,
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "flex-end",
-            }}
-          >
-            <FormControl size="small" sx={{ minWidth: 120 }}>
-              <InputLabel>Sort By</InputLabel>
-              <Select
-                value={sortBy}
-                label="Sort By"
-                onChange={(e) => setSortBy(e.target.value)}
-              >
-                <MenuItem value="total_sales">Total Sales</MenuItem>
-                <MenuItem value="transaction_count">Transactions</MenuItem>
-                <MenuItem value="average_sale">Avg Sale</MenuItem>
-                <MenuItem value="unique_branches">Branches</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
-        </Grid>
-
+        {/* Removed local Reset and Sort By from here */}
         {/* Summary KPI Cards */}
         <Grid item xs={12} sm={6} md={3}>
           <KpiCard
             title="Total Revenue"
-            value={formatCurrency(revenueSummary?.total_revenue || 0)}
+            value={data?.revenueSummary?.totalRevenue || 0}
             icon={<MoneyIcon />}
             tooltipText="Total revenue from all sales transactions"
             isLoading={false}
             color="primary"
+            metricKey="totalSales"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <KpiCard
             title="Total Transactions"
-            value={formatNumber(revenueSummary?.total_transactions || 0)}
+            value={formatNumber(data?.revenueSummary?.totalTransactions || 0)}
             icon={<ReceiptIcon />}
             tooltipText="Total number of sales transactions"
             isLoading={false}
@@ -214,17 +180,18 @@ const Sales = () => {
         <Grid item xs={12} sm={6} md={3}>
           <KpiCard
             title="Avg Transaction"
-            value={formatCurrency(revenueSummary?.average_transaction || 0)}
+            value={data?.revenueSummary?.averageTransaction || 0}
             icon={<TrendingUpIcon />}
             tooltipText="Average transaction value"
             isLoading={false}
             color="success"
+            metricKey="avgDealSize"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <KpiCard
             title="Active Employees"
-            value={formatNumber(revenueSummary?.unique_employees || 0)}
+            value={formatNumber(data?.revenueSummary?.uniqueEmployees || 0)}
             icon={<PersonIcon />}
             tooltipText="Number of active sales employees"
             isLoading={false}
@@ -239,12 +206,12 @@ const Sales = () => {
               <Typography variant="h6" gutterBottom>
                 Monthly Sales Trend
               </Typography>
-              {safeSalesData.length === 0 ? (
-                <ChartEmptyState message="No sales data available." />
+              {data?.monthlySalesGrowth?.length === 0 ? (
+                <ChartEmptyState message="No sales data available for the trend chart." />
               ) : (
                 <MonthlySalesTrendChart
-                  data={safeSalesData}
-                  isLoading={salesLoading}
+                  data={data?.monthlySalesGrowth?.map(item => ({ date: item.date, sales: item.totalSales || 0 })) || []}
+                  isLoading={isLoading}
                 />
               )}
             </CardContent>
@@ -261,7 +228,7 @@ const Sales = () => {
               <Stack spacing={2}>
                 {sortedSalesData.slice(0, 5).map((employee, index) => (
                   <Box
-                    key={`${employee.SalesPerson}-${index}`}
+                    key={`${employee.salesPerson}-${index}`}
                     sx={{ display: "flex", alignItems: "center", gap: 2 }}
                   >
                     <Avatar
@@ -271,14 +238,14 @@ const Sales = () => {
                     </Avatar>
                     <Box sx={{ flexGrow: 1 }}>
                       <Typography variant="body2" fontWeight="medium">
-                        {employee.SalesPerson}
+                        {employee.salesPerson}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {formatNumber(employee.transaction_count)} transactions
+                        {formatNumber(employee.transactionCount)} transactions
                       </Typography>
                     </Box>
                     <Typography variant="body2" fontWeight="medium">
-                      {formatCurrency(employee.total_sales)}
+                      {formatKshAbbreviated(employee.totalSales)}
                     </Typography>
                   </Box>
                 ))}
@@ -291,6 +258,22 @@ const Sales = () => {
         <Grid item xs={12}>
           <Card>
             <CardContent>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                  <InputLabel>Sort By</InputLabel>
+                  <Select
+                    value={sortBy}
+                    label="Sort By"
+                    onChange={(e) => setSortBy(e.target.value)}
+                  >
+                    <MenuItem value="totalSales">Total Sales</MenuItem>
+                    <MenuItem value="grossProfit">Gross Profit</MenuItem>
+                    <MenuItem value="transactionCount">Transactions</MenuItem>
+                    <MenuItem value="averageSale">Avg Sale</MenuItem>
+                    <MenuItem value="uniqueBranches">Branches</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
               <Typography variant="h6" gutterBottom>
                 Sales Employee Performance
               </Typography>
@@ -300,6 +283,8 @@ const Sales = () => {
                     <TableRow>
                       <TableCell>Employee</TableCell>
                       <TableCell align="right">Total Sales</TableCell>
+                      <TableCell align="right">Gross Profit</TableCell>
+                      <TableCell align="right">Avg. Margin</TableCell>
                       <TableCell align="right">Transactions</TableCell>
                       <TableCell align="right">Avg Sale</TableCell>
                       <TableCell align="right">Branches</TableCell>
@@ -310,7 +295,7 @@ const Sales = () => {
                   <TableBody>
                     {sortedSalesData.map((employee, index) => (
                       <TableRow
-                        key={`${employee.SalesPerson}-${index}`}
+                        key={`${employee.salesPerson}-${index}`}
                         sx={{
                           "&:nth-of-type(odd)": {
                             backgroundColor: "action.hover",
@@ -330,31 +315,41 @@ const Sales = () => {
                                 bgcolor: "secondary.main",
                               }}
                             >
-                              {employee.SalesPerson.charAt(0)}
+                              {employee.salesPerson.charAt(0)}
                             </Avatar>
                             <Typography variant="body2" fontWeight="medium">
-                              {employee.SalesPerson}
+                              {employee.salesPerson}
                             </Typography>
                           </Stack>
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2" fontWeight="medium">
-                            {formatCurrency(employee.total_sales)}
+                            {formatKshAbbreviated(employee.totalSales)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" fontWeight="medium" color="success.main">
+                            {formatKshAbbreviated(employee.grossProfit)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2">
-                            {formatNumber(employee.transaction_count)}
+                            {formatPercentage(employee.avgMargin || 0)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2">
-                            {formatCurrency(employee.average_sale)}
+                            {formatNumber(employee.transactionCount)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2">
+                            {formatKshAbbreviated(employee.averageSale)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Chip
-                            label={employee.unique_branches}
+                            label={employee.uniqueBranches}
                             size="small"
                             color="info"
                             variant="outlined"
@@ -362,7 +357,7 @@ const Sales = () => {
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2">
-                            {formatNumber(employee.unique_products)}
+                            {formatNumber(employee.uniqueProducts)}
                           </Typography>
                         </TableCell>
                         <TableCell align="center">
@@ -370,11 +365,11 @@ const Sales = () => {
                             <LinearProgress
                               variant="determinate"
                               value={Math.min(
-                                (employee.total_sales / (avgSales || 1)) * 50,
+                                (employee.totalSales / (avgSales || 1)) * 50,
                                 100
                               )}
                               color={getPerformanceColor(
-                                employee.total_sales,
+                                employee.totalSales,
                                 avgSales
                               )}
                               sx={{ height: 6, borderRadius: 1 }}
@@ -383,11 +378,10 @@ const Sales = () => {
                               variant="caption"
                               color="text.secondary"
                             >
-                              {(
-                                (employee.total_sales / (avgSales || 1)) *
+                              {formatPercentage(
+                                (employee.totalSales / (avgSales || 1)) *
                                 100
-                              ).toFixed(0)}
-                              %
+                              )}
                             </Typography>
                           </Box>
                         </TableCell>
@@ -398,6 +392,10 @@ const Sales = () => {
               </TableContainer>
             </CardContent>
           </Card>
+        </Grid>
+        {/* Salesperson Product Mix Table */}
+        <Grid item xs={12}>
+          <SalespersonProductMixTable />
         </Grid>
       </Grid>
     </Box>

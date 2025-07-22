@@ -10,7 +10,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DRUID_BROKER_HOST=localhost
+      - DRUID_BROKER_HOST=localhost # Connect to Druid running on the host machine
       - DRUID_BROKER_PORT=8888
       - DRUID_DATASOURCE=sales_data
       - PYTHONPATH=/app
@@ -33,7 +33,7 @@ services:
       dockerfile: frontend/Dockerfile.dev
     container_name: dashboard-frontend-dev
     ports:
-      - "3000:3000"
+      - "5173:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -42,6 +42,7 @@ services:
     restart: unless-stopped
     environment:
       - VITE_API_URL=http://localhost:8000
+      - VITE_APP_PORT=5173
 
 networks:
   default:

@@ -14,6 +14,9 @@ function fetcher<TData, TVariables extends { [key: string]: any }>(client: Graph
 export type ProductPerformanceQueryVariables = Types.Exact<{
   startDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
   endDate?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  n?: Types.InputMaybe<Types.Scalars['Int']['input']>;
+  branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
 }>;
 
 
@@ -22,8 +25,14 @@ export type ProductPerformanceQuery = { __typename?: 'Query', productPerformance
 
 
 export const ProductPerformanceDocument = `
-    query ProductPerformance($startDate: String, $endDate: String) {
-  productPerformance(startDate: $startDate, endDate: $endDate) {
+    query ProductPerformance($startDate: String, $endDate: String, $n: Int, $branch: String, $productLine: String) {
+  productPerformance(
+    startDate: $startDate
+    endDate: $endDate
+    n: $n
+    branch: $branch
+    productLine: $productLine
+  ) {
     product
     sales
   }
@@ -36,12 +45,14 @@ export const useProductPerformanceQuery = <
     >(
       client: GraphQLClient,
       variables?: ProductPerformanceQueryVariables,
-      options?: UseQueryOptions<ProductPerformanceQuery, TError, TData>,
+      options?: Omit<UseQueryOptions<ProductPerformanceQuery, TError, TData>, 'queryKey'> & { queryKey?: UseQueryOptions<ProductPerformanceQuery, TError, TData>['queryKey'] },
       headers?: RequestInit['headers']
     ) => {
     
     return useQuery<ProductPerformanceQuery, TError, TData>(
-      variables === undefined ? ['ProductPerformance'] : ['ProductPerformance', variables],
-      fetcher<ProductPerformanceQuery, ProductPerformanceQueryVariables>(client, ProductPerformanceDocument, variables, headers),
-      options
+      {
+    queryKey: variables === undefined ? ['ProductPerformance'] : ['ProductPerformance', variables],
+    queryFn: fetcher<ProductPerformanceQuery, ProductPerformanceQueryVariables>(client, ProductPerformanceDocument, variables, headers),
+    ...options
+  }
     )};

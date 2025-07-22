@@ -2,11 +2,13 @@ query ProductProfitability(
   $startDate: String
   $endDate: String
   $branch: String
+  $productLine: String
 ) {
   productProfitability(
     startDate: $startDate
     endDate: $endDate
     branch: $branch
+    productLine: $productLine
   ) {
     productLine
     itemName

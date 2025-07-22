@@ -12,6 +12,7 @@ import { HelpOutline as HelpOutlineIcon } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import KpiCardSkeleton from "./skeletons/KpiCardSkeleton";
 import { useState, useEffect } from "react";
+import { formatKshAbbreviated } from "../lib/numberFormat";
 
 // Animation for the card hover effect
 const floatAnimation = keyframes`
@@ -40,6 +41,10 @@ interface KpiCardProps {
   editableTarget?: boolean;
   targetValue?: number | string;
   onTargetEdit?: (val: number | string) => void;
+  vsValue?: number;
+  vsPercent?: number;
+  vsDirection?: "up" | "down" | "neutral";
+  vsColor?: "success" | "error" | "default";
 }
 
 const KpiCard: React.FC<KpiCardProps> = ({
@@ -56,6 +61,10 @@ const KpiCard: React.FC<KpiCardProps> = ({
   editableTarget = false,
   targetValue,
   onTargetEdit,
+  vsValue,
+  vsPercent,
+  vsDirection = "neutral",
+  vsColor = "default",
 }) => {
   const theme = useTheme();
   const [editing, setEditing] = useState(false);
@@ -88,6 +97,18 @@ const KpiCard: React.FC<KpiCardProps> = ({
 
   // Accessibility: ARIA label for card
   const ariaLabel = `${title}: ${value}`;
+
+  // Arrow icon for vs previous period
+  const getVsArrow = () => {
+    if (vsDirection === "up") return "▲";
+    if (vsDirection === "down") return "▼";
+    return "▬";
+  };
+  const getVsColor = () => {
+    if (vsColor === "success") return theme.palette.success.main;
+    if (vsColor === "error") return theme.palette.error.main;
+    return theme.palette.text.secondary;
+  };
 
   return (
     <Card
@@ -332,18 +353,47 @@ const KpiCard: React.FC<KpiCardProps> = ({
             </button>
           </Box>
         ) : (
-          <Typography
-            variant="h3"
-            sx={{
-              fontWeight: 700,
-              color: theme.palette.text.primary,
-              fontSize: { xs: "1.75rem", sm: "2.125rem" },
-              lineHeight: 1.2,
-            }}
-            aria-label={`Value: ${value}`}
-          >
-            {value}
-          </Typography>
+          <>
+            <Typography
+              variant="h3"
+              sx={{
+                fontWeight: 700,
+                color: theme.palette.text.primary,
+                fontSize: { xs: "1.75rem", sm: "2.125rem" },
+                lineHeight: 1.2,
+              }}
+              aria-label={`Value: ${value}`}
+            >
+              {metricKey && ["sales", "totalSales", "grossProfit", "avgDealSize", "averageDealSize", "target", "targetValue"].includes(metricKey)
+                ? formatKshAbbreviated(Number(value))
+                : value}
+            </Typography>
+            {/* vs previous period badge */}
+            {typeof vsValue === "number" && typeof vsPercent === "number" && (
+              <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: getVsColor(),
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                  }}
+                  aria-label={`Change vs previous period: ${vsValue} (${vsPercent.toFixed(1)}%)`}
+                >
+                  {getVsArrow()} {vsValue > 0 ? "+" : vsValue < 0 ? "" : ""}
+                  {metricKey && ["sales", "totalSales", "grossProfit", "avgDealSize", "averageDealSize", "target", "targetValue"].includes(metricKey)
+                    ? formatKshAbbreviated(Math.abs(vsValue))
+                    : Math.abs(vsValue)}
+                  {" ("}
+                  {vsPercent > 0 ? "+" : vsPercent < 0 ? "" : ""}
+                  {Math.abs(vsPercent).toFixed(1)}%
+                  {") vs previous period"}
+                </Typography>
+              </Box>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
