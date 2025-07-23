@@ -4,22 +4,12 @@
 
 ## 1. API Documentation Standardization
 
-- [ ] Standardize all API documentation to follow the "Monthly Sales Growth" format:
-  - Endpoint/Query
-  - Arguments
-  - Returns/Schema
-  - Sample Request/Response
-  - Error Envelope
-  - Filters
-  - TypeScript/GraphQL Mapping
-- [ ] Add sample requests/responses for every endpoint, including error cases.
+- [ ] Standardize all API documentation to follow the GraphQL schema and codegen output.
+- [ ] Add sample requests/responses for every query, including error cases.
 
 ## 2. Naming Conventions & Schema Alignment
 
 - [ ] Ensure backend returns camelCase fields for all GraphQL endpoints.
-- [ ] For REST endpoints, either:
-  - Return camelCase fields, or
-  - Document the mapping and ensure the frontend maps fields correctly.
 - [ ] Use only camelCase in all TypeScript types and GraphQL queries on the frontend.
 
 ## 3. Response Envelope Consistency
@@ -42,9 +32,12 @@
 
 ## 6. Documentation & Communication
 
-- [ ] Document all endpoints and types in a single source of truth.
+- [ ] Document all queries and types in a single source of truth (GraphQL schema and codegen output).
 - [ ] Communicate any changes in schema or contract to both frontend and backend teams.
 
 ---
 
 _Check off each item as you complete it to ensure robust, maintainable integration._
+
+**Note:**
+- All contracts are enforced via codegen and mapping docs. Keep this file in sync with [backend_report.md], [frontend_report.md], and [api.md].

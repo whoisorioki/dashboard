@@ -15,12 +15,12 @@ This document summarizes the current gaps and incomplete items in the Sales Anal
 
 2. **GraphQL-First Data Fetching**
 
-   - Not all dashboard components use GraphQL queries; some still use REST.
-   - Batching of dashboard data in a single GraphQL query is not fully implemented.
+   - All dashboard components now use GraphQL queries and codegen hooks; REST is deprecated.
+   - Batching of dashboard data in a single GraphQL query is in progress for some pages.
 
-3. **Migration to Apache ECharts**
+3. **Migration to Nivo/ECharts**
 
-   - Several chart components still use Recharts; ECharts migration is incomplete.
+   - Several chart components are still being migrated from Recharts. Migration to Nivo/ECharts is in progress.
 
 4. **Role-Based Access Control (RBAC) & Authentication**
 
@@ -58,5 +58,5 @@ This document summarizes the current gaps and incomplete items in the Sales Anal
 ---
 
 **Note:**
-
+- All contracts are enforced via codegen and mapping docs. Keep this file in sync with [backend_report.md], [frontend_report.md], and [api.md].
 - The immediate goal is to have a fully working dashboard. Address these gaps after confirming core functionality and stability.

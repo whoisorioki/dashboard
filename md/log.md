@@ -1,6 +1,6 @@
 # Logging & Error Handling Approach
 
-This document describes the standardized logging and error handling strategy for the Kenyan Sales Analytics Dashboard project. It is intended for all developers and maintainers to ensure consistency, observability, and maintainability across the codebase.
+This document describes the standardized logging and error handling strategy for the Kenyan Sales Analytics Dashboard project. All logging and error handling is now standardized via the GraphQL API, codegen, and mapping docs. Keep this file in sync with [backend_report.md], [frontend_report.md], and [api.md].
 
 ---
 
@@ -79,4 +79,5 @@ This document describes the standardized logging and error handling strategy for
 
 ---
 
-**For questions or improvements, contact the backend lead or open a PR with your proposed changes.** 
+**Note:**
+- All logging and error handling is now standardized via the GraphQL API, codegen, and mapping docs. Keep this file in sync with [backend_report.md], [frontend_report.md], and [api.md]. 

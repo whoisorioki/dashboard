@@ -1,6 +1,6 @@
 # Frontend–Backend Mapping: GraphQL Analytics API
 
-This document provides a detailed mapping between frontend dashboard components, their expected data structures (TypeScript interfaces), the corresponding GraphQL queries, output fields (including nested fields), error envelope structure, and accepted filter arguments. Use this as a contract to ensure seamless integration and rapid troubleshooting.
+This document provides the authoritative mapping between frontend dashboard components, their expected data structures (TypeScript interfaces), the corresponding GraphQL queries, output fields, error envelope structure, and accepted filter arguments. All field names are camelCase in the frontend, and this mapping is kept in sync with the backend GraphQL schema via codegen. This file is the single source of truth for frontend-backend data contracts.
 
 ---
 
@@ -32,7 +32,7 @@ This document provides a detailed mapping between frontend dashboard components,
 
 ## 2. Error Envelope Structure (GraphQL)
 
-All GraphQL errors are returned in a consistent envelope, as described in `log.md`:
+All GraphQL errors are returned in a consistent envelope:
 
 ```json
 {
@@ -54,7 +54,7 @@ All GraphQL errors are returned in a consistent envelope, as described in `log.m
 - All currency values are numbers (not strings) and should be formatted as KES in the frontend.
 - Dates are returned as ISO 8601 strings.
 - If a field is optional, it should be marked as such in the TypeScript interface and GraphQL schema.
-- **Field Name Mapping:** GraphQL schema and codegen use camelCase for TypeScript, but backend/REST may use snake_case. Always use camelCase in frontend code.
+- **Field Name Mapping:** GraphQL schema and codegen use camelCase for TypeScript, and all frontend code must use camelCase.
 - **Component–Query Mapping:** Each chart/table/KPI should use the correct query and data type. Do not mix ProductAnalytics with ProductPerformance, etc.
 - **Filters:** All filters (date, branch, productLine, etc.) are managed via FilterContext and passed to queries as needed. Defaults are set in FilterContext.
 

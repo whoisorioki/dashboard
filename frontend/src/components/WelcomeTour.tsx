@@ -30,7 +30,7 @@ interface WelcomeTourProps {
 
 const tourSteps = [
     {
-        title: 'Welcome to Kenyan Sales Analytics! 🎉',
+        title: 'Welcome to the Sales Analytics Dashboard! 🎉',
         description: 'Get real-time insights into your sales performance across Kenya with our comprehensive analytics platform. All data is in Kenyan Shillings (KES).',
         icon: <DashboardIcon fontSize="large" />,
         color: 'primary'

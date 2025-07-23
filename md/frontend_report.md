@@ -3,7 +3,7 @@
 ## ✅ True Frontend Achievements (Fully Realized)
 
 - **Restored Core Dashboard UI:** All major pages (Overview, Sales, Products, Branches) are present and use modern React and Material-UI patterns. Navigation and layout are consistent and functional.
-- **GraphQL Hooks & Type Safety:** All major components use generated GraphQL hooks and TypeScript types, ensuring contract alignment and type safety. REST data fetching has been largely replaced by GraphQL, and codegen types are used throughout.
+- **GraphQL Hooks & Type Safety:** All major components use generated GraphQL hooks and TypeScript types, ensuring contract alignment and type safety. All data fetching is via GraphQL and codegen hooks.
 - **Unified Error, Loading, and Empty States:** Standardized components (`ChartSkeleton`, `ChartEmptyState`, error banners) are used across charts and tables. Most pages/components handle loading, error, and empty states in a consistent way.
 - **KES Formatting:** All monetary values are displayed in Kenyan Shillings (KES) with proper formatting and localization, using utility functions and consistent UI presentation.
 - **Global Filter System:** Date range, branch, and product line filters are implemented and integrated across analytics components, with state managed via React Context and hooks.
@@ -19,8 +19,8 @@
 
 - **Advanced Analytics UI:**
   - *Partial*: Salesperson Leaderboard, Product Line Profitability, and Product Mix UI are not fully implemented or integrated. Some components exist but are not fully functional or lack real data integration.
-- **Migration to Apache ECharts:**
-  - *Partial*: Several chart components (e.g., `TrendChart`, `ProductPerformanceChart`, `BranchProductHeatmap`) still use Recharts. Migration to ECharts is incomplete, and some features (e.g., advanced tooltips, interactivity) are missing in ECharts versions.
+- **Migration to Nivo/ECharts:**
+  - *Partial*: Several chart components are still being migrated from Recharts. Migration to Nivo/ECharts is in progress, and some features (e.g., advanced tooltips, interactivity) may be missing in the new versions.
 - **Role-Based Access Control (RBAC) & Authentication:**
   - *False*: No authentication or RBAC is implemented in the frontend. All pages and data are accessible without login or role checks.
 - **Accessibility:**
@@ -39,7 +39,7 @@
 ## 🚨 Outstanding Gaps & Recommendations
 
 - **Advanced Analytics UI:** Complete and integrate Salesperson Leaderboard, Product Line Profitability, and Product Mix components with real data and filters.
-- **ECharts Migration:** Finish migrating all chart components to Apache ECharts, ensuring feature parity and removing Recharts dependencies.
+- **Nivo/ECharts Migration:** Finish migrating all chart components to Nivo/ECharts, ensuring feature parity and removing Recharts dependencies.
 - **RBAC & Authentication:** Implement authentication and role-based access control in the frontend, restricting access and views based on user roles.
 - **Accessibility:** Achieve full WCAG compliance, add missing ARIA labels, and ensure all components are keyboard navigable.
 - **CI/CD & Automation:** Finalize automated integration tests and enforce codegen/type safety in the CI pipeline.
@@ -49,5 +49,6 @@
 
 ---
 
-**Summary:**
+**Note:**
+- All contracts are enforced via codegen and [frontend_mapping.md](frontend_mapping.md). Keep this file in sync with [frontend_mapping.md] and [api.md].
 - The frontend is robust and well-aligned for Phase 1, with most core achievements realized. However, several advanced features, UI/UX enhancements, and documentation items remain incomplete or only partially implemented. Addressing these gaps will be critical for production readiness and future scalability. 

@@ -387,6 +387,8 @@ export type BranchProductHeatmapQuery = { __typename?: 'Query', branchProductHea
 export type BranchesPageDataQueryVariables = Exact<{
   startDate: Scalars['String']['input'];
   endDate: Scalars['String']['input'];
+  branch?: InputMaybe<Scalars['String']['input']>;
+  productLine?: InputMaybe<Scalars['String']['input']>;
 }>;
 
 

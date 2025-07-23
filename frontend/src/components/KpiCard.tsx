@@ -13,6 +13,8 @@ import { useTheme } from "@mui/material/styles";
 import KpiCardSkeleton from "./skeletons/KpiCardSkeleton";
 import { useState, useEffect } from "react";
 import { formatKshAbbreviated } from "../lib/numberFormat";
+import { ResponsiveLine } from '@nivo/line';
+import { useNivoTheme } from '../hooks/useNivoTheme';
 
 // Animation for the card hover effect
 const floatAnimation = keyframes`
@@ -45,6 +47,7 @@ interface KpiCardProps {
   vsPercent?: number;
   vsDirection?: "up" | "down" | "neutral";
   vsColor?: "success" | "error" | "default";
+  sparklineData?: Array<{ x: string | number; y: number }>;
 }
 
 const KpiCard: React.FC<KpiCardProps> = ({
@@ -65,10 +68,12 @@ const KpiCard: React.FC<KpiCardProps> = ({
   vsPercent,
   vsDirection = "neutral",
   vsColor = "default",
+  sparklineData,
 }) => {
   const theme = useTheme();
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(targetValue);
+  const nivoTheme = useNivoTheme();
 
   useEffect(() => {
     setEditValue(targetValue);
@@ -284,8 +289,8 @@ const KpiCard: React.FC<KpiCardProps> = ({
                   trend === "up"
                     ? theme.palette.success.main
                     : trend === "down"
-                    ? theme.palette.error.main
-                    : theme.palette.text.secondary,
+                      ? theme.palette.error.main
+                      : theme.palette.text.secondary,
                 fontWeight: 600,
                 fontSize: "0.75rem",
               }}
@@ -368,6 +373,32 @@ const KpiCard: React.FC<KpiCardProps> = ({
                 ? formatKshAbbreviated(Number(value))
                 : value}
             </Typography>
+            {/* Sparkline below main value */}
+            {sparklineData && sparklineData.length > 1 && (
+              <Box sx={{ height: 32, mt: 1, mb: 0.5 }}>
+                <ResponsiveLine
+                  data={[{ id: 'trend', data: sparklineData }]}
+                  theme={nivoTheme}
+                  margin={{ top: 6, right: 6, bottom: 6, left: 6 }}
+                  xScale={{ type: 'point' }}
+                  yScale={{ type: 'linear', min: 'auto', max: 'auto', stacked: false }}
+                  axisTop={null}
+                  axisRight={null}
+                  axisBottom={null}
+                  axisLeft={null}
+                  enableGridX={false}
+                  enableGridY={false}
+                  colors={[colorPalette.main]}
+                  lineWidth={2}
+                  pointSize={0}
+                  enablePoints={false}
+                  enableArea={true}
+                  areaOpacity={0.15}
+                  isInteractive={false}
+                  animate={false}
+                />
+              </Box>
+            )}
             {/* vs previous period badge */}
             {typeof vsValue === "number" && typeof vsPercent === "number" && (
               <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>

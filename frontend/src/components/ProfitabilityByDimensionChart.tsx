@@ -18,21 +18,26 @@ import ChartCard from "./ChartCard";
 import ReactECharts from "echarts-for-react";
 import { queryKeys } from "../lib/queryKeys";
 
-const ProfitabilityByDimensionChart: React.FC = () => {
+interface ProfitabilityByDimensionChartProps {
+  startDate?: string;
+  endDate?: string;
+}
+
+const ProfitabilityByDimensionChart: React.FC<ProfitabilityByDimensionChartProps> = ({ startDate, endDate }) => {
   const [dimension, setDimension] = useState("Branch");
-  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const { start_date: ctxStart, end_date: ctxEnd, selected_branch, selected_product_line } = useFilters();
   const filters = useMemo(() => ({
-    dateRange: { start: start_date, end: end_date },
+    dateRange: { start: startDate || ctxStart, end: endDate || ctxEnd },
     branch: selected_branch !== "all" ? selected_branch : undefined,
     productLine: selected_product_line !== "all" ? selected_product_line : undefined,
     dimension,
-  }), [start_date, end_date, selected_branch, selected_product_line, dimension]);
+  }), [startDate, endDate, ctxStart, ctxEnd, selected_branch, selected_product_line, dimension]);
   const { data, error, isLoading } = useProfitabilityByDimensionQuery(
     graphqlClient,
     {
       dimension,
-      startDate: start_date,
-      endDate: end_date,
+      startDate: startDate || ctxStart,
+      endDate: endDate || ctxEnd,
     },
     {
       queryKey: queryKeys.profitabilityByDimension(filters),

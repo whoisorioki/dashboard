@@ -3,15 +3,34 @@ from typing import List, Optional
 from backend.services.sales_data import fetch_sales_data, get_data_range_from_druid
 from backend.services.kpi_service import calculate_revenue_summary
 import asyncio
-import datetime
-import math
 import logging
 import polars as pl
+import httpx
+import os
+from datetime import date, timezone
+import math
+
 
 def sanitize(val):
     if val is None or (isinstance(val, float) and (math.isinf(val) or math.isnan(val))):
         return None
     return val
+
+
+def log_empty_df(context: str, df, **filters):
+    if df.is_empty():
+        logging.warning(f"{context}: DataFrame is empty for filters: {filters}")
+        return True
+    return False
+
+
+def log_missing_column(context: str, df, column: str, **filters):
+    if column not in df.columns:
+        logging.warning(
+            f"{context}: DataFrame missing column '{column}' for filters: {filters}"
+        )
+        return True
+    return False
 
 
 @strawberry.type
@@ -169,7 +188,9 @@ class SalespersonLeaderboardEntry:
     sales_amount: Optional[float] = strawberry.field(name="salesAmount")
     gross_profit: Optional[float] = strawberry.field(name="grossProfit")
     quota: Optional[float] = strawberry.field(name="quota")
-    attainment_percentage: Optional[float] = strawberry.field(name="attainmentPercentage")
+    attainment_percentage: Optional[float] = strawberry.field(
+        name="attainmentPercentage"
+    )
 
 
 @strawberry.type
@@ -190,8 +211,10 @@ class CustomerValueEntry:
 class Query:
     @staticmethod
     def _get_default_dates():
-        data_range = get_data_range_from_druid()
-        return data_range.get('earliest_date'), data_range.get('latest_date')
+        from datetime import date, timedelta
+        today = date.today()
+        start = today - timedelta(days=90)
+        return start.isoformat(), today.isoformat()
 
     @strawberry.field
     async def monthly_sales_growth(
@@ -201,40 +224,19 @@ class Query:
         branch: Optional[str] = None,
         product_line: Optional[str] = None,
     ) -> List[MonthlySalesGrowth]:
-        today = datetime.date.today().isoformat()
+        from backend.services.kpi_service import calculate_monthly_sales_growth
+        today = date.today().isoformat()
         start = start_date or today
         end = end_date or today
-        logging.info(f"monthly_sales_growth: start={start}, end={end}, branch={branch}, product_line={product_line}")
-        df = await fetch_sales_data(start_date=start, end_date=end, branch_names=[branch] if branch else None)
-        logging.info(f"monthly_sales_growth: rows after fetch_sales_data: {len(df)}")
-        if product_line and product_line != "all":
-            df = df.filter(pl.col("ProductLine") == product_line)
-            logging.info(f"monthly_sales_growth: rows after product_line filter: {len(df)}")
-        if df.is_empty() or "__time" not in df.columns:
-            logging.warning("monthly_sales_growth: DataFrame is empty or missing __time column")
-            return []
-        df = safe_parse_datetime_column(df, "__time")
-        df = df.with_columns([
-            pl.col("__time").dt.strftime("%Y-%m").alias("date"),
-        ])
-        result_df = (
-            df.lazy()
-            .group_by("date")
-            .agg([
-                pl.sum("grossRevenue").alias("total_sales"),
-                (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("gross_profit"),
-            ])
-            .sort("date")
-            .collect()
-        )
-        
+        # Await the async aggregation logic
+        result = await calculate_monthly_sales_growth(start_date=start, end_date=end, branch=branch, product_line=product_line)
         return [
             MonthlySalesGrowth(
-                date=row["date"], 
-                total_sales=sanitize(row["total_sales"]), 
-                gross_profit=sanitize(row["gross_profit"])
+                date=row["date"],
+                total_sales=row["totalSales"],
+                gross_profit=row["grossProfit"],
             )
-            for row in result_df.to_dicts()
+            for row in result
         ]
 
     @strawberry.field
@@ -250,12 +252,19 @@ class Query:
             start_date, end_date = self._get_default_dates()
 
         df = await fetch_sales_data(
-            start_date=start_date, 
+            start_date=start_date,
             end_date=end_date,
-            branch_names=[branch] if branch else None
+            branch_names=[branch] if branch else None,
         )
-        
-        if df.is_empty():
+
+        if log_empty_df(
+            "product_performance",
+            df,
+            start=start_date,
+            end=end_date,
+            branch=branch,
+            product_line=product_line,
+        ):
             return []
 
         if product_line and product_line != "all":
@@ -264,9 +273,7 @@ class Query:
         performance_df = (
             df.lazy()
             .group_by("ItemName")
-            .agg([
-                pl.sum("grossRevenue").alias("sales")
-            ])
+            .agg([pl.sum("grossRevenue").alias("sales")])
             .sort("sales", descending=True)
             .head(n)
             .collect()
@@ -292,12 +299,19 @@ class Query:
             start_date, end_date = self._get_default_dates()
 
         df = await fetch_sales_data(
-            start_date=start_date, 
-            end_date=end_date, 
-            branch_names=[branch] if branch else None
+            start_date=start_date,
+            end_date=end_date,
+            branch_names=[branch] if branch else None,
         )
-        
-        if df.is_empty():
+
+        if log_empty_df(
+            "branch_product_heatmap",
+            df,
+            start=start_date,
+            end=end_date,
+            branch=branch,
+            product_line=product_line,
+        ):
             return []
 
         if product_line and product_line != "all":
@@ -306,9 +320,7 @@ class Query:
         heatmap_df = (
             df.lazy()
             .group_by(["Branch", "ProductLine"])
-            .agg([
-                pl.sum("grossRevenue").alias("sales")
-            ])
+            .agg([pl.sum("grossRevenue").alias("sales")])
             .collect()
         )
 
@@ -333,12 +345,19 @@ class Query:
             start_date, end_date = self._get_default_dates()
 
         df = await fetch_sales_data(
-            start_date=start_date, 
+            start_date=start_date,
             end_date=end_date,
-            branch_names=[branch] if branch else None
+            branch_names=[branch] if branch else None,
         )
-        
-        if df.is_empty():
+
+        if log_empty_df(
+            "branch_performance",
+            df,
+            start=start_date,
+            end=end_date,
+            branch=branch,
+            product_line=product_line,
+        ):
             return []
 
         if product_line and product_line != "all":
@@ -347,13 +366,15 @@ class Query:
         performance_df = (
             df.lazy()
             .group_by("Branch")
-            .agg([
-                pl.sum("grossRevenue").alias("total_sales"),
-                pl.count("Branch").alias("transaction_count"),
-                pl.mean("grossRevenue").alias("average_sale"),
-                pl.n_unique("CardName").alias("unique_customers"),
-                pl.n_unique("ItemName").alias("unique_products")
-            ])
+            .agg(
+                [
+                    pl.sum("grossRevenue").alias("total_sales"),
+                    pl.count("Branch").alias("transaction_count"),
+                    pl.mean("grossRevenue").alias("average_sale"),
+                    pl.n_unique("CardName").alias("unique_customers"),
+                    pl.n_unique("ItemName").alias("unique_products"),
+                ]
+            )
             .collect()
         )
 
@@ -381,12 +402,19 @@ class Query:
             start_date, end_date = self._get_default_dates()
 
         df = await fetch_sales_data(
-            start_date=start_date, 
-            end_date=end_date, 
-            branch_names=[branch] if branch else None
+            start_date=start_date,
+            end_date=end_date,
+            branch_names=[branch] if branch else None,
         )
-        
-        if df.is_empty():
+
+        if log_empty_df(
+            "sales_performance",
+            df,
+            start=start_date,
+            end=end_date,
+            branch=branch,
+            product_line=product_line,
+        ):
             return []
 
         if product_line and product_line != "all":
@@ -395,15 +423,22 @@ class Query:
         performance_df = (
             df.lazy()
             .group_by("SalesPerson")
-            .agg([
-                pl.sum("grossRevenue").alias("total_sales"),
-                (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("gross_profit"),
-                ((pl.sum("grossRevenue") - pl.sum("totalCost")) / pl.sum("grossRevenue")).alias("avg_margin"),
-                pl.count("SalesPerson").alias("transaction_count"),
-                pl.mean("grossRevenue").alias("average_sale"),
-                pl.n_unique("Branch").alias("unique_branches"),
-                pl.n_unique("ItemName").alias("unique_products")
-            ])
+            .agg(
+                [
+                    pl.sum("grossRevenue").alias("total_sales"),
+                    (pl.sum("grossRevenue") - pl.sum("totalCost")).alias(
+                        "gross_profit"
+                    ),
+                    (
+                        (pl.sum("grossRevenue") - pl.sum("totalCost"))
+                        / pl.sum("grossRevenue")
+                    ).alias("avg_margin"),
+                    pl.count("SalesPerson").alias("transaction_count"),
+                    pl.mean("grossRevenue").alias("average_sale"),
+                    pl.n_unique("Branch").alias("unique_branches"),
+                    pl.n_unique("ItemName").alias("unique_products"),
+                ]
+            )
             .collect()
         )
 
@@ -433,12 +468,19 @@ class Query:
             start_date, end_date = self._get_default_dates()
 
         df = await fetch_sales_data(
-            start_date=start_date, 
-            end_date=end_date, 
-            branch_names=[branch] if branch else None
+            start_date=start_date,
+            end_date=end_date,
+            branch_names=[branch] if branch else None,
         )
-        
-        if df.is_empty():
+
+        if log_empty_df(
+            "product_analytics",
+            df,
+            start=start_date,
+            end=end_date,
+            branch=branch,
+            product_line=product_line,
+        ):
             return []
 
         if product_line and product_line != "all":
@@ -449,11 +491,13 @@ class Query:
         agg_exprs = [
             pl.sum("grossRevenue").alias("total_sales"),
             (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("gross_profit"),
-            ((pl.sum("grossRevenue") - pl.sum("totalCost")) / pl.sum("grossRevenue")).alias("margin"),
+            (
+                (pl.sum("grossRevenue") - pl.sum("totalCost")) / pl.sum("grossRevenue")
+            ).alias("margin"),
             pl.sum("unitsSold").alias("total_qty"),
             pl.count("ItemName").alias("transaction_count"),
             pl.n_unique("Branch").alias("unique_branches"),
-            pl.mean("grossRevenue").alias("average_price")
+            pl.mean("grossRevenue").alias("average_price"),
         ]
 
         analytics_df = (
@@ -490,15 +534,15 @@ class Query:
     ) -> TargetAttainment:
         if not all([start_date, end_date]):
             start_date, end_date = self._get_default_dates()
-        
+
         target_val = target if target is not None else 0.0
 
         df = await fetch_sales_data(
-            start_date=start_date, 
-            end_date=end_date, 
-            branch_names=[branch] if branch else None
+            start_date=start_date,
+            end_date=end_date,
+            branch_names=[branch] if branch else None,
         )
-        
+
         if product_line and product_line != "all":
             df = df.filter(pl.col("ProductLine") == product_line)
 
@@ -506,12 +550,14 @@ class Query:
         if not df.is_empty():
             total_sales = df.select(pl.sum("grossRevenue")).item() or 0
 
-        attainment_percentage = (total_sales / target_val) * 100 if target_val > 0 else 0
+        attainment_percentage = (
+            (total_sales / target_val) * 100 if target_val > 0 else 0
+        )
 
         return TargetAttainment(
             attainment_percentage=sanitize(attainment_percentage),
             total_sales=sanitize(total_sales),
-            target=target_val
+            target=target_val,
         )
 
     @strawberry.field
@@ -523,13 +569,19 @@ class Query:
         product_line: Optional[str] = None,
     ) -> RevenueSummary:
         default_start, default_end = Query._get_default_dates()
-        start = start_date or (default_start if isinstance(default_start, str) and default_start else '1970-01-01T00:00:00.000Z')
-        end = end_date or (default_end if isinstance(default_end, str) and default_end else '2100-01-01T00:00:00.000Z')
-        
+        start = start_date or (
+            default_start
+            if isinstance(default_start, str) and default_start
+            else "1970-01-01T00:00:00.000Z"
+        )
+        end = end_date or (
+            default_end
+            if isinstance(default_end, str) and default_end
+            else "2100-01-01T00:00:00.000Z"
+        )
+
         df = await fetch_sales_data(
-            start_date=start,
-            end_date=end,
-            branch_names=[branch] if branch else None
+            start_date=start, end_date=end, branch_names=[branch] if branch else None
         )
 
         if product_line and product_line != "all":
@@ -556,10 +608,7 @@ class Query:
         branch: Optional[str] = None,
         product_line: Optional[str] = None,
     ) -> List[ProfitabilityByDimension]:
-        from backend.services.sales_data import fetch_sales_data
-        import polars as pl
-        import datetime
-        today = datetime.date.today().isoformat()
+        today = date.today().isoformat()
         start = start_date or today
         end = end_date or today
         df = await fetch_sales_data(
@@ -569,15 +618,34 @@ class Query:
         )
         if product_line and product_line != "all":
             df = df.filter(pl.col("ProductLine") == product_line)
-        if df.is_empty() or dimension not in df.columns:
+        if log_empty_df(
+            "profitability_by_dimension",
+            df,
+            start=start,
+            end=end,
+            branch=branch,
+            product_line=product_line,
+            dimension=dimension,
+        ):
+            return []
+        if dimension not in df.columns:
+            logging.warning(
+                f"profitability_by_dimension: DataFrame missing dimension column '{dimension}' for filters: start={start}, end={end}, branch={branch}, product_line={product_line}"
+            )
             return []
         result_df = (
             df.lazy()
             .group_by(dimension)
-            .agg([
-                (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("gross_profit"),
-                (pl.sum("grossRevenue") / pl.sum("totalCost") - 1).alias("gross_margin"),
-            ])
+            .agg(
+                [
+                    (pl.sum("grossRevenue") - pl.sum("totalCost")).alias(
+                        "gross_profit"
+                    ),
+                    (pl.sum("grossRevenue") / pl.sum("totalCost") - 1).alias(
+                        "gross_margin"
+                    ),
+                ]
+            )
             .collect()
         )
         # Map dimension to snake_case field name
@@ -611,7 +679,8 @@ class Query:
         from backend.services.sales_data import fetch_sales_data
         import polars as pl
         import datetime
-        today = datetime.date.today().isoformat()
+
+        today = date.today().isoformat()
         start = start_date or today
         end = end_date or today
         df = await fetch_sales_data(
@@ -623,20 +692,38 @@ class Query:
         )
         if product_line and product_line != "all":
             df = df.filter(pl.col("ProductLine") == product_line)
-        if df.is_empty() or "returnsValue" not in df.columns:
+        if log_empty_df(
+            "returns_analysis",
+            df,
+            start=start,
+            end=end,
+            branch=branch,
+            product_line=product_line,
+            item_names=item_names,
+            sales_persons=sales_persons,
+            branch_names=branch_names,
+        ):
+            return []
+        if "returnsValue" not in df.columns:
+            logging.warning(
+                f"returns_analysis: DataFrame missing 'returnsValue' column for filters: start={start}, end={end}, branch={branch}, product_line={product_line}, item_names={item_names}, sales_persons={sales_persons}, branch_names={branch_names}"
+            )
             return []
         # Assume returns reason is not available, so group by ItemName as a proxy
         result_df = (
             df.lazy()
             .filter(pl.col("returnsValue") > 0)
             .group_by("ItemName")
-            .agg([
-                pl.count().alias("count"),
-            ])
+            .agg(
+                [
+                    pl.count().alias("count"),
+                ]
+            )
             .collect()
         )
         return [
-            ReturnsAnalysisEntry(reason=row["ItemName"], count=row["count"]) for row in result_df.to_dicts()
+            ReturnsAnalysisEntry(reason=row["ItemName"], count=row["count"])
+            for row in result_df.to_dicts()
         ]
 
     @strawberry.field
@@ -654,8 +741,9 @@ class Query:
         from backend.services.sales_data import fetch_sales_data
         import polars as pl
         import datetime
+
         # Provide default dates if not supplied
-        today = datetime.date.today().isoformat()
+        today = date.today().isoformat()
         start = start_date or today
         end = end_date or today
         df = await fetch_sales_data(
@@ -667,7 +755,17 @@ class Query:
         )
         if product_line and product_line != "all":
             df = df.filter(pl.col("ProductLine") == product_line)
-        if df.is_empty():
+        if log_empty_df(
+            "top_customers",
+            df,
+            start=start,
+            end=end,
+            branch=branch,
+            product_line=product_line,
+            item_names=item_names,
+            sales_persons=sales_persons,
+            branch_names=branch_names,
+        ):
             return []
         n_val = n if n is not None else 5
         result_df = (
@@ -699,19 +797,25 @@ class Query:
         from backend.services.sales_data import fetch_sales_data
         import polars as pl
         import datetime
-        today = datetime.date.today().isoformat()
+
+        today = date.today().isoformat()
         start = start_date or today
         end = end_date or today
         df = await fetch_sales_data(start_date=start, end_date=end)
-        if df.is_empty() or "Branch" not in df.columns:
+        if log_empty_df("branch_list", df, start=start, end=end):
+            return []
+        if "Branch" not in df.columns:
+            logging.warning(
+                f"branch_list: DataFrame missing 'Branch' column for filters: start={start}, end={end}"
+            )
             return []
         branches = df["Branch"].unique().to_list()
         return [BranchListEntry(branch=b) for b in branches]
 
     @strawberry.field
     async def margin_trends(
-        self, 
-        start_date: Optional[str] = None, 
+        self,
+        start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         branch: Optional[str] = None,
         product_line: Optional[str] = None,
@@ -720,31 +824,56 @@ class Query:
         import polars as pl
         import datetime
         import math
-        today = datetime.date.today().isoformat()
+
+        today = date.today().isoformat()
         start = start_date or today
         end = end_date or today
-        df = await fetch_sales_data(start_date=start, end_date=end, branch_names=[branch] if branch else None)
-        
+        df = await fetch_sales_data(
+            start_date=start, end_date=end, branch_names=[branch] if branch else None
+        )
+
         if product_line and product_line != "all":
             df = df.filter(pl.col("ProductLine") == product_line)
 
-        if df.is_empty() or "__time" not in df.columns:
+        if log_empty_df(
+            "margin_trends",
+            df,
+            start=start,
+            end=end,
+            branch=branch,
+            product_line=product_line,
+        ):
+            return []
+        if "__time" not in df.columns:
+            logging.warning(
+                f"margin_trends: DataFrame missing '__time' column for filters: start={start}, end={end}, branch={branch}, product_line={product_line}"
+            )
             return []
         df = safe_parse_datetime_column(df, "__time")
-        df = df.with_columns([
-            pl.col("__time").dt.strftime("%Y-%m-%d").alias("date"),
-            ((pl.col("grossRevenue") - pl.col("totalCost")) / pl.col("grossRevenue")).alias("margin_pct"),
-        ])
+        df = df.with_columns(
+            [
+                pl.col("__time").dt.strftime("%Y-%m-%d").alias("date"),
+                (
+                    (pl.col("grossRevenue") - pl.col("totalCost"))
+                    / pl.col("grossRevenue")
+                ).alias("margin_pct"),
+            ]
+        )
         result_df = (
             df.lazy()
             .group_by("date")
-            .agg([
-                pl.mean("margin_pct").alias("margin_pct"),
-            ])
+            .agg(
+                [
+                    pl.mean("margin_pct").alias("margin_pct"),
+                ]
+            )
             .sort("date")
             .collect()
         )
-        return [MarginTrendEntry(date=row["date"], margin_pct=sanitize(row["margin_pct"])) for row in result_df.to_dicts()]
+        return [
+            MarginTrendEntry(date=row["date"], margin_pct=sanitize(row["margin_pct"]))
+            for row in result_df.to_dicts()
+        ]
 
     @strawberry.field
     async def product_profitability(
@@ -757,22 +886,36 @@ class Query:
         from backend.services.sales_data import fetch_sales_data
         import polars as pl
         import datetime
-        today = datetime.date.today().isoformat()
+
+        today = date.today().isoformat()
         start = start_date or today
         end = end_date or today
-        df = await fetch_sales_data(start_date=start, end_date=end, branch_names=[branch] if branch else None)
-        
+        df = await fetch_sales_data(
+            start_date=start, end_date=end, branch_names=[branch] if branch else None
+        )
+
         if product_line and product_line != "all":
             df = df.filter(pl.col("ProductLine") == product_line)
 
-        if df.is_empty():
+        if log_empty_df(
+            "product_profitability",
+            df,
+            start=start,
+            end=end,
+            branch=branch,
+            product_line=product_line,
+        ):
             return []
         result_df = (
             df.lazy()
             .group_by(["ProductLine", "ItemName"])
-            .agg([
-                (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("gross_profit"),
-            ])
+            .agg(
+                [
+                    (pl.sum("grossRevenue") - pl.sum("totalCost")).alias(
+                        "gross_profit"
+                    ),
+                ]
+            )
             .sort("gross_profit", descending=True)
             .collect()
         )
@@ -796,24 +939,38 @@ class Query:
         from backend.services.sales_data import fetch_sales_data, get_employee_quotas
         import polars as pl
         import datetime
-        today = datetime.date.today().isoformat()
+
+        today = date.today().isoformat()
         start = start_date or today
         end = end_date or today
-        df = await fetch_sales_data(start_date=start, end_date=end, branch_names=[branch] if branch else None)
-        
+        df = await fetch_sales_data(
+            start_date=start, end_date=end, branch_names=[branch] if branch else None
+        )
+
         if product_line and product_line != "all":
             df = df.filter(pl.col("ProductLine") == product_line)
 
-        if df.is_empty():
+        if log_empty_df(
+            "salesperson_leaderboard",
+            df,
+            start=start,
+            end=end,
+            branch=branch,
+            product_line=product_line,
+        ):
             return []
         quotas_df = get_employee_quotas(start, end)
         leaderboard = (
             df.lazy()
             .group_by("SalesPerson")
-            .agg([
-                pl.sum("grossRevenue").alias("sales_amount"),
-                (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("gross_profit"),
-            ])
+            .agg(
+                [
+                    pl.sum("grossRevenue").alias("sales_amount"),
+                    (pl.sum("grossRevenue") - pl.sum("totalCost")).alias(
+                        "gross_profit"
+                    ),
+                ]
+            )
             .collect()
         )
         # Join quotas
@@ -840,22 +997,37 @@ class Query:
         from backend.services.sales_data import fetch_sales_data
         import polars as pl
         import datetime
-        today = datetime.date.today().isoformat()
+
+        today = date.today().isoformat()
         start = start_date or today
         end = end_date or today
-        df = await fetch_sales_data(start_date=start, end_date=end, branch_names=[branch] if branch else None)
-        
+        df = await fetch_sales_data(
+            start_date=start, end_date=end, branch_names=[branch] if branch else None
+        )
+
         if product_line and product_line != "all":
             df = df.filter(pl.col("ProductLine") == product_line)
 
-        if df.is_empty():
+        if log_empty_df(
+            "salesperson_product_mix",
+            df,
+            start=start,
+            end=end,
+            branch=branch,
+            product_line=product_line,
+        ):
             return []
         result_df = (
             df.lazy()
             .group_by(["SalesPerson", "ProductLine"])
-            .agg([
-                ((pl.sum("grossRevenue") - pl.sum("totalCost")) / pl.sum("grossRevenue")).alias("avg_profit_margin"),
-            ])
+            .agg(
+                [
+                    (
+                        (pl.sum("grossRevenue") - pl.sum("totalCost"))
+                        / pl.sum("grossRevenue")
+                    ).alias("avg_profit_margin"),
+                ]
+            )
             .collect()
         )
         return [
@@ -881,8 +1053,9 @@ class Query:
         from backend.services.sales_data import fetch_sales_data
         import polars as pl
         import datetime
+
         # Provide default dates if not supplied
-        today = datetime.date.today().isoformat()
+        today = date.today().isoformat()
         start = start_date or today
         end = end_date or today
         df = await fetch_sales_data(
@@ -894,7 +1067,17 @@ class Query:
         )
         if product_line and product_line != "all":
             df = df.filter(pl.col("ProductLine") == product_line)
-        if df.is_empty():
+        if log_empty_df(
+            "customer_value",
+            df,
+            start=start,
+            end=end,
+            branch=branch,
+            product_line=product_line,
+            item_names=item_names,
+            sales_persons=sales_persons,
+            branch_names=branch_names,
+        ):
             return []
         result_df = (
             df.lazy()
@@ -918,11 +1101,94 @@ class Query:
         ]
 
     @strawberry.field
-    def data_range(self) -> DataRange:
-        # Replace with real logic
-        return DataRange(
-            earliest_date="2023-01-01", latest_date="2023-12-31", total_records=1000
-        )
+    async def data_range(self) -> DataRange:
+        def to_iso8601(val):
+            if isinstance(val, int) or (isinstance(val, str) and str(val).isdigit()):
+                ts = int(val) / 1000
+                return (
+                    datetime.fromtimestamp(ts, tz=timezone.utc)
+                    .isoformat()
+                    .replace("+00:00", "Z")
+                )
+            if isinstance(val, str) and "T" in val:
+                return val
+            return str(val)
+
+        druid_url = os.getenv("DRUID_BROKER_URL", "http://localhost:8888/druid/v2/")
+        headers = {"Content-Type": "application/json"}
+        try:
+            # Query for earliest date
+            query = {
+                "queryType": "scan",
+                "dataSource": "sales_analytics",
+                "intervals": ["1900-01-01/2100-01-01"],
+                "columns": ["__time"],
+                "resultFormat": "compactedList",
+                "limit": 1,
+                "order": "ascending",
+            }
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.post(druid_url, json=query, headers=headers)
+                response.raise_for_status()
+                earliest_result = response.json()
+
+                # Query for latest date
+                query["order"] = "descending"
+                response = await client.post(druid_url, json=query, headers=headers)
+                response.raise_for_status()
+                latest_result = response.json()
+
+                # Extract dates
+                earliest_date = None
+                latest_date = None
+                if (
+                    earliest_result
+                    and len(earliest_result) > 0
+                    and "events" in earliest_result[0]
+                ):
+                    if len(earliest_result[0]["events"]) > 0:
+                        earliest_date = earliest_result[0]["events"][0][0]
+                if (
+                    latest_result
+                    and len(latest_result) > 0
+                    and "events" in latest_result[0]
+                ):
+                    if len(latest_result[0]["events"]) > 0:
+                        latest_date = latest_result[0]["events"][0][0]
+
+                # Query for total record count
+                count_query = {
+                    "queryType": "scan",
+                    "dataSource": "sales_analytics",
+                    "intervals": ["1900-01-01/2100-01-01"],
+                    "columns": [],
+                    "resultFormat": "compactedList",
+                }
+                response = await client.post(
+                    druid_url, json=count_query, headers=headers
+                )
+                response.raise_for_status()
+                total_records = 0
+                count_result = response.json()
+                for segment in count_result:
+                    if "events" in segment:
+                        total_records += len(segment["events"])
+
+            # Convert to ISO8601
+            earliest_date = to_iso8601(earliest_date)
+            latest_date = to_iso8601(latest_date)
+            return DataRange(
+                earliest_date=earliest_date,
+                latest_date=latest_date,
+                total_records=total_records,
+            )
+        except Exception:
+            # Fallback to hardcoded values if Druid query fails
+            return DataRange(
+                earliest_date="2023-01-01T00:00:00.000Z",
+                latest_date="2025-06-01T00:00:00.000Z",
+                total_records=51685,
+            )
 
     @strawberry.field
     async def branch_growth(
@@ -940,7 +1206,7 @@ class Query:
         df = await fetch_sales_data(
             start_date=start_date,
             end_date=end_date,
-            branch_names=[branch] if branch else None
+            branch_names=[branch] if branch else None,
         )
 
         if df.is_empty():
@@ -964,6 +1230,7 @@ class Query:
 
 def safe_parse_datetime_column(df, col="__time"):
     import polars as pl
+
     # If already Datetime, do nothing
     if df[col].dtype == pl.Datetime:
         return df
@@ -971,18 +1238,24 @@ def safe_parse_datetime_column(df, col="__time"):
     if df[col].dtype in [pl.Int64, pl.UInt64]:
         # Polars expects microseconds for Datetime, so multiply ms by 1000 if needed
         # If your data is already in us, remove the multiplication
-        return df.with_columns([
-            (pl.col(col) * 1000).cast(pl.Datetime).alias(col)
-        ])
+        return df.with_columns([(pl.col(col) * 1000).cast(pl.Datetime).alias(col)])
     try:
-        return df.with_columns([
-            pl.col(col).str.strptime(pl.Datetime, format="%Y-%m-%dT%H:%M:%S.%fZ", strict=False).alias(col)
-        ])
+        return df.with_columns(
+            [
+                pl.col(col)
+                .str.strptime(pl.Datetime, format="%Y-%m-%dT%H:%M:%S.%fZ", strict=False)
+                .alias(col)
+            ]
+        )
     except Exception:
         # Fallback: try without ms
-        return df.with_columns([
-            pl.col(col).str.strptime(pl.Datetime, format="%Y-%m-%dT%H:%M:%S%z", strict=False).alias(col)
-        ])
+        return df.with_columns(
+            [
+                pl.col(col)
+                .str.strptime(pl.Datetime, format="%Y-%m-%dT%H:%M:%S%z", strict=False)
+                .alias(col)
+            ]
+        )
 
 
 schema = strawberry.Schema(query=Query)

@@ -2,6 +2,11 @@ import polars as pl
 import numpy as np
 from typing import Dict, List
 import logging
+import requests
+from datetime import datetime
+import asyncio
+from backend.services.sales_data import fetch_sales_data
+
 
 def _ensure_time_is_datetime(df: pl.DataFrame) -> pl.DataFrame:
     if "__time" not in df.columns:
@@ -11,9 +16,7 @@ def _ensure_time_is_datetime(df: pl.DataFrame) -> pl.DataFrame:
         return df
     elif dtype == pl.Int64 or dtype == pl.UInt64:
         # Assume ms since epoch, convert to us for Polars Datetime
-        df = df.with_columns(
-            (pl.col("__time") * 1000).cast(pl.Datetime)
-        )
+        df = df.with_columns((pl.col("__time") * 1000).cast(pl.Datetime))
         return df
     else:
         # Try string parsing as before
@@ -25,7 +28,9 @@ def _ensure_time_is_datetime(df: pl.DataFrame) -> pl.DataFrame:
         ]:
             try:
                 df = df.with_columns(
-                    pl.col("__time").cast(pl.Utf8).str.strptime(pl.Datetime, fmt, strict=False)
+                    pl.col("__time")
+                    .cast(pl.Utf8)
+                    .str.strptime(pl.Datetime, fmt, strict=False)
                 )
                 if df["__time"].dtype == pl.Datetime:
                     return df
@@ -33,40 +38,58 @@ def _ensure_time_is_datetime(df: pl.DataFrame) -> pl.DataFrame:
                 continue
         # Fallback: try casting directly
         try:
-            df = df.with_columns(
-                pl.col("__time").cast(pl.Datetime)
-            )
+            df = df.with_columns(pl.col("__time").cast(pl.Datetime))
             if df["__time"].dtype == pl.Datetime:
                 return df
         except Exception:
             pass
-    logging.error(f"Failed to convert __time to Datetime. Dtype: {df['__time'].dtype}, Sample: {df['__time'].head(5)}")
-    raise ValueError(f"Failed to convert __time to Datetime. Dtype: {df['__time'].dtype}")
-
-
-def calculate_monthly_sales_growth(df: pl.DataFrame) -> list:
-    """
-    Calculates monthly sales totals and returns in frontend format.
-    Returns: [{date: string, sales: number}]
-    """
-    if df.is_empty():
-        return []
-
-    df = _ensure_time_is_datetime(df)
-    group_every = "1mo"
-    monthly_sales = (
-        df.lazy()
-        .sort("__time")
-        .group_by_dynamic("__time", every=group_every)
-        .agg(pl.sum("grossRevenue").alias("monthly_sales"))
-        .collect()
+    logging.error(
+        f"Failed to convert __time to Datetime. Dtype: {df['__time'].dtype}, Sample: {df['__time'].head(5)}"
+    )
+    raise ValueError(
+        f"Failed to convert __time to Datetime. Dtype: {df['__time'].dtype}"
     )
 
-    result = [
-        {"date": row["__time"].strftime("%Y-%m"), "sales": row["monthly_sales"]}
-        for row in monthly_sales.to_dicts()
+
+async def calculate_monthly_sales_growth(start_date: str, end_date: str, branch: str = None, product_line: str = None) -> list:
+    """
+    Fetches sales data from Druid (via sales_data.py) and aggregates by month, with optional branch and product_line filters.
+    Returns: [{date: string, totalSales: number, grossProfit: number}]
+    """
+    df = await fetch_sales_data(
+        start_date,
+        end_date,
+        branch_names=[branch] if branch else None,
+    )
+    if df.is_empty():
+        return []
+    # Apply product_line filter if needed
+    if product_line and product_line != "all":
+        df = df.filter(pl.col("ProductLine") == product_line)
+    # Ensure __time is datetime using the shared helper
+    df = _ensure_time_is_datetime(df)
+    # Group by month
+    df = df.with_columns([
+        pl.col("__time").dt.strftime("%Y-%m").alias("month")
+    ])
+    grouped = (
+        df.lazy()
+        .group_by("month")
+        .agg([
+            pl.sum("grossRevenue").alias("totalSales"),
+            (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("grossProfit"),
+        ])
+        .sort("month")
+        .collect()
+    )
+    return [
+        {
+            "date": row["month"],
+            "totalSales": row["totalSales"],
+            "grossProfit": row["grossProfit"],
+        }
+        for row in grouped.iter_rows(named=True)
     ]
-    return result
 
 
 def calculate_sales_target_attainment(df: pl.DataFrame, target: float) -> dict:
@@ -76,9 +99,7 @@ def calculate_sales_target_attainment(df: pl.DataFrame, target: float) -> dict:
     if target == 0 or df.is_empty():
         return {"total_sales": 0.0, "attainment_percentage": 0.0}
 
-    total_sales = float(
-        df.lazy().select(pl.sum("grossRevenue")).collect().item()
-    )
+    total_sales = float(df.lazy().select(pl.sum("grossRevenue")).collect().item())
 
     # Ensure no NaN values
     if np.isnan(total_sales) or np.isinf(total_sales):
@@ -182,8 +203,7 @@ def calculate_employee_quota_attainment(
     )
     # Both employee_sales and quotas_df are DataFrames, so join directly
     performance_df = (
-        employee_sales
-        .join(quotas_df, on="SalesPerson", how="left")
+        employee_sales.join(quotas_df, on="SalesPerson", how="left")
         .with_columns(
             ((pl.col("total_sales") / pl.col("quota")) * 100)
             .round(2)
@@ -411,12 +431,14 @@ def calculate_revenue_summary(df: pl.DataFrame) -> dict:
         }
     summary = (
         df.lazy()
-        .select([
-            pl.sum("grossRevenue").alias("total_revenue"),
-            pl.n_unique("ItemName").alias("unique_products"),
-            pl.n_unique("Branch").alias("unique_branches"),
-            pl.n_unique("SalesPerson").alias("unique_employees"),
-        ])
+        .select(
+            [
+                pl.sum("grossRevenue").alias("total_revenue"),
+                pl.n_unique("ItemName").alias("unique_products"),
+                pl.n_unique("Branch").alias("unique_branches"),
+                pl.n_unique("SalesPerson").alias("unique_employees"),
+            ]
+        )
         .collect()
     )
     total_revenue = float(summary[0, "total_revenue"])
@@ -451,8 +473,7 @@ def calculate_employee_performance(df: pl.DataFrame, quotas_df: pl.DataFrame) ->
     )
     # Both employee_sales and quotas_df are DataFrames, so join directly
     performance_df = (
-        employee_sales
-        .join(quotas_df, on="SalesPerson", how="left")
+        employee_sales.join(quotas_df, on="SalesPerson", how="left")
         .with_columns(
             [
                 pl.col("total_sales"),
@@ -486,9 +507,7 @@ def calculate_margin_trends(df: pl.DataFrame) -> list:
     df = _ensure_time_is_datetime(df)
     monthly = (
         df.lazy()
-        .with_columns([
-            pl.col("__time").dt.strftime("%Y-%m").alias("month")
-        ])
+        .with_columns([pl.col("__time").dt.strftime("%Y-%m").alias("month")])
         .group_by("month")
         .agg(
             [

@@ -30,6 +30,7 @@ import ProductPerformanceChart from "../components/ProductPerformanceChart";
 import BranchProductHeatmap from "../components/BranchProductHeatmap";
 import QuotaAttainmentGauge from "../components/QuotaAttainmentGauge";
 import ChartEmptyState from "../components/states/ChartEmptyState";
+import DataStateWrapper from "../components/DataStateWrapper";
 import { useDashboardDataQuery } from "../queries/dashboardData.generated";
 import { useFilters } from "../context/FilterContext";
 import { queryKeys } from "../lib/queryKeys";
@@ -133,16 +134,16 @@ const Dashboard = () => {
   const salesGrowth =
     Array.isArray(safeMonthlySalesGrowth) && safeMonthlySalesGrowth.length > 1
       ? ((safeMonthlySalesGrowth[safeMonthlySalesGrowth.length - 1].totalSales -
-          safeMonthlySalesGrowth[0].totalSales) /
-          safeMonthlySalesGrowth[0].totalSales) *
-        100
+        safeMonthlySalesGrowth[0].totalSales) /
+        safeMonthlySalesGrowth[0].totalSales) *
+      100
       : 0;
   const prevSalesGrowth =
     Array.isArray(safePrevMonthlySalesGrowth) && safePrevMonthlySalesGrowth.length > 1
       ? ((safePrevMonthlySalesGrowth[safePrevMonthlySalesGrowth.length - 1].totalSales -
-          safePrevMonthlySalesGrowth[0].totalSales) /
-          safePrevMonthlySalesGrowth[0].totalSales) *
-        100
+        safePrevMonthlySalesGrowth[0].totalSales) /
+        safePrevMonthlySalesGrowth[0].totalSales) *
+      100
       : 0;
   const salesGrowthChange = salesGrowth - prevSalesGrowth;
   const salesGrowthDirection = salesGrowthChange > 0 ? 'up' : salesGrowthChange < 0 ? 'down' : 'neutral';
@@ -191,56 +192,28 @@ const Dashboard = () => {
   //   ? safeRevenueSummary.totalRevenue / safeRevenueSummary.totalTransactions
   //   : null;
 
-  // Show loading state
-  if (loadingDashboard) {
-    return (
-      <Box
-        sx={{
-          p: 3,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "400px",
-        }}
-      >
-        <CircularProgress />
-        <Typography sx={{ ml: 2 }}>Loading dashboard data...</Typography>
-      </Box>
-    );
-  }
-
-  // Standardize error state
-  if (!safeProductAnalytics) {
-    return <ChartEmptyState isError message="Failed to load product analytics data." />;
-  }
-
-  // Fallback UI for each widget
-  if (!safeMonthlySalesGrowth.length) {
-    return <ChartEmptyState isError message="Monthly sales growth data is missing or invalid." />;
-  }
-  if (!safeRevenueSummary) {
-    return <ChartEmptyState isError message="Revenue summary data is missing or invalid." />;
-  }
-
-  // TODO: Expand all tables/charts to display all backend fields for each KPI
-  // For example, for product analytics, show ItemName, ProductLine, ItemGroup, total_sales, etc.
-  // For branch performance, show Branch, total_sales, transaction_count, etc.
-  // For customer value, show cardName, salesAmount, grossProfit, etc.
-
-  // For each KPI card, calculate vs previous period
-  // Example for Total Sales:
-  // const previousTotalSales = ... (calculate from previous period data)
-  // const totalSalesChange = totalSales - previousTotalSales;
-  // const totalSalesChangePct = previousTotalSales ? (totalSalesChange / previousTotalSales) * 100 : 0;
-  // Pass these as props to KpiCard: vsValue, vsPercent, vsDirection ('up'|'down'|'flat'), vsColor
+  // Prepare sparkline data for the last 12 periods
+  const getLastN = (arr, n) => arr.slice(-n);
+  const salesSparkline = getLastN(safeMonthlySalesGrowth, 12).map(d => ({ x: d.month || d.date || '', y: d.totalSales || 0 }));
+  const salesGrowthSparkline = getLastN(safeMonthlySalesGrowth, 12).map((d, i, arr) => {
+    if (i === 0) return { x: d.month || d.date || '', y: 0 };
+    const prev = arr[i - 1];
+    return {
+      x: d.month || d.date || '',
+      y: prev.totalSales ? ((d.totalSales - prev.totalSales) / prev.totalSales) * 100 : 0,
+    };
+  });
+  const avgDealSizeSparkline = getLastN(safeMonthlySalesGrowth, 12).map(d => ({
+    x: d.month || d.date || '',
+    y: d.totalTransactions ? d.totalSales / d.totalTransactions : 0,
+  }));
+  const targetAttainmentSparkline = Array(12).fill({
+    x: '',
+    y: typeof safeTargetAttainment?.attainmentPercentage === 'number' ? safeTargetAttainment.attainmentPercentage : 0,
+  });
 
   return (
-    <Box
-      sx={{
-        mt: { xs: 2, sm: 3 },
-        p: { xs: 1, sm: 2 },
-      }}
-    >
+    <Box sx={{ mt: { xs: 2, sm: 3 }, p: { xs: 1, sm: 2 } }}>
       <PageHeader
         title="Sales Analytics Dashboard"
         subtitle="Real-time insights and performance metrics"
@@ -251,7 +224,7 @@ const Dashboard = () => {
       <Box sx={{ mb: 4 }}>
         {/* Dynamic summary: Example logic, can be improved */}
       </Box>
-      <Grid container spacing={4} sx={{ mb: 4 }}>
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 2 }}>
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
             title="Total Sales"
@@ -259,14 +232,11 @@ const Dashboard = () => {
             icon={<AttachMoneyIcon />}
             tooltipText="Total sales revenue for the selected period."
             isLoading={loadingDashboard}
-            vsValue={totalSalesChange}
-            vsPercent={totalSalesChangePct}
-            vsDirection={totalSalesDirection}
-            vsColor={totalSalesColor}
             trend={totalSalesDirection}
             trendValue={formatKshAbbreviated(totalSales)}
             color="primary"
             metricKey="totalSales"
+            sparklineData={salesSparkline}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
@@ -276,13 +246,11 @@ const Dashboard = () => {
             icon={<TrendingUpIcon />}
             tooltipText="Year-over-year sales growth rate."
             isLoading={loadingDashboard}
-            vsValue={salesGrowthChange}
-            vsDirection={salesGrowthDirection}
-            vsColor={salesGrowthColor}
             trend={salesGrowthDirection}
             trendValue={formatPercentage(salesGrowth)}
             color="primary"
             metricKey="salesGrowth"
+            sparklineData={salesGrowthSparkline}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
@@ -292,14 +260,11 @@ const Dashboard = () => {
             icon={<ReceiptLongIcon />}
             tooltipText="Average value per transaction (requires backend update)."
             isLoading={loadingDashboard}
-            vsValue={avgDealSizeChange}
-            vsPercent={avgDealSizeChangePct}
-            vsDirection={avgDealSizeDirection}
-            vsColor={avgDealSizeColor}
             trend={avgDealSizeDirection}
             trendValue={formatKshAbbreviated(avgDealSize ?? 0)}
             color="primary"
             metricKey="avgDealSize"
+            sparklineData={avgDealSizeSparkline}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
@@ -310,9 +275,6 @@ const Dashboard = () => {
             icon={<TargetIcon />}
             tooltipText="Percentage of sales target achieved. Click edit to update target."
             isLoading={loadingDashboard}
-            vsValue={targetAttainmentChange}
-            vsDirection={targetAttainmentDirection}
-            vsColor={targetAttainmentColor}
             trend={targetAttainmentDirection}
             trendValue={formatPercentage(targetAttainment)}
             color="warning"
@@ -320,6 +282,7 @@ const Dashboard = () => {
             editableTarget
             targetValue={sales_target}
             onTargetEdit={setSalesTarget}
+            sparklineData={targetAttainmentSparkline}
           />
         </Grid>
       </Grid>
@@ -328,40 +291,48 @@ const Dashboard = () => {
       <Grid container spacing={{ xs: 2, sm: 3 }}>
         <Grid item xs={12} md={6} xl={4}>
           <Box sx={{ height: "400px" }}>
-            <QuotaAttainmentGauge
-              data={safeTargetAttainment}
-              isLoading={loadingDashboard}
-              target={parseInt(sales_target) || 50000000}
-            />
+            <DataStateWrapper isLoading={loadingDashboard} error={null} data={safeTargetAttainment ? [safeTargetAttainment] : []} emptyMessage="No target attainment data available.">
+              <QuotaAttainmentGauge
+                data={safeTargetAttainment}
+                isLoading={false}
+                target={parseInt(sales_target) || 1000000000}
+              />
+            </DataStateWrapper>
           </Box>
         </Grid>
 
         <Grid item xs={12} md={6} xl={8}>
           <Box sx={{ height: "400px" }}>
-            <MonthlySalesTrendChart
-              data={safeMonthlySalesGrowth}
-              isLoading={loadingDashboard}
-            />
+            <DataStateWrapper isLoading={loadingDashboard} error={null} data={safeMonthlySalesGrowth} emptyMessage="No sales data available.">
+              <MonthlySalesTrendChart
+                data={safeMonthlySalesGrowth}
+                isLoading={false}
+              />
+            </DataStateWrapper>
           </Box>
         </Grid>
 
         {/* Second Row - Product Performance and Sales Funnel */}
         <Grid item xs={12} md={6} xl={6}>
           <Box sx={{ height: "400px" }}>
-            <ProductPerformanceChart
-              data={safeProductPerformance ?? []}
-              isLoading={loadingDashboard}
-            />
+            <DataStateWrapper isLoading={loadingDashboard} error={null} data={safeProductPerformance} emptyMessage="No product performance data available.">
+              <ProductPerformanceChart
+                data={safeProductPerformance ?? []}
+                isLoading={false}
+              />
+            </DataStateWrapper>
           </Box>
         </Grid>
 
         {/* Third Row - Branch Product Heatmap (Full Width) */}
         <Grid item xs={12}>
           <Box sx={{ height: "500px" }}>
-            <BranchProductHeatmap
-              data={safeHeatmapData || []}
-              isLoading={loadingDashboard}
-            />
+            <DataStateWrapper isLoading={loadingDashboard} error={null} data={safeHeatmapData} emptyMessage="No branch product heatmap data available.">
+              <BranchProductHeatmap
+                data={safeHeatmapData || []}
+                isLoading={false}
+              />
+            </DataStateWrapper>
           </Box>
         </Grid>
 
@@ -372,11 +343,7 @@ const Dashboard = () => {
               <Typography variant="h6" gutterBottom>
                 Top Customers
               </Typography>
-              {loadingDashboard ? (
-                <CircularProgress />
-              ) : safeTopCustomers.length === 0 ? (
-                <ChartEmptyState message="No top customers data available." />
-              ) : (
+              <DataStateWrapper isLoading={loadingDashboard} error={null} data={safeTopCustomers} emptyMessage="No top customers data available.">
                 <Table size="small">
                   <TableHead>
                     <TableRow>
@@ -395,7 +362,7 @@ const Dashboard = () => {
                     ))}
                   </TableBody>
                 </Table>
-              )}
+              </DataStateWrapper>
             </CardContent>
           </Card>
         </Grid>
@@ -405,11 +372,7 @@ const Dashboard = () => {
               <Typography variant="h6" gutterBottom>
                 Margin Trends
               </Typography>
-              {loadingDashboard ? (
-                <CircularProgress />
-              ) : safeMarginTrends.length === 0 ? (
-                <ChartEmptyState message="No margin trends data available." />
-              ) : (
+              <DataStateWrapper isLoading={loadingDashboard} error={null} data={safeMarginTrends} emptyMessage="No margin trends data available.">
                 <Table size="small">
                   <TableHead>
                     <TableRow>
@@ -426,7 +389,7 @@ const Dashboard = () => {
                     ))}
                   </TableBody>
                 </Table>
-              )}
+              </DataStateWrapper>
             </CardContent>
           </Card>
         </Grid>
@@ -436,11 +399,7 @@ const Dashboard = () => {
               <Typography variant="h6" gutterBottom>
                 Profitability by Branch
               </Typography>
-              {loadingDashboard ? (
-                <CircularProgress />
-              ) : safeProfitability.length === 0 ? (
-                <ChartEmptyState message="No profitability by branch data available." />
-              ) : (
+              <DataStateWrapper isLoading={loadingDashboard} error={null} data={safeProfitability} emptyMessage="No profitability by branch data available.">
                 <Table size="small">
                   <TableHead>
                     <TableRow>
@@ -459,7 +418,7 @@ const Dashboard = () => {
                     ))}
                   </TableBody>
                 </Table>
-              )}
+              </DataStateWrapper>
             </CardContent>
           </Card>
         </Grid>
@@ -469,11 +428,7 @@ const Dashboard = () => {
               <Typography variant="h6" gutterBottom>
                 Returns Analysis
               </Typography>
-              {loadingDashboard ? (
-                <CircularProgress />
-              ) : safeReturns.length === 0 ? (
-                <ChartEmptyState message="No returns analysis data available." />
-              ) : (
+              <DataStateWrapper isLoading={loadingDashboard} error={null} data={safeReturns} emptyMessage="No returns analysis data available.">
                 <Table size="small">
                   <TableHead>
                     <TableRow>
@@ -490,7 +445,7 @@ const Dashboard = () => {
                     ))}
                   </TableBody>
                 </Table>
-              )}
+              </DataStateWrapper>
             </CardContent>
           </Card>
         </Grid>

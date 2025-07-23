@@ -42,6 +42,7 @@ import ChartEmptyState from "../components/states/ChartEmptyState";
 import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
 import { queryKeys } from "../lib/queryKeys";
 import { useMemo } from "react";
+import DataStateWrapper from "../components/DataStateWrapper";
 
 const Products = () => {
   const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
@@ -128,40 +129,19 @@ const Products = () => {
     ...new Set(safeProductData.map((p) => p.itemGroup) || []),
   ];
 
-  // Show loading state
-  if (isLoading) {
-    return (
-      <Box
-        sx={{
-          p: 3,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "400px",
-        }}
-      >
-        <CircularProgress />
-        <Typography sx={{ ml: 2 }}>Loading product data...</Typography>
-      </Box>
-    );
-  }
-
-  // Standardize error state
-  if (error) {
-    const errorMsg =
-      error instanceof Error
-        ? error.message
-        : "Error loading product data.";
-    return <ChartEmptyState isError message={errorMsg} />;
-  }
+  // Prepare placeholder sparkline data for the last 12 periods (flat line)
+  const makeFlatSparkline = (value) => Array(12).fill(0).map((_, i) => ({ x: `P${i + 1}`, y: value }));
+  const totalProductsValue = safeRevenueSummary?.uniqueProducts || 0;
+  const totalProductSalesValue = totalProductSales;
+  const totalQuantitySoldValue = totalQuantitySold;
+  const avgProductSalesValue = avgProductSales;
+  const totalProductsSparkline = makeFlatSparkline(totalProductsValue);
+  const productRevenueSparkline = makeFlatSparkline(totalProductSalesValue);
+  const unitsSoldSparkline = makeFlatSparkline(totalQuantitySoldValue);
+  const avgProductValueSparkline = makeFlatSparkline(avgProductSalesValue);
 
   return (
-    <Box
-      sx={{
-        mt: { xs: 2, sm: 3 },
-        p: { xs: 1, sm: 2 },
-      }}
-    >
+    <Box sx={{ mt: { xs: 2, sm: 3 }, p: { xs: 1, sm: 2 } }}>
       <PageHeader
         title="Product Analytics"
         subtitle="Product performance and inventory insights"
@@ -169,48 +149,60 @@ const Products = () => {
       />
 
       <Grid container spacing={{ xs: 2, sm: 3 }}>
-        {/* Summary KPI Cards */}
+        {/* KPI Cards */}
         <Grid item xs={12} sm={6} md={3}>
-          <KpiCard
-            title="Total Products"
-            value={formatNumber(safeRevenueSummary?.uniqueProducts || 0)}
-            icon={<InventoryIcon />}
-            tooltipText="Total number of unique products"
-            isLoading={false}
-            color="primary"
-          />
+          <DataStateWrapper isLoading={isLoading} error={error} data={safeProductData} emptyMessage="No product data available.">
+            <KpiCard
+              title="Total Products"
+              value={formatNumber(safeRevenueSummary?.uniqueProducts || 0)}
+              icon={<InventoryIcon />}
+              tooltipText="Total number of unique products"
+              isLoading={false}
+              color="primary"
+              sparklineData={totalProductsSparkline}
+            />
+          </DataStateWrapper>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <KpiCard
-            title="Product Revenue"
-            value={totalProductSales}
-            icon={<PriceIcon />}
-            tooltipText="Total revenue from selected products"
-            isLoading={false}
-            color="success"
-            metricKey="totalSales"
-          />
+          <DataStateWrapper isLoading={isLoading} error={error} data={safeProductData} emptyMessage="No product data available.">
+            <KpiCard
+              title="Product Revenue"
+              value={totalProductSales}
+              icon={<PriceIcon />}
+              tooltipText="Total revenue from selected products"
+              isLoading={false}
+              color="success"
+              metricKey="totalSales"
+              sparklineData={productRevenueSparkline}
+            />
+          </DataStateWrapper>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <KpiCard
-            title="Units Sold"
-            value={formatNumber(totalQuantitySold)}
-            icon={<CartIcon />}
-            tooltipText="Total quantity of products sold"
-            isLoading={false}
-            color="info"
-          />
+          <DataStateWrapper isLoading={isLoading} error={error} data={safeProductData} emptyMessage="No product data available.">
+            <KpiCard
+              title="Units Sold"
+              value={formatNumber(totalQuantitySold)}
+              icon={<CartIcon />}
+              tooltipText="Total quantity of products sold"
+              isLoading={false}
+              color="info"
+              sparklineData={unitsSoldSparkline}
+            />
+          </DataStateWrapper>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <KpiCard
-            title="Avg Product Value"
-            value={avgProductSales}
-            icon={<TrendingUpIcon />}
-            tooltipText="Average sales value per product"
-            isLoading={false}
-            color="warning"
-            metricKey="avgDealSize"
-          />
+          <DataStateWrapper isLoading={isLoading} error={error} data={safeProductData} emptyMessage="No product data available.">
+            <KpiCard
+              title="Avg Product Value"
+              value={avgProductSales}
+              icon={<TrendingUpIcon />}
+              tooltipText="Average sales value per product"
+              isLoading={false}
+              color="warning"
+              metricKey="avgDealSize"
+              sparklineData={avgProductValueSparkline}
+            />
+          </DataStateWrapper>
         </Grid>
 
         {/* Product Performance Chart */}
@@ -220,9 +212,7 @@ const Products = () => {
               <Typography variant="h6" gutterBottom>
                 Product Performance Chart
               </Typography>
-              {safeProductData.length === 0 ? (
-                <ChartEmptyState message="No product data available." />
-              ) : (
+              <DataStateWrapper isLoading={isLoading} error={error} data={safeProductData} emptyMessage="No product data available.">
                 <ProductPerformanceChart
                   data={
                     safeProductData.map((p) => ({
@@ -230,9 +220,9 @@ const Products = () => {
                       sales: p.totalSales,
                     })) ?? []
                   }
-                  isLoading={isLoading}
+                  isLoading={false}
                 />
-              )}
+              </DataStateWrapper>
             </CardContent>
           </Card>
         </Grid>
@@ -275,7 +265,7 @@ const Products = () => {
         </Grid>
 
         {/* Product Analytics Table */}
-        <Grid item xs={12}>
+        <Grid item xs={12} sx={{ mb: 2 }}>
           <Card>
             <CardContent>
               <Box

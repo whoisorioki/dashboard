@@ -3,15 +3,15 @@
 ## Backend Achievements
 
 - **GraphQL-First Data Fetching:** All major KPIs and analytics are available via GraphQL, and the backend schema is aligned with frontend requirements.
-- **Polars Lazy Evaluation:** All backend aggregations and analytics now use Polars lazy evaluation for performance and memory efficiency.
+- **Druid SQL Aggregation:** All backend aggregations and analytics now use Druid SQL for performance and scalability, with Polars as a fallback for advanced filtering.
 - **Robust Error Handling:** Consistent error envelope structure and logging are implemented across all endpoints and services.
-- **OpenAPI/REST/GraphQL Alignment:** REST and GraphQL endpoints are aligned in naming, field structure, and documentation (e.g., cardName for customers, removal of mock_data, clear response formats).
+- **Unified Data Model:** REST is deprecated; all contracts are enforced via GraphQL schema and codegen.
 - **Customer Value & Top Customer Logic:** Both endpoints now group by CardName, use camelCase, and return correct, real data from Druid.
 - **Datetime Handling:** All time-based analytics robustly convert and handle __time columns as datetime, preventing Polars errors.
 - **Health Endpoints:** System health and diagnostics endpoints are present and functional.
 - **Dockerized Backend:** The backend is containerized for development and production, with health checks and environment configuration.
 - **Data Pipeline:** The backend reliably ingests, validates, and serves data from Druid to the frontend.
-- **Documentation:** OpenAPI docs are updated for all endpoints, with clear response examples and field naming conventions.
+- **Documentation:** All contracts and API docs are in [api.md](api.md) and mapping docs.
 
 ## Backend Outstanding Gaps
 
@@ -46,7 +46,7 @@
 
 - **Advanced Analytics UI:**
   - Salesperson Leaderboard, Product Line Profitability, and Product Mix UI not fully implemented or integrated.
-- **Migration to Apache ECharts:** Several chart components still use Recharts; ECharts migration is incomplete.
+- **Migration to Nivo/ECharts:** Several chart components still use Recharts; Nivo/ECharts migration is in progress.
 - **Role-Based Access Control (RBAC) & Authentication:** Not implemented in frontend.
 - **Accessibility:** Further improvements needed for WCAG compliance, ARIA labels, and keyboard navigation.
 - **CI/CD & Automation:** Automated integration tests and CI/CD enforcement of codegen/type safety are not yet fully in place.
@@ -58,4 +58,5 @@
 ---
 
 **Note:**
+- All contracts are enforced via codegen and mapping docs. Keep this file in sync with [backend_report.md], [frontend_report.md], and [api.md].
 - Both backend and frontend are robust and aligned for Phase 1. Remaining gaps are for future improvement and production hardening.

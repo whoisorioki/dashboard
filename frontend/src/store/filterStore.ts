@@ -14,7 +14,7 @@ interface FilterState {
 }
 
 export const useFilterStore = create<FilterState>((set) => ({
-  dateRange: [subDays(new Date(), 30), new Date()],
+  dateRange: [subDays(new Date(), 90), new Date()],
   salesTarget: '100000',
   selectedBranch: null,
   selectedProduct: null,
@@ -25,7 +25,7 @@ export const useFilterStore = create<FilterState>((set) => ({
   setSelectedProduct: (selectedProduct) => set({ selectedProduct }),
   
   resetFilters: () => set({
-    dateRange: [subDays(new Date(), 30), new Date()],
+    dateRange: [subDays(new Date(), 90), new Date()],
     salesTarget: '100000',
     selectedBranch: null,
     selectedProduct: null,

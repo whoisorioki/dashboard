@@ -1,4 +1,4 @@
-# Copilot AI Coding Agent Instructions for Sales Analytics Dashboard
+AI Coding Agent Instructions for Sales Analytics Dashboard
 
 ## Project Overview
 

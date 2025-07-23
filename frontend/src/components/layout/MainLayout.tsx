@@ -98,12 +98,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
 
   const navItems = [
-    { text: "Overview", icon: <DashboardIcon />, path: "/overview" },
-    { text: "Sales", icon: <SalesIcon />, path: "/sales" },
-    { text: "Products", icon: <ProductsIcon />, path: "/products" },
-    { text: "Branches", icon: <RegionsIcon />, path: "/branches" },
+    { text: "Dashboard Overview", icon: <DashboardIcon />, path: "/overview" },
+    { text: "Sales Performance", icon: <SalesIcon />, path: "/sales" },
+    { text: "Product Analytics", icon: <ProductsIcon />, path: "/products" },
+    { text: "Branch Performance", icon: <RegionsIcon />, path: "/branches" },
     {
-      text: "Profitability",
+      text: "Profitability Analysis",
       icon: <MonetizationOnIcon />,
       path: "/profitability",
     },

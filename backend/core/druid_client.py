@@ -13,7 +13,6 @@ load_dotenv()
 # Assume Druid is running on localhost. Use environment variables in production.
 DRUID_BROKER_HOST = os.getenv("DRUID_BROKER_HOST", "localhost")
 DRUID_BROKER_PORT = int(os.getenv("DRUID_BROKER_PORT", 8888))
-# Update this to match your actual datasource name
 DRUID_DATASOURCE = os.getenv("DRUID_DATASOURCE", "sales_analytics")
 
 
@@ -105,15 +104,19 @@ async def lifespan(app: FastAPI):
         print(f"Error initializing Druid client: {e}")
         druid_conn.client = None
 
-    print("Initializing Redis cache...")
-    redis_cache = FastApiRedisCache()
-    redis_cache.init(
-        host_url=os.getenv("REDIS_URL", "redis://localhost"),
-        prefix="sales-analytics-cache",
-        response_header="X-API-Cache",
-        ignore_arg_types=[Request, Response],
-    )
-    print("Redis cache initialized.")
+    # Only initialize Redis cache if not in development
+    if os.getenv("ENV", "development") != "development":
+        print("Initializing Redis cache...")
+        redis_cache = FastApiRedisCache()
+        redis_cache.init(
+            host_url=os.getenv("REDIS_URL", "redis://localhost"),
+            prefix="sales-analytics-cache",
+            response_header="X-API-Cache",
+            ignore_arg_types=[Request, Response],
+        )
+        print("Redis cache initialized.")
+    else:
+        print("Skipping Redis cache initialization in development.")
 
     yield
     print("Closing Druid client resources.")

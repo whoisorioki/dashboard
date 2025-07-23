@@ -1,6 +1,6 @@
 # Data Loading, Caching & Persistence Implementation Checklist
 
-This checklist operationalizes the hybrid, multi-layered caching and persistence strategy for the Sales Analytics Dashboard, as described in the architectural blueprint. It covers both frontend (React Query + localStorage) and backend (FastAPI + Redis), including cache invalidation, async best practices, and monitoring.
+This checklist operationalizes the hybrid, multi-layered caching and persistence strategy for the Sales Analytics Dashboard, as described in the architectural blueprint. It covers both frontend (React Query + localStorage) and backend (FastAPI + Redis), including cache invalidation, async best practices, and monitoring. All frontend data loading is now via React Query and generated GraphQL hooks, with REST and Recharts deprecated. All contracts are enforced via codegen and mapping docs.
 
 ---
 
@@ -32,7 +32,7 @@ This checklist operationalizes the hybrid, multi-layered caching and persistence
   - Show subtle offline indicators in the UI
 
 - [ ] **Implement Cache Invalidation on Data Version Change**
-  - Poll `/api/health/data-version` endpoint every 5 minutes
+  - Poll GraphQL health/data-version query every 5 minutes
   - If `lastIngestionTime` changes, call `queryClient.invalidateQueries()`
   - (Optional) Prepare for future WebSocket-based invalidation
 
@@ -55,8 +55,8 @@ This checklist operationalizes the hybrid, multi-layered caching and persistence
 
 - [ ] **Apply @cache Decorator to Endpoints**
 
-  - Tier 1: Long-lived metadata (e.g., `/branch-list`) — 24h TTL
-  - Tier 2: Core analytics (e.g., `/monthly-sales-growth`) — 1h TTL
+  - Tier 1: Long-lived metadata (e.g., `branchList`) — 24h TTL
+  - Tier 2: Core analytics (e.g., `monthlySalesGrowth`) — 1h TTL
   - Tier 3: Real-time/ad-hoc — no cache
 
 - [ ] **Ensure All Endpoints Are Fully Async**
@@ -70,7 +70,7 @@ This checklist operationalizes the hybrid, multi-layered caching and persistence
   - Poll Druid Overlord API for new ingestion tasks
   - On new ingestion, purge relevant Redis keys (by prefix/pattern)
   - Update `lastIngestionTime` in Redis or memory
-  - Expose `/api/health/data-version` endpoint returning `lastIngestionTime`
+  - Expose GraphQL health/data-version query returning `lastIngestionTime`
 
 ---
 
@@ -113,4 +113,5 @@ This checklist operationalizes the hybrid, multi-layered caching and persistence
 
 ---
 
-**Proceed to implement and test each item in this checklist before moving to full API testing.**
+**Note:**
+- All contracts are enforced via codegen and mapping docs. Keep this file in sync with [backend_report.md], [frontend_report.md], and [api.md].

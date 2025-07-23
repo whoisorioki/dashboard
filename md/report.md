@@ -42,13 +42,13 @@ interface DruidSalesData {
 }
 ```
 
-## 2. Backend Data Processing (Polars)
+## 2. Backend Data Processing (Druid SQL & Polars)
 
 ### 2.1 Data Fetching (`backend/services/sales_data.py`)
 - **Function:** `fetch_sales_data`
-  - Fetches data from Druid using a scan query (HTTP POST to `/druid/v2/`).
+  - Fetches data from Druid using Druid SQL for most aggregations, or scan query for raw data.
   - Filters by date, item names, sales persons, branch names.
-  - Returns a Polars DataFrame with the Druid schema.
+  - Returns a Polars DataFrame or dict with the Druid schema.
   - If Druid is unavailable or mock data is requested, generates mock data with the same schema.
   - Handles empty results by returning an empty DataFrame with the correct schema.
   - **Error Handling:**
@@ -59,7 +59,7 @@ interface DruidSalesData {
 ### 2.2 Data Transformation (KPIs, Analytics)
 - **KPI Calculation Functions:** (`backend/services/kpi_service.py`)
   - `calculate_monthly_sales_growth`: Returns array of `{date: string, sales: number}`.
-  - `calculate_sales_target_attainment`: Returns `{total_sales: number, attainment_percentage: number}`.
+  - `calculate_sales_target_attainment`: Returns `{totalSales: number, attainmentPercentage: number}`.
   - `get_product_performance`: Returns array of `{product: string, sales: number}`.
   - `create_branch_product_heatmap_data`: Returns DataFrame of `{branch: string, product: string, sales: number}`.
   - `calculate_branch_performance`: Returns DataFrame of branch metrics.
@@ -67,41 +67,41 @@ interface DruidSalesData {
   - `get_product_analytics`: Returns DataFrame of product analytics.
   - `calculate_revenue_summary`: Returns revenue summary object.
 - **All functions handle empty DataFrames and NaN/infinite values robustly.**
+- **Most aggregations now use Druid SQL for performance and scalability.**
 
-## 3. API Layer (FastAPI)
+## 3. API Layer (GraphQL)
 
-### 3.1 Endpoints (`backend/api/kpi_routes.py`, `backend/api/routes.py`)
-- **KPIs:** `/api/kpis/*` (e.g., `/monthly-sales-growth`, `/sales-target-attainment`, `/product-performance`, etc.)
-- **Raw Sales Data:** `/api/sales`
-- **Data Range:** `/api/data-range`
-- **Health:** `/api/health`, `/api/health/druid`
+### 3.1 Endpoints (`backend/schema/schema.py`)
+- **KPIs:** Exposed via GraphQL endpoint `/graphql` (e.g., `monthlySalesGrowth`, `salesTargetAttainment`, `productPerformance`, etc.)
+- **Raw Sales Data:** Exposed via GraphQL queries.
+- **Data Range:** Exposed via GraphQL queries.
+- **Health:** Exposed via GraphQL queries.
 - **Response Structure:**
-  - Most KPI endpoints return `{ using_mock_data: boolean, result: ... }`.
-  - Raw sales data returns an array of `DruidSalesData` objects.
+  - All endpoints return `{ data, error, metadata }`.
 - **Error/Fallback Handling:**
   - If Druid fails, endpoints log a warning and retry with mock data.
   - If both Druid and mock fail, propagate error to frontend.
-  - Filtering for mock/test data is available via `ignore_mock_data` flag.
+  - Filtering for mock/test data is available via `mockData` flag.
 
 ## 4. Frontend Data Consumption
 
 ### 4.1 API Integration
 - **API Endpoints:** Defined in `frontend/src/constants/apiEndpoints.ts`.
 - **Data Fetching:**
-  - `useApi` and `useDynamicApi` hooks handle API calls, error states, and mock data flags.
+  - All data fetching is via generated GraphQL hooks and codegen types.
   - Query params are built from filter context (date, branch, product line, etc.).
-  - If `using_mock_data` is present in response, frontend can display a banner or warning.
-- **Types/Interfaces:** Defined in `frontend/src/types/api.ts` (see Druid schema above and below for KPIs).
+  - If `usingMockData` is present in response, frontend can display a banner or warning.
+- **Types/Interfaces:** Defined in `frontend/src/types/graphql.ts` (see Druid schema above and below for KPIs).
 
 ### 4.2 Data Structures (Frontend)
 - **MonthlySalesGrowthData:** `{ date: string, sales: number }`
-- **TargetAttainmentData:** `{ attainment_percentage: number, total_sales: number }`
+- **TargetAttainmentData:** `{ attainmentPercentage: number, totalSales: number }`
 - **ProductPerformanceData:** `{ product: string, sales: number }`
 - **BranchProductHeatmapData:** `{ branch: string, product: string, sales: number }`
-- **BranchPerformanceData:** `{ Branch: string, total_sales: number, transaction_count: number, average_sale: number, unique_customers: number, unique_products: number }`
-- **SalesPerformanceData:** `{ SalesPerson: string, total_sales: number, transaction_count: number, average_sale: number, unique_branches: number, unique_products: number }`
-- **ProductAnalyticsData:** `{ ItemName: string, ProductLine: string, ItemGroup: string, total_sales: number, total_qty: number, transaction_count: number, unique_branches: number, average_price: number }`
-- **RevenueSummaryData:** `{ total_revenue: number, total_transactions: number, average_transaction: number, unique_products: number, unique_branches: number, unique_employees: number }`
+- **BranchPerformanceData:** `{ branch: string, totalSales: number, transactionCount: number, averageSale: number, uniqueCustomers: number, uniqueProducts: number }`
+- **SalesPerformanceData:** `{ salesPerson: string, totalSales: number, transactionCount: number, averageSale: number, uniqueBranches: number, uniqueProducts: number }`
+- **ProductAnalyticsData:** `{ itemName: string, productLine: string, itemGroup: string, totalSales: number, totalQty: number, transactionCount: number, uniqueBranches: number, averagePrice: number }`
+- **RevenueSummaryData:** `{ totalRevenue: number, totalTransactions: number, averageTransaction: number, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number }`
 
 ## 4a. Frontend State Management, Hooks, and Data Caching
 
@@ -118,8 +118,8 @@ interface DruidSalesData {
 
 ### 4a.2 Data Fetching and Caching with React Query and Custom Hooks
 - **Custom Hooks:**
-  - `useApi` and `useDynamicApi` are wrappers around React Query's `useQuery`.
-  - They build API URLs with query params from context and handle the `using_mock_data` flag.
+  - All data fetching is via generated GraphQL hooks and codegen types.
+  - They build API URLs with query params from context and handle the `usingMockData` flag.
   - All data fetching is centralized through these hooks for consistency.
 - **React Query (`useQuery`):**
   - Handles caching, background refetching, and stale data management.
@@ -149,7 +149,7 @@ interface DruidSalesData {
   - All hooks expose `error` which is used to show error banners or fallback UI.
   - Errors from the backend (e.g., Druid unavailable) are surfaced to the user.
 - **Mock Data Banner:**
-  - If `using_mock_data` is true, a banner is shown to indicate the data is not live.
+  - If `usingMockData` is true, a banner is shown to indicate the data is not live.
 
 ### 4a.5 Optimizations and Best Practices
 - **Centralized API logic and consistent query keys prevent duplicate requests and stale data.**
@@ -163,20 +163,20 @@ interface DruidSalesData {
   - Returns empty DataFrames/arrays with correct schema if no data.
 - **Frontend:**
   - Displays loading and error states for API failures.
-  - Can show a banner if mock data is being used (`using_mock_data`).
-  - Filters out mock/test data if `ignore_mock_data` is set.
+  - Can show a banner if mock data is being used (`usingMockData`).
+  - Filters out mock/test data if `ignoreMockData` is set.
 
 ## 6. Inconsistencies & Issues Found
 - **Schema Consistency:**
   - Druid, backend, and frontend schemas are generally consistent.
-  - Some backend DataFrame columns use different casing (e.g., `grossRevenue` vs. `gross_revenue` in some places—should be standardized).
+  - All contracts are enforced via codegen and mapping docs.
 - **Error Handling:**
   - Some error messages are only logged, not returned to the frontend (could improve user feedback).
   - Filtering for mock/test data is basic and may miss edge cases.
 - **API Response Structure:**
-  - Some endpoints return `{ using_mock_data, result }`, others return arrays directly—should be standardized for all endpoints.
+  - All endpoints return `{ data, error, metadata }`.
 - **Frontend Types:**
-  - Some frontend types (e.g., `BranchPerformanceData`) use `unique_customers` while backend uses `unique_employees`—should be unified.
+  - All frontend types use camelCase and are generated from the GraphQL schema.
 
 ## 7. Recommendations
 - **Standardize all schemas and naming conventions across Druid, backend, and frontend.**
@@ -184,7 +184,4 @@ interface DruidSalesData {
 - **Improve error propagation to the frontend for better user feedback.**
 - **Expand mock/test data filtering to catch more edge cases.**
 - **Document all data contracts and keep them in sync between backend and frontend.**
-
----
-
-*Generated by AI code review, June 2024.* 
+- **All contracts are enforced via codegen and mapping docs. Keep this file in sync with [backend_report.md], [frontend_report.md], and [api.md].** 

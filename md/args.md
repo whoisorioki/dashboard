@@ -1,6 +1,6 @@
 # Arguments & Parameters Reference: Frontend ↔ Backend ↔ Druid
 
-This document provides a comprehensive mapping of all arguments and parameters used between the frontend and backend for dashboard visualization, as well as the backend’s expectations and calculations for each analytics query. **All field names below match the actual backend output (case-sensitive, as returned by the REST API).**
+This document provides a comprehensive mapping of all arguments and parameters used between the frontend and backend for dashboard visualization, as well as the backend’s expectations and calculations for each analytics query. **All field names below match the actual backend output (case-sensitive, as returned by the GraphQL API).**
 
 ---
 
@@ -29,10 +29,10 @@ This document provides a comprehensive mapping of all arguments and parameters u
 
 | Argument         | Type    | Description                                 | Default/Notes                |
 |------------------|---------|---------------------------------------------|------------------------------|
-| `start_date`     | string  | Start date (YYYY-MM-DD)                     | Required/optional per query  |
-| `end_date`       | string  | End date (YYYY-MM-DD)                       | Required/optional per query  |
+| `startDate`      | string  | Start date (YYYY-MM-DD)                     | Required/optional per query  |
+| `endDate`        | string  | End date (YYYY-MM-DD)                       | Required/optional per query  |
 | `branch`         | string  | Branch name                                | Optional                     |
-| `product_line`   | string  | Product line                               | Optional                     |
+| `productLine`    | string  | Product line                               | Optional                     |
 | `n`              | int     | Number of top results (for rankings)        | 5 or 10                      |
 | `target`         | float   | Sales target (for attainment queries)       | 0.0                          |
 | `dimension`      | string  | Dimension for profitability (e.g., Branch)  | "Branch"                    |
@@ -41,35 +41,33 @@ This document provides a comprehensive mapping of all arguments and parameters u
 
 ## 3. Query/Metric Argument & Calculation Mapping
 
+All field names and arguments are camelCase in the GraphQL API and TypeScript types. For Druid-level or legacy details, see the Druid schema above.
+
 ### 3.1 Monthly Sales Growth
 
-- **Args:** `start_date`, `end_date`
+- **Args:** `startDate`, `endDate`
 - **Backend Output:**
   ```json
   [
     { "date": "2024-06", "sales": 1500000.0 }
   ]
   ```
-- **Notes:**
-  - No `growth_pct` or `month_year` field in actual result.
 
 ---
 
 ### 3.2 Sales Target Attainment
 
-- **Args:** `start_date`, `end_date`, `target`
+- **Args:** `startDate`, `endDate`, `target`
 - **Backend Output:**
   ```json
-  { "total_sales": 123456.78, "attainment_percentage": 85.5 }
+  { "totalSales": 123456.78, "attainmentPercentage": 85.5 }
   ```
-- **Notes:**
-  - No `target` or camelCase keys in output.
 
 ---
 
 ### 3.3 Product Performance
 
-- **Args:** `start_date`, `end_date`, `n`
+- **Args:** `startDate`, `endDate`, `n`
 - **Backend Output:**
   ```json
   [
@@ -81,7 +79,7 @@ This document provides a comprehensive mapping of all arguments and parameters u
 
 ### 3.4 Branch Product Heatmap
 
-- **Args:** `start_date`, `end_date`
+- **Args:** `startDate`, `endDate`
 - **Backend Output:**
   ```json
   [
@@ -93,46 +91,42 @@ This document provides a comprehensive mapping of all arguments and parameters u
 
 ### 3.5 Branch Performance
 
-- **Args:** `start_date`, `end_date`
+- **Args:** `startDate`, `endDate`
 - **Backend Output:**
   ```json
   [
     {
-      "Branch": "Nairobi",
-      "total_sales": 12345.67,
-      "transaction_count": 10,
-      "average_sale": 1234.56,
-      "unique_customers": 5,
-      "unique_products": 3
+      "branch": "Nairobi",
+      "totalSales": 12345.67,
+      "transactionCount": 10,
+      "averageSale": 1234.56,
+      "uniqueCustomers": 5,
+      "uniqueProducts": 3
     }
   ]
   ```
-- **Notes:**
-  - Field names are snake_case, and `Branch` is capitalized.
 
 ---
 
 ### 3.6 Branch List
 
-- **Args:** `start_date`, `end_date`
+- **Args:** `startDate`, `endDate`
 - **Backend Output:**
   ```json
   [
-    { "Branch": "Nairobi", "total_sales": 12345.67, "last_activity": "2024-06-30" }
+    { "branch": "Nairobi", "totalSales": 12345.67, "lastActivity": "2024-06-30" }
   ]
   ```
-- **Notes:**
-  - Not just a string; includes sales and last activity.
 
 ---
 
 ### 3.7 Branch Growth
 
-- **Args:** `start_date`, `end_date`
+- **Args:** `startDate`, `endDate`
 - **Backend Output:**
   ```json
   [
-    { "Branch": "Nairobi", "month_year": "2024-06", "monthly_sales": 12345.67, "growth_pct": 12.5 }
+    { "branch": "Nairobi", "monthYear": "2024-06", "monthlySales": 12345.67, "growthPct": 12.5 }
   ]
   ```
 
@@ -140,98 +134,88 @@ This document provides a comprehensive mapping of all arguments and parameters u
 
 ### 3.8 Sales Performance
 
-- **Args:** `start_date`, `end_date`
+- **Args:** `startDate`, `endDate`
 - **Backend Output:**
   ```json
   [
     {
-      "SalesPerson": "Jane Doe",
-      "total_sales": 123456.78,
-      "transaction_count": 10,
-      "average_sale": 12345.67,
-      "unique_branches": 2,
-      "unique_products": 5
+      "salesPerson": "Jane Doe",
+      "totalSales": 123456.78,
+      "transactionCount": 10,
+      "averageSale": 12345.67,
+      "uniqueBranches": 2,
+      "uniqueProducts": 5
     }
   ]
   ```
-- **Notes:**
-  - Field names are snake_case, and `SalesPerson` is capitalized.
 
 ---
 
 ### 3.9 Product Analytics
 
-- **Args:** `start_date`, `end_date`
+- **Args:** `startDate`, `endDate`
 - **Backend Output:**
   ```json
   [
     {
-      "ItemName": "Widget",
-      "ProductLine": "TVS",
-      "ItemGroup": "Units",
-      "total_sales": 12345.67,
-      "total_qty": 100,
-      "transaction_count": 10,
-      "unique_branches": 2,
-      "average_price": 123.45
+      "itemName": "Widget",
+      "productLine": "TVS",
+      "itemGroup": "Units",
+      "totalSales": 12345.67,
+      "totalQty": 100,
+      "transactionCount": 10,
+      "uniqueBranches": 2,
+      "averagePrice": 123.45
     }
   ]
   ```
-- **Notes:**
-  - All fields are present; use these names exactly.
 
 ---
 
 ### 3.10 Revenue Summary
 
-- **Args:** `start_date`, `end_date`
+- **Args:** `startDate`, `endDate`
 - **Backend Output:**
   ```json
   {
-    "total_revenue": 1234567.89,
-    "total_transactions": 100,
-    "average_transaction": 12345.67,
-    "unique_products": 10,
-    "unique_branches": 3,
-    "unique_employees": 5
+    "totalRevenue": 1234567.89,
+    "totalTransactions": 100,
+    "averageTransaction": 12345.67,
+    "uniqueProducts": 10,
+    "uniqueBranches": 3,
+    "uniqueEmployees": 5
   }
   ```
-- **Notes:**
-  - All fields are snake_case.
 
 ---
 
 ### 3.11 Customer Value
 
-- **Args:** `start_date`, `end_date`
+- **Args:** `startDate`, `endDate`
 - **Backend Output:**
   ```json
   [
     { "cardName": "Wanjiku Mwangi", "salesAmount": 445702880.16, "grossProfit": 130900434.02 }
   ]
   ```
-- **Notes:**
-  - Field names are `cardName`, `salesAmount`, `grossProfit` (not `acctName`, `totalGrossRevenue`, etc).
 
 ---
 
 ### 3.12 Top Customers
 
-- **Args:** `start_date`, `end_date`, `n`
+- **Args:** `startDate`, `endDate`, `n`
 - **Backend Output:**
   ```json
   [
     { "cardName": "Acme Corp", "salesAmount": 123456.78, "grossProfit": 23456.78 }
   ]
   ```
-- **Notes:**
-  - Field names are `cardName`, `salesAmount`, `grossProfit`.
 
 ---
 
 ### 3.13 Margin Trends
 
-- **Args:** `start_date`, `end_date`
+- **Args:** `startDate`, `endDate`
 - **Backend Output:**
   ```json
   [
@@ -243,7 +227,7 @@ This document provides a comprehensive mapping of all arguments and parameters u
 
 ### 3.14 Profitability by Dimension
 
-- **Args:** `start_date`, `end_date`, `dimension`
+- **Args:** `startDate`, `endDate`, `dimension`
 - **Backend Output:**
   ```json
   [
@@ -255,7 +239,7 @@ This document provides a comprehensive mapping of all arguments and parameters u
 
 ### 3.15 Returns Analysis
 
-- **Args:** `start_date`, `end_date`
+- **Args:** `startDate`, `endDate`
 - **Backend Output:**
   ```json
   [
@@ -267,7 +251,7 @@ This document provides a comprehensive mapping of all arguments and parameters u
 
 ## 4. Error Envelope Structure
 
-All API responses (REST/GraphQL) use a consistent envelope:
+All API responses (GraphQL) use a consistent envelope:
 ```json
 {
   "data": ...,
@@ -282,5 +266,5 @@ All API responses (REST/GraphQL) use a consistent envelope:
 - All monetary values are in Kenyan Shillings (KES).
 - All dates are ISO 8601 strings.
 - All filters are optional unless otherwise noted; defaults are set in the backend.
-- **Field names are case-sensitive and match backend output exactly.**
-- For any changes to arguments or schema, update this file and communicate with both teams. 
+- **Field names are case-sensitive and match backend output exactly (camelCase for GraphQL/TypeScript).**
+- For any changes to arguments or schema, update this file, [frontend_mapping.md](frontend_mapping.md), and [api.md](api.md), and communicate with both teams. 

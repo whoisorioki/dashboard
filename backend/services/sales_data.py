@@ -9,7 +9,8 @@ from fastapi import HTTPException
 import requests
 import json
 import logging
-
+import time    
+    
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -83,7 +84,12 @@ async def fetch_sales_data(
                 query["filter"] = druid_filter
             url = "http://localhost:8888/druid/v2/"
             headers = {"Content-Type": "application/json"}
+            print(f"Sending Druid query to {url}:")
+            print(query)
+            start_time = time.time()
             response = requests.post(url, json=query, headers=headers, timeout=30)
+            elapsed = time.time() - start_time
+            print(f"Time Elapsed: {elapsed:.2f}s")
             if response.status_code != 200:
                 raise Exception(
                     f"Druid query failed with status {response.status_code}: {response.text}"
@@ -191,7 +197,16 @@ async def fetch_raw_sales_data(
             # Execute HTTP request to Druid
             url = "http://localhost:8888/druid/v2/"
             headers = {"Content-Type": "application/json"}
+            import time
+
+            print(f"Sending Druid query to {url}:")
+            print(query)
+            start_time = time.time()
             response = requests.post(url, json=query, headers=headers, timeout=30)
+            elapsed = time.time() - start_time
+            print(
+                f"Druid response status: {response.status_code}, time: {elapsed:.2f}s"
+            )
 
             if response.status_code != 200:
                 raise HTTPException(
@@ -263,6 +278,7 @@ def get_data_range_from_druid() -> dict:
     Returns a dict: { 'earliest_date': str, 'latest_date': str, 'total_records': int }
     """
     import requests
+
     url = "http://localhost:8888/druid/v2/"
     headers = {"Content-Type": "application/json"}
     # Earliest date
@@ -318,25 +334,28 @@ def get_employee_quotas(start_date: str, end_date: str) -> pl.DataFrame:
     Calculates the quota for all employees as the median of total sales for all employees during the specified time period.
     Returns a DataFrame with columns: SalesPerson, quota
     """
-    from backend.services.sales_data import fetch_sales_data
-    import asyncio
-    import polars as pl
-    # Fetch sales data for the period
-    loop = asyncio.get_event_loop() if asyncio.get_event_loop().is_running() else asyncio.new_event_loop()
-    df = loop.run_until_complete(fetch_sales_data(start_date, end_date))
-    if df.is_empty() or "SalesPerson" not in df.columns or "grossRevenue" not in df.columns:
-        return pl.DataFrame({"SalesPerson": [], "quota": []})
-    # Calculate total sales per employee
-    sales_per_employee = (
-        df.lazy()
-        .group_by("SalesPerson")
-        .agg([pl.sum("grossRevenue").alias("total_sales")])
-        .collect()
-    )
-    if sales_per_employee.is_empty():
-        return pl.DataFrame({"SalesPerson": [], "quota": []})
-    median_quota = sales_per_employee["total_sales"].median()
-    return pl.DataFrame({
-        "salesPerson": sales_per_employee["SalesPerson"].to_list(),
-        "quota": [median_quota] * sales_per_employee.height,
-    })
+    async def _get():
+        df = await fetch_sales_data(start_date, end_date)
+        if (
+            df.is_empty()
+            or "SalesPerson" not in df.columns
+            or "grossRevenue" not in df.columns
+        ):
+            return pl.DataFrame({"SalesPerson": [], "quota": []})
+        # Calculate total sales per employee
+        sales_per_employee = (
+            df.lazy()
+            .group_by("SalesPerson")
+            .agg([pl.sum("grossRevenue").alias("total_sales")])
+            .collect()
+        )
+        if sales_per_employee.is_empty():
+            return pl.DataFrame({"SalesPerson": [], "quota": []})
+        median_quota = sales_per_employee["total_sales"].median()
+        return pl.DataFrame(
+            {
+                "salesPerson": sales_per_employee["SalesPerson"].to_list(),
+                "quota": [median_quota] * sales_per_employee.height,
+            }
+        )
+    return asyncio.run(_get())
