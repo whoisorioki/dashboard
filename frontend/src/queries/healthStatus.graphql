@@ -1,0 +1,16 @@
+query HealthStatus {
+  systemHealth {
+    status
+  }
+  druidHealth {
+    druidStatus
+    isAvailable
+  }
+  druidDatasources {
+    datasources
+    count
+  }
+  dataVersion {
+    lastIngestionTime
+  }
+} 

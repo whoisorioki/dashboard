@@ -282,7 +282,6 @@ const Dashboard = () => {
             editableTarget
             targetValue={sales_target}
             onTargetEdit={setSalesTarget}
-            sparklineData={targetAttainmentSparkline}
           />
         </Grid>
       </Grid>

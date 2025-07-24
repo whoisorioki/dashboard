@@ -51,7 +51,9 @@ def _ensure_time_is_datetime(df: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-async def calculate_monthly_sales_growth(start_date: str, end_date: str, branch: str = None, product_line: str = None) -> list:
+async def calculate_monthly_sales_growth(
+    start_date: str, end_date: str, branch: str = None, product_line: str = None
+) -> list:
     """
     Fetches sales data from Druid (via sales_data.py) and aggregates by month, with optional branch and product_line filters.
     Returns: [{date: string, totalSales: number, grossProfit: number}]
@@ -69,16 +71,16 @@ async def calculate_monthly_sales_growth(start_date: str, end_date: str, branch:
     # Ensure __time is datetime using the shared helper
     df = _ensure_time_is_datetime(df)
     # Group by month
-    df = df.with_columns([
-        pl.col("__time").dt.strftime("%Y-%m").alias("month")
-    ])
+    df = df.with_columns([pl.col("__time").dt.strftime("%Y-%m").alias("month")])
     grouped = (
         df.lazy()
         .group_by("month")
-        .agg([
-            pl.sum("grossRevenue").alias("totalSales"),
-            (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("grossProfit"),
-        ])
+        .agg(
+            [
+                pl.sum("grossRevenue").alias("totalSales"),
+                (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("grossProfit"),
+            ]
+        )
         .sort("month")
         .collect()
     )
@@ -418,44 +420,40 @@ def get_product_analytics(df: pl.DataFrame) -> pl.DataFrame:
 
 def calculate_revenue_summary(df: pl.DataFrame) -> dict:
     """
-    Calculate overall revenue summary metrics.
+    Calculate overall revenue summary metrics, including gross revenue, net sales, and net units sold.
     """
     if df.is_empty():
         return {
             "total_revenue": 0.0,
+            "net_sales": 0.0,
             "total_transactions": 0,
             "average_transaction": 0.0,
             "unique_products": 0,
             "unique_branches": 0,
             "unique_employees": 0,
+            "net_units_sold": 0.0,
         }
-    summary = (
-        df.lazy()
-        .select(
-            [
-                pl.sum("grossRevenue").alias("total_revenue"),
-                pl.n_unique("ItemName").alias("unique_products"),
-                pl.n_unique("Branch").alias("unique_branches"),
-                pl.n_unique("SalesPerson").alias("unique_employees"),
-            ]
-        )
-        .collect()
-    )
-    total_revenue = float(summary[0, "total_revenue"])
+    total_revenue = sum_gross_revenue(df)
+    net_sales = sum_net_sales(df)
+    net_units_sold = sum_net_units_sold(df)
     total_transactions = df.height
-    unique_products = int(summary[0, "unique_products"])
-    unique_branches = int(summary[0, "unique_branches"])
-    unique_employees = int(summary[0, "unique_employees"])
+    unique_products = int(df.lazy().select(pl.n_unique("ItemName")).collect().item())
+    unique_branches = int(df.lazy().select(pl.n_unique("Branch")).collect().item())
+    unique_employees = int(
+        df.lazy().select(pl.n_unique("SalesPerson")).collect().item()
+    )
     average_transaction = (
         total_revenue / total_transactions if total_transactions > 0 else 0.0
     )
     return {
         "total_revenue": round(total_revenue, 2),
+        "net_sales": round(net_sales, 2),
         "total_transactions": total_transactions,
         "average_transaction": round(average_transaction, 2),
         "unique_products": unique_products,
         "unique_branches": unique_branches,
         "unique_employees": unique_employees,
+        "net_units_sold": round(net_units_sold, 2),
     }
 
 
@@ -530,3 +528,39 @@ def calculate_margin_trends(df: pl.DataFrame) -> list:
         for row in monthly.to_dicts()
     ]
     return result
+
+
+def sum_gross_revenue(df: pl.DataFrame) -> float:
+    """Sum of gross revenue (AR Invoice only)."""
+    return float(df.lazy().select(pl.sum("grossRevenue")).collect().item())
+
+
+def sum_net_sales(df: pl.DataFrame) -> float:
+    """Net sales: gross revenue plus returns (returnsValue is negative for returns)."""
+    return float(
+        df.lazy()
+        .select(pl.sum("grossRevenue") + pl.sum("returnsValue"))
+        .collect()
+        .item()
+    )
+
+
+def calc_gross_profit(df: pl.DataFrame) -> float:
+    """Gross profit: gross revenue minus total cost."""
+    return float(
+        df.lazy().select(pl.sum("grossRevenue") - pl.sum("totalCost")).collect().item()
+    )
+
+
+def calc_margin(df: pl.DataFrame) -> float:
+    """Margin: (gross revenue - total cost) / gross revenue."""
+    gross_revenue = sum_gross_revenue(df)
+    gross_profit = calc_gross_profit(df)
+    return (gross_profit / gross_revenue) if gross_revenue else 0.0
+
+
+def sum_net_units_sold(df: pl.DataFrame) -> float:
+    """Net units sold: units sold plus units returned."""
+    return float(
+        df.lazy().select(pl.sum("unitsSold") + pl.sum("unitsReturned")).collect().item()
+    )

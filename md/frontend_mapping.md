@@ -74,7 +74,6 @@ All GraphQL errors are returned in a consistent envelope:
 | itemNames          | [string]   | List of item names (for filtering)              | None                |
 | salesPersons       | [string]   | List of salesperson names (for filtering)       | None                |
 | branchNames        | [string]   | List of branch names (for filtering)            | None                |
-| mockData           | boolean    | Use mock data (for testing)                     | false               |
 
 ---
 

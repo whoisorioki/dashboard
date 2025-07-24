@@ -58,6 +58,23 @@ export type DataRange = {
   totalRecords: Scalars['Int']['output'];
 };
 
+export type DataVersion = {
+  __typename?: 'DataVersion';
+  lastIngestionTime: Scalars['String']['output'];
+};
+
+export type DruidDatasources = {
+  __typename?: 'DruidDatasources';
+  count: Scalars['Int']['output'];
+  datasources: Array<Scalars['String']['output']>;
+};
+
+export type DruidHealth = {
+  __typename?: 'DruidHealth';
+  druidStatus: Scalars['String']['output'];
+  isAvailable: Scalars['Boolean']['output'];
+};
+
 export type MarginTrendEntry = {
   __typename?: 'MarginTrendEntry';
   date: Scalars['String']['output'];
@@ -115,6 +132,9 @@ export type Query = {
   branchProductHeatmap: Array<BranchProductHeatmap>;
   customerValue: Array<CustomerValueEntry>;
   dataRange: DataRange;
+  dataVersion: DataVersion;
+  druidDatasources: DruidDatasources;
+  druidHealth: DruidHealth;
   marginTrends: Array<MarginTrendEntry>;
   monthlySalesGrowth: Array<MonthlySalesGrowth>;
   productAnalytics: Array<ProductAnalytics>;
@@ -126,6 +146,7 @@ export type Query = {
   salesPerformance: Array<SalesPerformance>;
   salespersonLeaderboard: Array<SalespersonLeaderboardEntry>;
   salespersonProductMix: Array<SalespersonProductMixEntry>;
+  systemHealth: SystemHealth;
   targetAttainment: TargetAttainment;
   topCustomers: Array<TopCustomerEntry>;
 };
@@ -332,6 +353,11 @@ export type SalespersonProductMixEntry = {
   salesperson: Scalars['String']['output'];
 };
 
+export type SystemHealth = {
+  __typename?: 'SystemHealth';
+  status: Scalars['String']['output'];
+};
+
 export type TargetAttainment = {
   __typename?: 'TargetAttainment';
   attainmentPercentage: Scalars['Float']['output'];
@@ -417,6 +443,11 @@ export type DataRangeQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type DataRangeQuery = { __typename?: 'Query', dataRange: { __typename?: 'DataRange', earliestDate: string, latestDate: string, totalRecords: number } };
+
+export type HealthStatusQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type HealthStatusQuery = { __typename?: 'Query', systemHealth: { __typename?: 'SystemHealth', status: string }, druidHealth: { __typename?: 'DruidHealth', druidStatus: string, isAvailable: boolean }, druidDatasources: { __typename?: 'DruidDatasources', datasources: Array<string>, count: number }, dataVersion: { __typename?: 'DataVersion', lastIngestionTime: string } };
 
 export type MarginTrendsQueryVariables = Exact<{
   startDate?: InputMaybe<Scalars['String']['input']>;

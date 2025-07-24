@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import {
   Box,
   Card,
@@ -26,107 +26,36 @@ import {
   Api,
   Dashboard as DashboardIcon,
 } from "@mui/icons-material";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { GraphQLClient } from "graphql-request";
+import { useHealthStatusQuery } from "../queries/healthStatus.generated";
 
-interface ServiceStatus {
-  name: string;
-  status: "connected" | "disconnected" | "warning";
-  url: string;
-  details?: string;
-  lastCheck?: string;
-}
-
-interface SystemHealth {
-  services: ServiceStatus[];
-  overall: "healthy" | "degraded" | "down";
-  lastUpdate: string;
-}
-
-// Add types for the API responses
-interface HealthApiResponse { data: { status: string }; }
-interface DruidHealthApiResponse { data: { druid_status: string; is_available: boolean }; }
-interface DatasourcesApiResponse { data: { datasources: string[]; count: number }; }
-
-const HEALTH_QUERY_KEY = ["health-status"];
-const DRUID_QUERY_KEY = ["druid-health-status"];
-const DATASOURCES_QUERY_KEY = ["druid-datasources-status"];
-
-const fetchHealth = async (baseUrl: string) => {
-  const res = await fetch(`${baseUrl}/api/health`);
-  return res.json();
-};
-const fetchDruidHealth = async (baseUrl: string) => {
-  const res = await fetch(`${baseUrl}/api/health/druid`);
-  return res.json();
-};
-const fetchDatasources = async (baseUrl: string) => {
-  const res = await fetch(`${baseUrl}/api/druid/datasources`);
-  return res.json();
-};
+const client = new GraphQLClient(import.meta.env.VITE_API_GRAPHQL_URL || "http://localhost:8000/graphql");
 
 const ConnectionStatus: React.FC = () => {
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
-  const queryClient = useQueryClient();
   const currentTime = new Date().toLocaleTimeString();
+  const { data, isFetching, refetch } = useHealthStatusQuery(client);
 
-  const {
-    data: healthData,
-    isFetching: loadingHealth,
-    refetch: refetchHealth,
-  } = useQuery<HealthApiResponse>({
-    queryKey: HEALTH_QUERY_KEY,
-    queryFn: () => fetchHealth(baseUrl),
-    staleTime: 60 * 1000,
-  });
-  const {
-    data: druidData,
-    isFetching: loadingDruid,
-    refetch: refetchDruid,
-  } = useQuery<DruidHealthApiResponse>({
-    queryKey: DRUID_QUERY_KEY,
-    queryFn: () => fetchDruidHealth(baseUrl),
-    staleTime: 60 * 1000,
-  });
-  const {
-    data: datasourcesData,
-    isFetching: loadingDatasources,
-    refetch: refetchDatasources,
-  } = useQuery<DatasourcesApiResponse>({
-    queryKey: DATASOURCES_QUERY_KEY,
-    queryFn: () => fetchDatasources(baseUrl),
-    staleTime: 60 * 1000,
-  });
-
-  const loading = loadingHealth || loadingDruid || loadingDatasources;
-
-  const handleRefresh = () => {
-    refetchHealth();
-    refetchDruid();
-    refetchDatasources();
-  };
-
-  // Compose services array from query results
-  const services: ServiceStatus[] = [
+  const services = [
     {
       name: "Backend API",
-      status: healthData?.data?.status === "ok" ? "connected" : "disconnected",
-      url: `${baseUrl}/api/health`,
-      details: healthData?.data?.status === "ok" ? "API is responding" : `Status: ${healthData?.data?.status}`,
+      status: data?.systemHealth?.status === "ok" ? "connected" : "disconnected",
+      url: "GraphQL: /graphql",
+      details: data?.systemHealth?.status === "ok" ? "API is responding" : `Status: ${data?.systemHealth?.status}`,
       lastCheck: currentTime,
     },
     {
       name: "Druid Database",
-      status: druidData?.data?.is_available ? "connected" : "disconnected",
-      url: `${baseUrl}/api/health/druid`,
-      details: druidData?.data?.druid_status || "Unknown status",
+      status: data?.druidHealth?.isAvailable ? "connected" : "disconnected",
+      url: "Druid via Backend API",
+      details: data?.druidHealth?.druidStatus || "Unknown status",
       lastCheck: currentTime,
     },
     {
       name: "Data Sources",
-      status: datasourcesData?.data?.count > 0 ? "connected" : "warning",
-      url: `${baseUrl}/api/druid/datasources`,
-      details: typeof datasourcesData?.data?.count === "number"
-        ? `${datasourcesData.data.count} datasources available`
+      status: (data?.druidDatasources?.count ?? 0) > 0 ? "connected" : "warning",
+      url: "Druid Datasources via Backend API",
+      details: typeof data?.druidDatasources?.count === "number"
+        ? `${data.druidDatasources.count} datasources available`
         : "undefined datasources available",
       lastCheck: currentTime,
     },
@@ -144,7 +73,7 @@ const ConnectionStatus: React.FC = () => {
     overall = "down";
   }
 
-  const getStatusIcon = (status: ServiceStatus["status"]) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case "connected":
         return <CheckCircle color="success" />;
@@ -155,7 +84,7 @@ const ConnectionStatus: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: ServiceStatus["status"]) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case "connected":
         return "success";
@@ -193,10 +122,10 @@ const ConnectionStatus: React.FC = () => {
         <Button
           variant="outlined"
           startIcon={<Refresh />}
-          onClick={handleRefresh}
-          disabled={loading}
+          onClick={() => refetch()}
+          disabled={isFetching}
         >
-          {loading ? "Checking..." : "Refresh"}
+          {isFetching ? "Checking..." : "Refresh"}
         </Button>
       </Box>
 
@@ -251,7 +180,7 @@ const ConnectionStatus: React.FC = () => {
               </ListItemIcon>
               <ListItemText
                 primary="Backend API"
-                secondary={`${baseUrl}`}
+                secondary={import.meta.env.VITE_API_GRAPHQL_URL || "http://localhost:8000/graphql"}
               />
             </ListItem>
             <ListItem>

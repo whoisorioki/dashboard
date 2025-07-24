@@ -7,7 +7,7 @@ import logging
 import polars as pl
 import httpx
 import os
-from datetime import date, timezone
+from datetime import date, timezone, datetime
 import math
 
 
@@ -107,6 +107,7 @@ class TargetAttainment:
 @strawberry.type
 class RevenueSummary:
     total_revenue: Optional[float] = strawberry.field(name="totalRevenue")
+    net_sales: Optional[float] = strawberry.field(name="netSales")
     gross_profit: Optional[float] = strawberry.field(name="grossProfit")
     net_profit: Optional[float] = strawberry.field(name="netProfit")
     total_transactions: int = strawberry.field(name="totalTransactions")
@@ -114,6 +115,7 @@ class RevenueSummary:
     unique_products: int = strawberry.field(name="uniqueProducts")
     unique_branches: int = strawberry.field(name="uniqueBranches")
     unique_employees: int = strawberry.field(name="uniqueEmployees")
+    net_units_sold: Optional[float] = strawberry.field(name="netUnitsSold")
 
 
 @strawberry.type
@@ -208,10 +210,33 @@ class CustomerValueEntry:
 
 
 @strawberry.type
+class SystemHealth:
+    status: str
+
+
+@strawberry.type
+class DruidHealth:
+    druid_status: str
+    is_available: bool
+
+
+@strawberry.type
+class DruidDatasources:
+    datasources: List[str]
+    count: int
+
+
+@strawberry.type
+class DataVersion:
+    last_ingestion_time: str = strawberry.field(name="lastIngestionTime")
+
+
+@strawberry.type
 class Query:
     @staticmethod
     def _get_default_dates():
         from datetime import date, timedelta
+
         today = date.today()
         start = today - timedelta(days=90)
         return start.isoformat(), today.isoformat()
@@ -225,11 +250,14 @@ class Query:
         product_line: Optional[str] = None,
     ) -> List[MonthlySalesGrowth]:
         from backend.services.kpi_service import calculate_monthly_sales_growth
+
         today = date.today().isoformat()
         start = start_date or today
         end = end_date or today
         # Await the async aggregation logic
-        result = await calculate_monthly_sales_growth(start_date=start, end_date=end, branch=branch, product_line=product_line)
+        result = await calculate_monthly_sales_growth(
+            start_date=start, end_date=end, branch=branch, product_line=product_line
+        )
         return [
             MonthlySalesGrowth(
                 date=row["date"],
@@ -568,6 +596,9 @@ class Query:
         branch: Optional[str] = None,
         product_line: Optional[str] = None,
     ) -> RevenueSummary:
+        """
+        Returns revenue summary including gross revenue, net sales, and net units sold.
+        """
         default_start, default_end = Query._get_default_dates()
         start = start_date or (
             default_start
@@ -590,6 +621,7 @@ class Query:
         summary = calculate_revenue_summary(df)
         return RevenueSummary(
             total_revenue=sanitize(summary["total_revenue"]),
+            net_sales=sanitize(summary["net_sales"]),
             gross_profit=sanitize(summary.get("gross_profit", 0.0)),
             net_profit=sanitize(summary.get("net_profit", 0.0)),
             total_transactions=summary["total_transactions"],
@@ -597,6 +629,7 @@ class Query:
             unique_products=summary["unique_products"],
             unique_branches=summary["unique_branches"],
             unique_employees=summary["unique_employees"],
+            net_units_sold=sanitize(summary["net_units_sold"]),
         )
 
     @strawberry.field
@@ -712,13 +745,15 @@ class Query:
         # Assume returns reason is not available, so group by ItemName as a proxy
         result_df = (
             df.lazy()
-            .filter(pl.col("returnsValue") > 0)
+            .filter(pl.col("returnsValue") < 0)
             .group_by("ItemName")
             .agg(
                 [
                     pl.count().alias("count"),
                 ]
             )
+            .sort("count", descending=True)
+            .limit(20)
             .collect()
         )
         return [
@@ -820,10 +855,6 @@ class Query:
         branch: Optional[str] = None,
         product_line: Optional[str] = None,
     ) -> List[MarginTrendEntry]:
-        from backend.services.sales_data import fetch_sales_data
-        import polars as pl
-        import datetime
-        import math
 
         today = date.today().isoformat()
         start = start_date or today
@@ -1099,6 +1130,51 @@ class Query:
             )
             for row in result_df.to_dicts()
         ]
+
+    @strawberry.field
+    async def system_health(self) -> SystemHealth:
+        import httpx
+
+        base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+        async with httpx.AsyncClient() as client:
+            res = await client.get(f"{base_url}/api/health")
+            data = res.json()
+            return SystemHealth(status=data.get("data", {}).get("status", "unknown"))
+
+    @strawberry.field
+    async def druid_health(self) -> DruidHealth:
+        import httpx
+
+        base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+        async with httpx.AsyncClient() as client:
+            res = await client.get(f"{base_url}/api/health/druid")
+            data = res.json()
+            return DruidHealth(
+                druid_status=data.get("data", {}).get("druid_status", "unknown"),
+                is_available=data.get("data", {}).get("is_available", False),
+            )
+
+    @strawberry.field
+    async def druid_datasources(self) -> DruidDatasources:
+        import httpx
+
+        base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+        async with httpx.AsyncClient() as client:
+            res = await client.get(f"{base_url}/api/druid/datasources")
+            data = res.json()
+            datasources = data.get("data", {}).get("datasources", [])
+            count = data.get("data", {}).get("count", 0)
+            return DruidDatasources(datasources=datasources, count=count)
+
+    @strawberry.field
+    async def data_version(self) -> DataVersion:
+        import httpx
+
+        base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+        async with httpx.AsyncClient() as client:
+            res = await client.get(f"{base_url}/api/health/data-version")
+            data = res.json()
+            return DataVersion(last_ingestion_time=data.get("lastIngestionTime", ""))
 
     @strawberry.field
     async def data_range(self) -> DataRange:

@@ -72,6 +72,7 @@ const Sales = () => {
   );
 
   const safeSalesData = data?.salesPerformance || [];
+  const safeRevenueSummary = data?.revenueSummary;
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat("en-US").format(value);
@@ -135,12 +136,12 @@ const Sales = () => {
           <DataStateWrapper isLoading={isLoading} error={error} data={safeSalesData} emptyMessage="No sales data available.">
             <KpiCard
               title="Total Revenue"
-              value={formatNumber(totalSales)}
+              value={formatKshAbbreviated(safeRevenueSummary?.totalRevenue ?? 0)}
               icon={<MoneyIcon />}
-              tooltipText="Total sales revenue for the selected period."
+              tooltipText="Total gross revenue for the selected period."
               isLoading={false}
               color="primary"
-              metricKey="totalSales"
+              metricKey="totalRevenue"
               sparklineData={salesSparkline}
             />
           </DataStateWrapper>
