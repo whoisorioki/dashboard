@@ -302,7 +302,9 @@ async def branch_growth(
         return envelope(result_df.to_dicts(), request)
     except Exception as e:
         logger.error(f"Error in branch_growth: {e}")
-        raise HTTPException(status_code=500, detail=f"Branch growth calculation failed: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Branch growth calculation failed: {e}"
+        )
 
 
 @router.get("/sales-performance")
@@ -405,6 +407,8 @@ async def revenue_summary(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
+    if df.is_empty():
+        return envelope([], request, warning="No data for the selected filters.")
     result = await run_in_threadpool(kpi_service.calculate_revenue_summary, df)
     return envelope(result, request)
 

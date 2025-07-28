@@ -2,6 +2,7 @@ import * as Types from '../types/graphql';
 
 import { GraphQLClient } from 'graphql-request';
 import { RequestInit } from 'graphql-request/dist/types.dom';
+import { MonthlySalesGrowthFieldsFragmentDoc, TopCustomerFieldsFragmentDoc } from './fragments.generated';
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 
 function fetcher<TData, TVariables extends { [key: string]: any }>(client: GraphQLClient, query: string, variables?: TVariables, requestHeaders?: RequestInit['headers']) {
@@ -17,15 +18,19 @@ export type DashboardDataQueryVariables = Types.Exact<{
   branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
   productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
   target?: Types.InputMaybe<Types.Scalars['Float']['input']>;
+  n?: Types.InputMaybe<Types.Scalars['Int']['input']>;
+  itemNames?: Types.InputMaybe<Array<Types.Scalars['String']['input']> | Types.Scalars['String']['input']>;
+  salesPersons?: Types.InputMaybe<Array<Types.Scalars['String']['input']> | Types.Scalars['String']['input']>;
+  branchNames?: Types.InputMaybe<Array<Types.Scalars['String']['input']> | Types.Scalars['String']['input']>;
 }>;
 
 
-export type DashboardDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, grossProfit?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number }, monthlySalesGrowth: Array<{ __typename?: 'MonthlySalesGrowth', date: string, totalSales?: number | null, grossProfit?: number | null }>, targetAttainment: { __typename?: 'TargetAttainment', attainmentPercentage: number, totalSales: number, target: number }, productPerformance: Array<{ __typename?: 'ProductPerformance', product: string, sales: number }>, branchProductHeatmap: Array<{ __typename?: 'BranchProductHeatmap', branch: string, product: string, sales: number }>, topCustomers: Array<{ __typename?: 'TopCustomerEntry', cardName: string, salesAmount?: number | null, grossProfit?: number | null }>, marginTrends: Array<{ __typename?: 'MarginTrendEntry', date: string, marginPct?: number | null }>, returnsAnalysis: Array<{ __typename?: 'ReturnsAnalysisEntry', reason: string, count: number }>, profitabilityByDimension: Array<{ __typename?: 'ProfitabilityByDimension', branch?: string | null, grossProfit?: number | null, grossMargin?: number | null }>, productAnalytics: Array<{ __typename?: 'ProductAnalytics', itemName: string, productLine: string, itemGroup: string, totalSales: number, grossProfit?: number | null, margin?: number | null, totalQty: number, transactionCount: number, uniqueBranches: number, averagePrice: number }> };
+export type DashboardDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, monthlySalesGrowth: Array<{ __typename?: 'MonthlySalesGrowth', date: string, totalSales?: number | null, grossProfit?: number | null }>, targetAttainment: { __typename?: 'TargetAttainment', attainmentPercentage: number, totalSales: number, target: number }, productPerformance: Array<{ __typename?: 'ProductPerformance', product: string, sales: number }>, branchProductHeatmap: Array<{ __typename?: 'BranchProductHeatmap', branch: string, product: string, sales: number }>, topCustomers: Array<{ __typename?: 'TopCustomerEntry', cardName: string, salesAmount?: number | null, grossProfit?: number | null }>, marginTrends: Array<{ __typename?: 'MarginTrendEntry', date: string, marginPct?: number | null }>, returnsAnalysis: Array<{ __typename?: 'ReturnsAnalysisEntry', reason: string, count: number }>, profitabilityByDimension: Array<{ __typename?: 'ProfitabilityByDimension', branch?: string | null, grossProfit?: number | null, grossMargin?: number | null }> };
 
 
 
 export const DashboardDataDocument = `
-    query dashboardData($startDate: String!, $endDate: String!, $branch: String, $productLine: String, $target: Float) {
+    query DashboardData($startDate: String!, $endDate: String!, $branch: String, $productLine: String, $target: Float, $n: Int, $itemNames: [String!], $salesPersons: [String!], $branchNames: [String!]) {
   revenueSummary(
     startDate: $startDate
     endDate: $endDate
@@ -33,12 +38,16 @@ export const DashboardDataDocument = `
     productLine: $productLine
   ) {
     totalRevenue
+    netSales
     grossProfit
+    lineItemCount
+    returnsValue
     totalTransactions
     averageTransaction
     uniqueProducts
     uniqueBranches
     uniqueEmployees
+    netUnitsSold
   }
   monthlySalesGrowth(
     startDate: $startDate
@@ -46,9 +55,7 @@ export const DashboardDataDocument = `
     branch: $branch
     productLine: $productLine
   ) {
-    date
-    totalSales
-    grossProfit
+    ...MonthlySalesGrowthFields
   }
   targetAttainment(
     startDate: $startDate
@@ -61,7 +68,13 @@ export const DashboardDataDocument = `
     totalSales
     target
   }
-  productPerformance(startDate: $startDate, endDate: $endDate, n: 10) {
+  productPerformance(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    n: $n
+  ) {
     product
     sales
   }
@@ -75,16 +88,36 @@ export const DashboardDataDocument = `
     product
     sales
   }
-  topCustomers(startDate: $startDate, endDate: $endDate, n: 5) {
-    cardName
-    salesAmount
-    grossProfit
+  topCustomers(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    n: $n
+    itemNames: $itemNames
+    salesPersons: $salesPersons
+    branchNames: $branchNames
+    productLine: $productLine
+  ) {
+    ...TopCustomerFields
   }
-  marginTrends(startDate: $startDate, endDate: $endDate) {
+  marginTrends(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
     date
     marginPct
   }
-  returnsAnalysis(startDate: $startDate, endDate: $endDate) {
+  returnsAnalysis(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemNames: $itemNames
+    salesPersons: $salesPersons
+    branchNames: $branchNames
+  ) {
     reason
     count
   }
@@ -92,30 +125,16 @@ export const DashboardDataDocument = `
     dimension: "Branch"
     startDate: $startDate
     endDate: $endDate
+    branch: $branch
+    productLine: $productLine
   ) {
     branch
     grossProfit
     grossMargin
   }
-  productAnalytics(
-    startDate: $startDate
-    endDate: $endDate
-    branch: $branch
-    productLine: $productLine
-  ) {
-    itemName
-    productLine
-    itemGroup
-    totalSales
-    grossProfit
-    margin
-    totalQty
-    transactionCount
-    uniqueBranches
-    averagePrice
-  }
 }
-    `;
+    ${MonthlySalesGrowthFieldsFragmentDoc}
+${TopCustomerFieldsFragmentDoc}`;
 
 export const useDashboardDataQuery = <
       TData = DashboardDataQuery,
@@ -129,7 +148,7 @@ export const useDashboardDataQuery = <
     
     return useQuery<DashboardDataQuery, TError, TData>(
       {
-    queryKey: ['dashboardData', variables],
+    queryKey: ['DashboardData', variables],
     queryFn: fetcher<DashboardDataQuery, DashboardDataQueryVariables>(client, DashboardDataDocument, variables, headers),
     ...options
   }

@@ -1,4 +1,28 @@
-query productsPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+#import "./fragments.graphql"
+
+query ProductsPageData(
+  $startDate: String!
+  $endDate: String!
+  $branch: String
+  $productLine: String
+  $n: Int
+  $itemNames: [String!]
+  $salesPersons: [String!]
+  $branchNames: [String!]
+) {
+  revenueSummary(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    totalRevenue
+    netSales
+    grossProfit
+    lineItemCount
+    returnsValue
+    totalTransactions
+    averageTransaction
+    uniqueProducts
+    uniqueBranches
+    uniqueEmployees
+    netUnitsSold
+  }
   productAnalytics(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
     itemName
     productLine
@@ -11,12 +35,33 @@ query productsPageData($startDate: String!, $endDate: String!, $branch: String, 
     uniqueBranches
     averagePrice
   }
-  revenueSummary(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
-    totalRevenue
-    totalTransactions
-    averageTransaction
-    uniqueProducts
-    uniqueBranches
-    uniqueEmployees
+  topCustomers(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    n: $n
+    itemNames: $itemNames
+    salesPersons: $salesPersons
+    branchNames: $branchNames
+    productLine: $productLine
+  ) {
+    ...TopCustomerFields
+  }
+  returnsAnalysis(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemNames: $itemNames
+    salesPersons: $salesPersons
+    branchNames: $branchNames
+  ) {
+    reason
+    count
+  }
+  salespersonProductMix(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    salesperson
+    productLine
+    avgProfitMargin
   }
 } 

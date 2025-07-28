@@ -10,16 +10,8 @@ import {
   TableRow,
   TableCell,
   TableBody,
-  CircularProgress,
 } from "@mui/material";
-import { useSalespersonProductMixQuery } from "../queries/salespersonProductMix.generated";
-import { graphqlClient } from "../lib/graphqlClient";
-import { useFilters } from "../context/FilterContext";
-import { queryKeys } from "../lib/queryKeys";
-import { useMemo } from "react";
 import ExpandableCard from "./ExpandableCard";
-import ChartSkeleton from "./skeletons/ChartSkeleton";
-import ChartEmptyState from "./states/ChartEmptyState";
 
 const getMarginColor = (margin: number | null | undefined) => {
   if (margin == null) return undefined;
@@ -28,40 +20,15 @@ const getMarginColor = (margin: number | null | undefined) => {
   return "#d32f2f"; // red for low
 };
 
-const SalespersonProductMixTable: React.FC = () => {
-  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
-  const filters = useMemo(() => ({
-    dateRange: { start: start_date, end: end_date },
-    productLine: selected_product_line !== "all" ? selected_product_line : undefined,
-    branch: selected_branch !== "all" ? selected_branch : undefined,
-  }), [start_date, end_date, selected_product_line, selected_branch]);
-  const { data, isLoading, error } = useSalespersonProductMixQuery(
-    graphqlClient,
-    {
-      startDate: start_date!,
-      endDate: end_date!,
-      branch: selected_branch !== "all" ? selected_branch : undefined,
-      productLine: selected_product_line !== "all" ? selected_product_line : undefined,
-    },
-    {
-      queryKey: queryKeys.salespersonProductMix ? queryKeys.salespersonProductMix(filters) : ["salespersonProductMix", filters],
-    }
-  );
-  const rows = Array.isArray(data?.salespersonProductMix) ? data.salespersonProductMix : [];
+interface SalespersonProductMixTableProps {
+  rows: Array<{
+    salesperson: string;
+    productLine: string;
+    avgProfitMargin?: number | null;
+  }>;
+}
 
-  if (isLoading)
-    return (
-      <ExpandableCard title="Salesperson Product Mix & Avg Profit Margin" minHeight={300}>
-        <ChartSkeleton />
-      </ExpandableCard>
-    );
-  if (error)
-    return (
-      <ExpandableCard title="Salesperson Product Mix & Avg Profit Margin" minHeight={300}>
-        <ChartEmptyState message="Error loading salesperson product mix." />
-      </ExpandableCard>
-    );
-
+const SalespersonProductMixTable: React.FC<SalespersonProductMixTableProps> = ({ rows = [] }) => {
   // Info content for modal
   const infoContent = (
     <>

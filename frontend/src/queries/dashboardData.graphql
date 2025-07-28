@@ -1,24 +1,38 @@
-query dashboardData($startDate: String!, $endDate: String!, $branch: String, $productLine: String, $target: Float) {
+#import "./fragments.graphql"
+
+query DashboardData(
+  $startDate: String!
+  $endDate: String!
+  $branch: String
+  $productLine: String
+  $target: Float
+  $n: Int
+  $itemNames: [String!]
+  $salesPersons: [String!]
+  $branchNames: [String!]
+) {
   revenueSummary(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
     totalRevenue
+    netSales
     grossProfit
+    lineItemCount
+    returnsValue
     totalTransactions
     averageTransaction
     uniqueProducts
     uniqueBranches
     uniqueEmployees
+    netUnitsSold
   }
   monthlySalesGrowth(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
-    date
-    totalSales
-    grossProfit
+    ...MonthlySalesGrowthFields
   }
   targetAttainment(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine, target: $target) {
     attainmentPercentage
     totalSales
     target
   }
-  productPerformance(startDate: $startDate, endDate: $endDate, n: 10) {
+  productPerformance(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine, n: $n) {
     product
     sales
   }
@@ -27,34 +41,43 @@ query dashboardData($startDate: String!, $endDate: String!, $branch: String, $pr
     product
     sales
   }
-  topCustomers(startDate: $startDate, endDate: $endDate, n: 5) {
-    cardName
-    salesAmount
-    grossProfit
+  topCustomers(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    n: $n
+    itemNames: $itemNames
+    salesPersons: $salesPersons
+    branchNames: $branchNames
+    productLine: $productLine
+  ) {
+    ...TopCustomerFields
   }
-  marginTrends(startDate: $startDate, endDate: $endDate) {
+  marginTrends(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
     date
     marginPct
   }
-  returnsAnalysis(startDate: $startDate, endDate: $endDate) {
+  returnsAnalysis(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemNames: $itemNames
+    salesPersons: $salesPersons
+    branchNames: $branchNames
+  ) {
     reason
     count
   }
-  profitabilityByDimension(dimension: "Branch", startDate: $startDate, endDate: $endDate) {
+  profitabilityByDimension(
+    dimension: "Branch"
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
     branch
     grossProfit
     grossMargin
   }
-  productAnalytics(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
-    itemName
-    productLine
-    itemGroup
-    totalSales
-    grossProfit
-    margin
-    totalQty
-    transactionCount
-    uniqueBranches
-    averagePrice
-  }
-} 
+}

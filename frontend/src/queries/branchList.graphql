@@ -1,5 +1,0 @@
-query BranchList($startDate: String, $endDate: String) {
-  branchList(startDate: $startDate, endDate: $endDate) {
-    branch
-  }
-}

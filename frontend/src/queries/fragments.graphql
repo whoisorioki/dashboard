@@ -1,0 +1,26 @@
+# Shared GraphQL Fragments for Page-Level Composite Queries
+
+fragment RevenueSummaryFields on RevenueSummary {
+  totalRevenue
+  netSales
+  grossProfit
+  lineItemCount
+  returnsValue
+  averageTransaction
+  uniqueProducts
+  uniqueBranches
+  uniqueEmployees
+  netUnitsSold
+}
+
+fragment TopCustomerFields on TopCustomerEntry {
+  cardName
+  salesAmount
+  grossProfit
+}
+
+fragment MonthlySalesGrowthFields on MonthlySalesGrowth {
+  date
+  totalSales
+  grossProfit
+}

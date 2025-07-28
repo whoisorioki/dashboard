@@ -2,6 +2,7 @@ import * as Types from '../types/graphql';
 
 import { GraphQLClient } from 'graphql-request';
 import { RequestInit } from 'graphql-request/dist/types.dom';
+import { MonthlySalesGrowthFieldsFragmentDoc } from './fragments.generated';
 import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 
 function fetcher<TData, TVariables extends { [key: string]: any }>(client: GraphQLClient, query: string, variables?: TVariables, requestHeaders?: RequestInit['headers']) {
@@ -19,12 +20,38 @@ export type SalesPageDataQueryVariables = Types.Exact<{
 }>;
 
 
-export type SalesPageDataQuery = { __typename?: 'Query', salesPerformance: Array<{ __typename?: 'SalesPerformance', salesPerson: string, totalSales: number, grossProfit?: number | null, transactionCount: number, averageSale: number, uniqueBranches: number, uniqueProducts: number, avgMargin?: number | null }>, revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueEmployees: number, uniqueProducts: number, uniqueBranches: number }, monthlySalesGrowth: Array<{ __typename?: 'MonthlySalesGrowth', date: string, totalSales?: number | null, grossProfit?: number | null }> };
+export type SalesPageDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, monthlySalesGrowth: Array<{ __typename?: 'MonthlySalesGrowth', date: string, totalSales?: number | null, grossProfit?: number | null }>, salesPerformance: Array<{ __typename?: 'SalesPerformance', salesPerson: string, totalSales: number, grossProfit?: number | null, transactionCount: number, averageSale: number, uniqueBranches: number, uniqueProducts: number, avgMargin?: number | null }>, salespersonProductMix: Array<{ __typename?: 'SalespersonProductMixEntry', salesperson: string, productLine: string, avgProfitMargin?: number | null }> };
 
 
 
 export const SalesPageDataDocument = `
-    query salesPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+    query SalesPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+  revenueSummary(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
+    totalRevenue
+    netSales
+    grossProfit
+    lineItemCount
+    returnsValue
+    totalTransactions
+    averageTransaction
+    uniqueProducts
+    uniqueBranches
+    uniqueEmployees
+    netUnitsSold
+  }
+  monthlySalesGrowth(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
+    ...MonthlySalesGrowthFields
+  }
   salesPerformance(
     startDate: $startDate
     endDate: $endDate
@@ -40,31 +67,18 @@ export const SalesPageDataDocument = `
     uniqueProducts
     avgMargin
   }
-  revenueSummary(
+  salespersonProductMix(
     startDate: $startDate
     endDate: $endDate
     branch: $branch
     productLine: $productLine
   ) {
-    totalRevenue
-    totalTransactions
-    averageTransaction
-    uniqueEmployees
-    uniqueProducts
-    uniqueBranches
-  }
-  monthlySalesGrowth(
-    startDate: $startDate
-    endDate: $endDate
-    branch: $branch
-    productLine: $productLine
-  ) {
-    date
-    totalSales
-    grossProfit
+    salesperson
+    productLine
+    avgProfitMargin
   }
 }
-    `;
+    ${MonthlySalesGrowthFieldsFragmentDoc}`;
 
 export const useSalesPageDataQuery = <
       TData = SalesPageDataQuery,
@@ -78,7 +92,7 @@ export const useSalesPageDataQuery = <
     
     return useQuery<SalesPageDataQuery, TError, TData>(
       {
-    queryKey: ['salesPageData', variables],
+    queryKey: ['SalesPageData', variables],
     queryFn: fetcher<SalesPageDataQuery, SalesPageDataQueryVariables>(client, SalesPageDataDocument, variables, headers),
     ...options
   }

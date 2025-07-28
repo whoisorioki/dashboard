@@ -1,15 +1,25 @@
-query branchesPageData(
+#import "./fragments.graphql"
+
+query BranchesPageData(
   $startDate: String!
   $endDate: String!
   $branch: String
   $productLine: String
 ) {
-  branchPerformance(
-    startDate: $startDate
-    endDate: $endDate
-    branch: $branch
-    productLine: $productLine
-  ) {
+  revenueSummary(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    totalRevenue
+    netSales
+    grossProfit
+    lineItemCount
+    returnsValue
+    totalTransactions
+    averageTransaction
+    uniqueProducts
+    uniqueBranches
+    uniqueEmployees
+    netUnitsSold
+  }
+  branchPerformance(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
     branch
     totalSales
     transactionCount
@@ -17,15 +27,15 @@ query branchesPageData(
     uniqueCustomers
     uniqueProducts
   }
-  branchGrowth(
-    startDate: $startDate
-    endDate: $endDate
-    branch: $branch
-    productLine: $productLine
-  ) {
+  branchGrowth(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
     branch
     monthYear
     monthlySales
     growthPct
+  }
+  branchProductHeatmap(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    branch
+    product
+    sales
   }
 }

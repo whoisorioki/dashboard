@@ -1,9 +1,0 @@
-# Branch Growth Query
-query BranchGrowth($startDate: String, $endDate: String, $branch: String, $productLine: String) {
-  branchGrowth(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
-    branch
-    monthYear
-    monthlySales
-    growthPct
-  }
-}

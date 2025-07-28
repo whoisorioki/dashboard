@@ -16,6 +16,7 @@ import ExpandableCard from "./ExpandableCard";
 import { ResponsiveBar } from '@nivo/bar';
 import { ResponsiveLine } from '@nivo/line';
 import { useNivoTheme } from '../hooks/useNivoTheme';
+import { useTheme } from '@mui/material/styles';
 
 interface MonthlySalesTrendChartProps {
   data: MonthlySalesGrowth[] | undefined;
@@ -47,6 +48,9 @@ const MonthlySalesTrendChart: React.FC<MonthlySalesTrendChartProps> = ({
 
   // Prepare data for Nivo Combination Chart
   const nivoTheme = useNivoTheme();
+  const theme = useTheme();
+  const totalSalesColor = theme.palette.primary.main;
+  const grossProfitColor = theme.palette.success.main;
   const chartData = data.map((d) => ({
     date: d.date,
     totalSales: d.totalSales ?? 0,
@@ -63,8 +67,8 @@ const MonthlySalesTrendChart: React.FC<MonthlySalesTrendChartProps> = ({
   );
 
   return (
-    <ExpandableCard title="Monthly Sales Trend" infoContent={infoContent} minHeight={300}>
-      <Box sx={{ height: 300, width: '100%' }}>
+    <ExpandableCard title="Monthly Sales Trend" infoContent={infoContent} minHeight={500}>
+      <Box sx={{ height: 500, width: '100%' }}>
         <ResponsiveBar
           data={chartData}
           keys={['totalSales']}
@@ -72,7 +76,7 @@ const MonthlySalesTrendChart: React.FC<MonthlySalesTrendChartProps> = ({
           margin={{ top: 30, right: 60, bottom: 50, left: 70 }}
           padding={0.3}
           theme={nivoTheme}
-          colors={[nivoTheme.textColor || '#1976d2']}
+          colors={[totalSalesColor]}
           axisBottom={{
             tickRotation: 0,
             legend: 'Date',
@@ -85,30 +89,33 @@ const MonthlySalesTrendChart: React.FC<MonthlySalesTrendChartProps> = ({
             legendPosition: 'middle',
             legendOffset: -50,
           }}
-          tooltip={({ indexValue, value }) => (
+          tooltip={({ indexValue, data }) => (
             <Box p={1}>
               <strong>Period: {indexValue}</strong><br />
-              Sales Revenue: {formatKshAbbreviated(value as number)}
+              Total Sales: {formatKshAbbreviated(data.totalSales as number)}<br />
+              Gross Profit: <span style={{ color: grossProfitColor }}>{formatKshAbbreviated(data.grossProfit as number)}</span>
             </Box>
           )}
-          layers={['grid', 'axes', 'bars', 'markers', 'legends',
+          enableGridX={false}
+          enableGridY={false}
+          layers={['axes', 'bars', 'markers', 'legends',
             // Custom layer for grossProfit line
             (props) => {
               const { bars, xScale, yScale } = props;
-              const linePoints = chartData.map((d) => [
-                xScale(d.date) + xScale.bandwidth() / 2,
+              const linePoints = chartData.map((d, i) => [
+                (xScale(i) as number) + ((xScale as any).bandwidth ? (xScale as any).bandwidth() / 2 : 0),
                 yScale(d.grossProfit)
               ]);
               return (
                 <g>
                   <polyline
                     fill="none"
-                    stroke="#ff9800"
+                    stroke={grossProfitColor}
                     strokeWidth={3}
                     points={linePoints.map(([x, y]) => `${x},${y}`).join(' ')}
                   />
                   {linePoints.map(([x, y], i) => (
-                    <circle key={i} cx={x} cy={y} r={4} fill="#ff9800" />
+                    <circle key={i} cx={x} cy={y} r={4} fill={grossProfitColor} />
                   ))}
                 </g>
               );

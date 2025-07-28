@@ -1,4 +1,27 @@
-query salesPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+#import "./fragments.graphql"
+
+query SalesPageData(
+  $startDate: String!
+  $endDate: String!
+  $branch: String
+  $productLine: String
+) {
+  revenueSummary(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    totalRevenue
+    netSales
+    grossProfit
+    lineItemCount
+    returnsValue
+    totalTransactions
+    averageTransaction
+    uniqueProducts
+    uniqueBranches
+    uniqueEmployees
+    netUnitsSold
+  }
+  monthlySalesGrowth(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+    ...MonthlySalesGrowthFields
+  }
   salesPerformance(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
     salesPerson
     totalSales
@@ -8,18 +31,5 @@ query salesPageData($startDate: String!, $endDate: String!, $branch: String, $pr
     uniqueBranches
     uniqueProducts
     avgMargin
-  }
-  revenueSummary(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
-    totalRevenue
-    totalTransactions
-    averageTransaction
-    uniqueEmployees
-    uniqueProducts
-    uniqueBranches
-  }
-  monthlySalesGrowth(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
-    date
-    totalSales
-    grossProfit
   }
 } 

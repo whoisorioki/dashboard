@@ -109,7 +109,8 @@ class RevenueSummary:
     total_revenue: Optional[float] = strawberry.field(name="totalRevenue")
     net_sales: Optional[float] = strawberry.field(name="netSales")
     gross_profit: Optional[float] = strawberry.field(name="grossProfit")
-    net_profit: Optional[float] = strawberry.field(name="netProfit")
+    line_item_count: Optional[int] = strawberry.field(name="lineItemCount")
+    returns_value: Optional[float] = strawberry.field(name="returnsValue")
     total_transactions: int = strawberry.field(name="totalTransactions")
     average_transaction: Optional[float] = strawberry.field(name="averageTransaction")
     unique_products: int = strawberry.field(name="uniqueProducts")
@@ -134,7 +135,6 @@ class Envelope:
     data: Optional[object]
     error: Optional[EnvelopeError]
     metadata: Optional[EnvelopeMetadata]
-    using_mock_data: Optional[bool]
 
 
 @strawberry.type
@@ -597,7 +597,7 @@ class Query:
         product_line: Optional[str] = None,
     ) -> RevenueSummary:
         """
-        Returns revenue summary including gross revenue, net sales, and net units sold.
+        Returns revenue summary including gross revenue, net sales, net units sold, returns value, and line item count.
         """
         default_start, default_end = Query._get_default_dates()
         start = start_date or (
@@ -623,8 +623,9 @@ class Query:
             total_revenue=sanitize(summary["total_revenue"]),
             net_sales=sanitize(summary["net_sales"]),
             gross_profit=sanitize(summary.get("gross_profit", 0.0)),
-            net_profit=sanitize(summary.get("net_profit", 0.0)),
-            total_transactions=summary["total_transactions"],
+            line_item_count=sanitize(summary["line_item_count"]),
+            returns_value=sanitize(summary["returns_value"]),
+            total_transactions=summary["line_item_count"],
             average_transaction=sanitize(summary["average_transaction"]),
             unique_products=summary["unique_products"],
             unique_branches=summary["unique_branches"],
@@ -707,7 +708,6 @@ class Query:
         branch_names: Optional[List[str]] = None,
         branch: Optional[str] = None,
         product_line: Optional[str] = None,
-        mock_data: Optional[bool] = False,
     ) -> List[ReturnsAnalysisEntry]:
         from backend.services.sales_data import fetch_sales_data
         import polars as pl

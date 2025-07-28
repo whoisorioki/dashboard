@@ -1,4 +1,4 @@
-query HealthStatus {
+query AlertsPageData {
   systemHealth {
     status
   }
@@ -9,8 +9,5 @@ query HealthStatus {
   druidDatasources {
     datasources
     count
-  }
-  dataVersion {
-    lastIngestionTime
   }
 } 

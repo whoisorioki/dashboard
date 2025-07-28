@@ -19,12 +19,30 @@ export type BranchesPageDataQueryVariables = Types.Exact<{
 }>;
 
 
-export type BranchesPageDataQuery = { __typename?: 'Query', branchPerformance: Array<{ __typename?: 'BranchPerformance', branch: string, totalSales: number, transactionCount: number, averageSale: number, uniqueCustomers: number, uniqueProducts: number }>, branchGrowth: Array<{ __typename?: 'BranchGrowth', branch: string, monthYear: string, monthlySales: number, growthPct: number }> };
+export type BranchesPageDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, branchPerformance: Array<{ __typename?: 'BranchPerformance', branch: string, totalSales: number, transactionCount: number, averageSale: number, uniqueCustomers: number, uniqueProducts: number }>, branchGrowth: Array<{ __typename?: 'BranchGrowth', branch: string, monthYear: string, monthlySales: number, growthPct: number }>, branchProductHeatmap: Array<{ __typename?: 'BranchProductHeatmap', branch: string, product: string, sales: number }> };
 
 
 
 export const BranchesPageDataDocument = `
-    query branchesPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+    query BranchesPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+  revenueSummary(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
+    totalRevenue
+    netSales
+    grossProfit
+    lineItemCount
+    returnsValue
+    totalTransactions
+    averageTransaction
+    uniqueProducts
+    uniqueBranches
+    uniqueEmployees
+    netUnitsSold
+  }
   branchPerformance(
     startDate: $startDate
     endDate: $endDate
@@ -49,6 +67,16 @@ export const BranchesPageDataDocument = `
     monthlySales
     growthPct
   }
+  branchProductHeatmap(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
+    branch
+    product
+    sales
+  }
 }
     `;
 
@@ -64,7 +92,7 @@ export const useBranchesPageDataQuery = <
     
     return useQuery<BranchesPageDataQuery, TError, TData>(
       {
-    queryKey: ['branchesPageData', variables],
+    queryKey: ['BranchesPageData', variables],
     queryFn: fetcher<BranchesPageDataQuery, BranchesPageDataQueryVariables>(client, BranchesPageDataDocument, variables, headers),
     ...options
   }

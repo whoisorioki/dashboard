@@ -1,7 +1,0 @@
-query DataRange {
-  dataRange {
-    earliestDate
-    latestDate
-    totalRecords
-  }
-}

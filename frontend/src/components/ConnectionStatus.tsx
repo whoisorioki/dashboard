@@ -26,36 +26,38 @@ import {
   Api,
   Dashboard as DashboardIcon,
 } from "@mui/icons-material";
-import { GraphQLClient } from "graphql-request";
-import { useHealthStatusQuery } from "../queries/healthStatus.generated";
 
-const client = new GraphQLClient(import.meta.env.VITE_API_GRAPHQL_URL || "http://localhost:8000/graphql");
+interface ConnectionStatusProps {
+  systemHealth: { status: string } | null;
+  druidHealth: { druidStatus: string; isAvailable: boolean } | null;
+  druidDatasources: { datasources: string[]; count: number } | null;
+  isLoading: boolean;
+}
 
-const ConnectionStatus: React.FC = () => {
+const ConnectionStatus: React.FC<ConnectionStatusProps> = ({ systemHealth, druidHealth, druidDatasources, isLoading }) => {
   const currentTime = new Date().toLocaleTimeString();
-  const { data, isFetching, refetch } = useHealthStatusQuery(client);
 
   const services = [
     {
       name: "Backend API",
-      status: data?.systemHealth?.status === "ok" ? "connected" : "disconnected",
+      status: systemHealth?.status === "ok" ? "connected" : "disconnected",
       url: "GraphQL: /graphql",
-      details: data?.systemHealth?.status === "ok" ? "API is responding" : `Status: ${data?.systemHealth?.status}`,
+      details: systemHealth?.status === "ok" ? "API is responding" : `Status: ${systemHealth?.status}`,
       lastCheck: currentTime,
     },
     {
       name: "Druid Database",
-      status: data?.druidHealth?.isAvailable ? "connected" : "disconnected",
+      status: druidHealth?.isAvailable ? "connected" : "disconnected",
       url: "Druid via Backend API",
-      details: data?.druidHealth?.druidStatus || "Unknown status",
+      details: druidHealth?.druidStatus || "Unknown status",
       lastCheck: currentTime,
     },
     {
       name: "Data Sources",
-      status: (data?.druidDatasources?.count ?? 0) > 0 ? "connected" : "warning",
+      status: (druidDatasources?.count ?? 0) > 0 ? "connected" : "warning",
       url: "Druid Datasources via Backend API",
-      details: typeof data?.druidDatasources?.count === "number"
-        ? `${data.druidDatasources.count} datasources available`
+      details: typeof druidDatasources?.count === "number"
+        ? `${druidDatasources.count} datasources available`
         : "undefined datasources available",
       lastCheck: currentTime,
     },
@@ -96,6 +98,7 @@ const ConnectionStatus: React.FC = () => {
   };
 
   const getOverallAlert = () => {
+    if (isLoading) return <Alert severity="info">Checking system status...</Alert>;
     switch (overall) {
       case "healthy":
         return <Alert severity="success">All systems operational</Alert>;
@@ -122,10 +125,10 @@ const ConnectionStatus: React.FC = () => {
         <Button
           variant="outlined"
           startIcon={<Refresh />}
-          onClick={() => refetch()}
-          disabled={isFetching}
+          onClick={() => window.location.reload()}
+          disabled={isLoading}
         >
-          {isFetching ? "Checking..." : "Refresh"}
+          {isLoading ? "Checking..." : "Refresh"}
         </Button>
       </Box>
 

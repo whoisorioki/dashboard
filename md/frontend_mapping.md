@@ -22,7 +22,7 @@ This document provides the authoritative mapping between frontend dashboard comp
 | **Branch List**                      | `string[]`                                                                                       | `branchList`                                                                                                      | startDate, endDate                            | Returns array of branch names             |
 | **Branch Growth**                    | `BranchGrowthEntry { branch: string; monthYear: string; monthlySales: number; growthPct: number; }`| `branchGrowth { branch monthYear monthlySales growthPct }`                                                        | startDate, endDate                            | Updated: field names camelCase in TS      |
 | **Sales Performance**                | `SalesPerformanceEntry { salesperson: string; totalSales: number; transactionCount: number; averageSale: number; uniqueBranches: number; uniqueProducts: number; }` | `salesPerformance { salesperson totalSales transactionCount averageSale uniqueBranches uniqueProducts }` | startDate, endDate                            | Updated: field names camelCase in TS      |
-| **Revenue Summary**                  | `RevenueSummary { totalRevenue: number; totalTransactions: number; averageTransaction: number; uniqueProducts: number; uniqueBranches: number; uniqueEmployees: number; }` | `revenueSummary { totalRevenue totalTransactions averageTransaction uniqueProducts uniqueBranches uniqueEmployees }` | startDate, endDate                            | Updated: more fields now returned         |
+| **Revenue Summary**                  | `RevenueSummary { totalRevenue: number; netSales: number; grossProfit: number; netProfit: number; lineItemCount: number; returnsValue: number; averageTransaction: number; uniqueProducts: number; uniqueBranches: number; uniqueEmployees: number; netUnitsSold: number; }` | `revenueSummary { totalRevenue netSales grossProfit netProfit lineItemCount returnsValue averageTransaction uniqueProducts uniqueBranches uniqueEmployees netUnitsSold }` | startDate, endDate, branch, productLine | Updated: all new fields included |
 | **Data Range**                       | `DataRange { earliestDate: string; latestDate: string; totalRecords: number; }`                  | `dataRange { earliestDate latestDate totalRecords }`                                                              | None                                          |                                            |
 | **Margin Trends**                    | `MarginTrendEntry { date: string; marginPct: number; }`                                             | `marginTrends { date marginPct }`                                                                                    | startDate, endDate                            | Updated: field is `marginPct`             |
 | **Profitability by Dimension**       | `ProfitabilityByDimensionEntry { dimension: string; grossMargin: number; grossProfit: number; }` | `profitabilityByDimension { dimension grossMargin grossProfit }`                                                  | startDate, endDate, dimension                 | Dimension: Branch, ProductLine, etc.      |
@@ -77,4 +77,115 @@ All GraphQL errors are returned in a consistent envelope:
 
 ---
 
-**For any changes to frontend data needs or backend schema, update this mapping and communicate with both teams.** 
+## 5. Composite Query: Pros, Cons, and Mitigation
+
+### Pros
+- **Fewer network requests:** All dashboard data fetched in one round-trip.
+- **Atomicity:** Data is always consistent for a given filter set.
+- **Simpler cache management:** One query key for the whole dashboard.
+- **Easier to keep frontend and backend in sync.**
+
+### Maximizing the Pros
+- **Batch UI updates:** Use the composite query to trigger all dashboard UI updates at once, ensuring a smooth, consistent user experience.
+- **Leverage React Query caching:** With a single query key, cache invalidation and refetching are straightforward and efficient.
+- **Prefetching:** Use React Query's prefetch capabilities to load dashboard data in the background (e.g., when a user is about to navigate to the dashboard).
+- **SSR/Initial Load:** For server-side rendering or initial page load, fetch all dashboard data in one request to minimize time-to-interactive.
+- **Consistent error/loading states:** Handle loading and error states at the composite query level, providing unified feedback to the user.
+- **Analytics and logging:** Track a single query for analytics, performance monitoring, and debugging, making it easier to identify issues.
+- **Documentation:** Keep the composite query and its mapping well-documented, so onboarding and cross-team communication are easier.
+
+### Cons & Mitigation
+- **Larger payloads:**
+  - *Mitigation:* Only request fields/components actually needed for the current dashboard view. Use GraphQL fragments or conditional queries if possible.
+- **Less granularity for updates:**
+  - *Mitigation:* Use React Query's `select` and `refetch` for subcomponents if needed. For highly interactive widgets, consider splitting out a focused query.
+- **Backend load spikes:**
+  - *Mitigation:* Optimize backend resolvers for efficiency. Use Druid's aggregation and filtering to minimize data transfer and computation.
+- **Frontend code complexity:**
+  - *Mitigation:* Use clear TypeScript interfaces and mapping tables (as in this file). Keep composite query structure documented and up to date.
+
+### Best Practices
+- Always keep this mapping and the composite query in sync.
+- After backend changes, update the composite query and regenerate codegen.
+- Test dashboard for both performance and correctness after any major change. 
+
+---
+
+## 6. GraphQL Fragments & Page-Level Composite Queries: Definitive Recommendation
+
+### Strategy
+- **Continue using Page-Level Composite Queries** (one query per page, e.g., `dashboardData.graphql`, `salesPageData.graphql`).
+- **Use GraphQL Fragments** for any data block shared across multiple pages (e.g., `RevenueSummaryFields`, `TopCustomerFields`).
+- **Do NOT use a single application-wide composite query.**
+
+### Why This Is Optimal
+| Feature | Page-Level Composite (Recommended) | Application-Wide Composite |
+|---------|------------------------------------|---------------------------|
+| Initial Load Time | Fast | Very Slow |
+| User Experience | Excellent | Poor |
+| Data Fetching | Efficient | Over-fetching |
+| Backend Performance | Optimal | High Strain |
+| Maintainability | High | Low |
+
+### How to Implement & Maximize
+1. **Identify Shared Data Blocks:**
+   - E.g., `RevenueSummary`, `TopCustomerEntry`, `BranchList`.
+2. **Create GraphQL Fragments:**
+   - In `/frontend/src/queries/fragments.graphql`:
+   ```graphql
+   fragment RevenueSummaryFields on RevenueSummary {
+     totalRevenue
+     netSales
+     grossProfit
+     netProfit
+     lineItemCount
+     returnsValue
+     averageTransaction
+     uniqueProducts
+     uniqueBranches
+     uniqueEmployees
+     netUnitsSold
+   }
+   fragment TopCustomerFields on TopCustomerEntry {
+     cardName
+     salesAmount
+     grossProfit
+   }
+   ```
+3. **Use Fragments in Page Queries:**
+   - In each page query, import and use the relevant fragments:
+   ```graphql
+   #import "./fragments.graphql"
+   query DashboardData($startDate: String!, $endDate: String!) {
+     revenueSummary(startDate: $startDate, endDate: $endDate) {
+       ...RevenueSummaryFields
+     }
+     topCustomers(startDate: $startDate, endDate: $endDate) {
+       ...TopCustomerFields
+     }
+     # ...other dashboard-specific blocks
+   }
+   ```
+4. **React Query Caching:**
+   - Fragments ensure that shared data (e.g., `RevenueSummary`) is cached and reused across pages, improving perceived performance.
+5. **Document Fragments:**
+   - Add a mapping table below for fragment usage.
+
+#### Fragment Usage Mapping
+| Fragment Name               | Used In Queries                | Pages/Components         |
+|----------------------------|--------------------------------|--------------------------|
+| RevenueSummaryFields        | dashboardData, salesPageData   | Dashboard, Sales         |
+| TopCustomerFields           | dashboardData, salesPageData   | Dashboard, Sales         |
+| MonthlySalesGrowthFields    | dashboardData, salesPageData   | Dashboard, Sales         |
+| ...                        | ...                            | ...                      |
+
+- All page-level queries (e.g., `dashboardData.graphql`, `salesPageData.graphql`) should use fragments for shared data blocks, including monthlySalesGrowth.
+- Use the `#import "./fragments.graphql"` pattern at the top of each query file to include fragments.
+
+### Best Practices
+- Keep fragments and page-level queries in sync with backend and `frontend_mapping.md`.
+- After backend changes, update fragments and all queries that use them, then regenerate codegen.
+- Document all fragments and their usage in this file.
+- Use React Query's cache and prefetching to maximize performance.
+
+--- 

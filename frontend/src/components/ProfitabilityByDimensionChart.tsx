@@ -8,42 +8,27 @@ import {
   FormControl,
   InputLabel,
 } from "@mui/material";
-import { useProfitabilityByDimensionQuery } from "../queries/profitabilityByDimension.generated";
-import { graphqlClient } from "../lib/graphqlClient";
-import { useFilters } from "../context/FilterContext";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
 import ChartEmptyState from "./states/ChartEmptyState";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import ChartCard from "./ChartCard";
 import ReactECharts from "echarts-for-react";
-import { queryKeys } from "../lib/queryKeys";
 
 interface ProfitabilityByDimensionChartProps {
-  startDate?: string;
-  endDate?: string;
+  data: Array<{
+    branch?: string;
+    productLine?: string;
+    itemGroup?: string;
+    grossProfit?: number;
+    grossMargin?: number;
+  }>;
+  isLoading: boolean;
+  error: unknown;
 }
 
-const ProfitabilityByDimensionChart: React.FC<ProfitabilityByDimensionChartProps> = ({ startDate, endDate }) => {
+const ProfitabilityByDimensionChart: React.FC<ProfitabilityByDimensionChartProps> = ({ data, isLoading, error }) => {
   const [dimension, setDimension] = useState("Branch");
-  const { start_date: ctxStart, end_date: ctxEnd, selected_branch, selected_product_line } = useFilters();
-  const filters = useMemo(() => ({
-    dateRange: { start: startDate || ctxStart, end: endDate || ctxEnd },
-    branch: selected_branch !== "all" ? selected_branch : undefined,
-    productLine: selected_product_line !== "all" ? selected_product_line : undefined,
-    dimension,
-  }), [startDate, endDate, ctxStart, ctxEnd, selected_branch, selected_product_line, dimension]);
-  const { data, error, isLoading } = useProfitabilityByDimensionQuery(
-    graphqlClient,
-    {
-      dimension,
-      startDate: startDate || ctxStart,
-      endDate: endDate || ctxEnd,
-    },
-    {
-      queryKey: queryKeys.profitabilityByDimension(filters),
-    }
-  );
-  const chartData = data?.profitabilityByDimension ?? [];
+  const chartData = data ?? [];
 
   if (isLoading) {
     return (

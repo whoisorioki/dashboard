@@ -11,7 +11,7 @@ import {
 import { HelpOutline as HelpOutlineIcon } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import KpiCardSkeleton from "./skeletons/KpiCardSkeleton";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { formatKshAbbreviated } from "../lib/numberFormat";
 import { ResponsiveLine } from '@nivo/line';
 import { useNivoTheme } from '../hooks/useNivoTheme';
@@ -74,6 +74,9 @@ const KpiCard: React.FC<KpiCardProps> = ({
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(targetValue);
   const nivoTheme = useNivoTheme();
+  const [hovered, setHovered] = useState(false);
+  const [hoverKey, setHoverKey] = useState(0);
+  const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setEditValue(targetValue);
@@ -117,6 +120,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
 
   return (
     <Card
+      ref={cardRef}
       sx={{
         height: "100%",
         position: "relative",
@@ -169,6 +173,8 @@ const KpiCard: React.FC<KpiCardProps> = ({
           onClick();
         }
       }}
+      onMouseEnter={() => { setHovered(true); setHoverKey(k => k + 1); }}
+      onMouseLeave={() => setHovered(false)}
     >
       {/* Help tooltip in top right corner */}
       <Tooltip title={tooltipText} arrow>
@@ -375,10 +381,18 @@ const KpiCard: React.FC<KpiCardProps> = ({
             </Typography>
             {/* Sparkline below main value */}
             {sparklineData && sparklineData.length > 1 && (
-              <Box sx={{ height: 32, mt: 1, mb: 0.5 }}>
+              <Box sx={{
+                height: 32,
+                mt: 1,
+                mb: 0.5,
+                background: "transparent",
+                borderRadius: 2,
+                transition: "background 0.3s",
+              }}>
                 <ResponsiveLine
+                  key={hoverKey}
                   data={[{ id: 'trend', data: sparklineData }]}
-                  theme={nivoTheme}
+                  theme={{ ...nivoTheme, background: 'transparent' }}
                   margin={{ top: 6, right: 6, bottom: 6, left: 6 }}
                   xScale={{ type: 'point' }}
                   yScale={{ type: 'linear', min: 'auto', max: 'auto', stacked: false }}
@@ -395,7 +409,8 @@ const KpiCard: React.FC<KpiCardProps> = ({
                   enableArea={true}
                   areaOpacity={0.15}
                   isInteractive={false}
-                  animate={false}
+                  animate={true}
+                  motionConfig="wobbly"
                 />
               </Box>
             )}

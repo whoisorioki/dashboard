@@ -420,40 +420,51 @@ def get_product_analytics(df: pl.DataFrame) -> pl.DataFrame:
 
 def calculate_revenue_summary(df: pl.DataFrame) -> dict:
     """
-    Calculate overall revenue summary metrics, including gross revenue, net sales, and net units sold.
+    Calculate overall revenue summary metrics, including gross revenue, net sales, net units sold, returns value, and line item count.
     """
     if df.is_empty():
         return {
             "total_revenue": 0.0,
             "net_sales": 0.0,
-            "total_transactions": 0,
+            "line_item_count": 0,
             "average_transaction": 0.0,
             "unique_products": 0,
             "unique_branches": 0,
             "unique_employees": 0,
             "net_units_sold": 0.0,
+            "returns_value": 0.0,
         }
     total_revenue = sum_gross_revenue(df)
     net_sales = sum_net_sales(df)
     net_units_sold = sum_net_units_sold(df)
-    total_transactions = df.height
+    line_item_count = (
+        float(df.lazy().select(pl.sum("lineItemCount")).collect().item())
+        if "lineItemCount" in df.columns
+        else df.height
+    )
+    returns_value = (
+        float(df.lazy().select(pl.sum("returnsValue")).collect().item())
+        if "returnsValue" in df.columns
+        else 0.0
+    )
+    average_transaction = (
+        total_revenue / line_item_count if line_item_count > 0 else 0.0
+    )
     unique_products = int(df.lazy().select(pl.n_unique("ItemName")).collect().item())
     unique_branches = int(df.lazy().select(pl.n_unique("Branch")).collect().item())
     unique_employees = int(
         df.lazy().select(pl.n_unique("SalesPerson")).collect().item()
     )
-    average_transaction = (
-        total_revenue / total_transactions if total_transactions > 0 else 0.0
-    )
     return {
         "total_revenue": round(total_revenue, 2),
         "net_sales": round(net_sales, 2),
-        "total_transactions": total_transactions,
+        "line_item_count": int(line_item_count),
         "average_transaction": round(average_transaction, 2),
         "unique_products": unique_products,
         "unique_branches": unique_branches,
         "unique_employees": unique_employees,
         "net_units_sold": round(net_units_sold, 2),
+        "returns_value": round(returns_value, 2),
     }
 
 

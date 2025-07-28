@@ -216,12 +216,15 @@ async def get_data_range(request: Request):
     - 500: Internal server error
     """
 
-
     def to_iso8601(val):
         if isinstance(val, int) or (isinstance(val, str) and val.isdigit()):
             # Convert milliseconds to seconds
             ts = int(val) / 1000
-            return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+            return (
+                datetime.fromtimestamp(ts, tz=timezone.utc)
+                .isoformat()
+                .replace("+00:00", "Z")
+            )
         if isinstance(val, str) and "T" in val:
             return val  # Already ISO8601
         return str(val)

@@ -381,7 +381,7 @@ const Sales = () => {
         </Grid>
         {/* Salesperson Product Mix Table */}
         <Grid item xs={12}>
-          <SalespersonProductMixTable />
+          <SalespersonProductMixTable rows={data?.salespersonProductMix ?? []} />
         </Grid>
       </Grid>
     </Box>
