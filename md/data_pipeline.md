@@ -72,6 +72,9 @@ flowchart TD
 
 -   **Contract Synchronization:** GraphQL Code Generator produces TypeScript types and hooks from the backend schema.
 -   **Client:** Uses `graphql-request` and React Query for all data fetching.
+-   **All data-fetching hooks now construct their queryKey from the Zustand filterStore, which includes startDate, endDate, selectedBranches, selectedProductLines, and selectedItemGroups.**
+-   **Global filter state is managed by Zustand (`filterStore.ts`), not React Context.**
+-   **Filter state is persisted to localStorage for seamless reloads.**
 
 ## Stage 6: Frontend State Management (React Query)
 
@@ -90,3 +93,16 @@ flowchart TD
 **Note:**
 - All API contracts and data flows are now documented in [api.md](api.md) and [frontend_mapping.md](frontend_mapping.md).
 - This pipeline ensures high performance, robust error handling, and type safety from Druid to the dashboard.
+
+---
+
+## 8. Filtering Architecture & Best Practices (2024 Update)
+
+- **Global Filter Bar:** Standardized, appears on all main pages. Contains Date Range, Branch, Product Line, and Item Group filters (all multi-select, searchable).
+- **State Management:** Global filter state managed by Zustand (`filterStore.ts`), not React Context. State shape: `{ startDate, endDate, selectedBranches, selectedProductLines, selectedItemGroups }`.
+- **Data Fetching:** All GraphQL hooks use queryKey derived from filterStore. When a filter changes, a new queryKey triggers React Query to check cache or fetch new data.
+- **Caching:** Cached data is returned instantly for previously used filter combinations. Filter state is persisted to localStorage.
+- **UI/UX:** Active filters shown as chips/tags, with individual removal and a reset button. Local (page-specific) filters do not affect global state.
+- **Field Distinction:** ProductLine = high-level brand/category; ItemGroup = sub-category (e.g., "Parts", "Units"). Both are first-class filters in all relevant queries and components.
+
+---

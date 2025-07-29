@@ -1,33 +1,54 @@
-import { create } from 'zustand';
-import { subDays } from 'date-fns';
+import create from 'zustand';
 
-interface FilterState {
-  dateRange: [Date | null, Date | null];
+/**
+ * Zustand store for dashboard filters.
+ *
+ * State:
+ *   startDate (Date | null): The selected start date.
+ *   endDate (Date | null): The selected end date.
+ *   selectedBranches (string[]): Selected branches.
+ *   selectedProductLines (string[]): Selected product lines.
+ *   selectedItemGroups (string[]): Selected item groups.
+ *   salesTarget (string): Sales target value.
+ *
+ * Actions:
+ *   setStartDate, setEndDate, setBranches, setProductLines, setItemGroups, setSalesTarget, clearFilters
+ */
+export type FilterStore = {
+  startDate: Date | null;
+  endDate: Date | null;
+  selectedBranches: string[];
+  selectedProductLines: string[];
+  selectedItemGroups: string[];
   salesTarget: string;
-  selectedBranch: string | null;
-  selectedProduct: string | null;
-  setDateRange: (dateRange: [Date | null, Date | null]) => void;
+  setStartDate: (date: Date | null) => void;
+  setEndDate: (date: Date | null) => void;
+  setBranches: (branches: string[]) => void;
+  setProductLines: (lines: string[]) => void;
+  setItemGroups: (groups: string[]) => void;
   setSalesTarget: (target: string) => void;
-  setSelectedBranch: (branch: string | null) => void;
-  setSelectedProduct: (product: string | null) => void;
-  resetFilters: () => void;
-}
+  clearFilters: () => void;
+};
 
-export const useFilterStore = create<FilterState>((set) => ({
-  dateRange: [subDays(new Date(), 90), new Date()],
-  salesTarget: '100000',
-  selectedBranch: null,
-  selectedProduct: null,
-  
-  setDateRange: (dateRange) => set({ dateRange }),
-  setSalesTarget: (salesTarget) => set({ salesTarget }),
-  setSelectedBranch: (selectedBranch) => set({ selectedBranch }),
-  setSelectedProduct: (selectedProduct) => set({ selectedProduct }),
-  
-  resetFilters: () => set({
-    dateRange: [subDays(new Date(), 90), new Date()],
-    salesTarget: '100000',
-    selectedBranch: null,
-    selectedProduct: null,
+export const useFilterStore = create<FilterStore>(set => ({
+  startDate: null,
+  endDate: null,
+  selectedBranches: [],
+  selectedProductLines: [],
+  selectedItemGroups: [],
+  salesTarget: '',
+  setStartDate: (date) => set({ startDate: date }),
+  setEndDate: (date) => set({ endDate: date }),
+  setBranches: (branches) => set({ selectedBranches: branches }),
+  setProductLines: (lines) => set({ selectedProductLines: lines }),
+  setItemGroups: (groups) => set({ selectedItemGroups: groups }),
+  setSalesTarget: (target) => set({ salesTarget: target }),
+  clearFilters: () => set({
+    startDate: null,
+    endDate: null,
+    selectedBranches: [],
+    selectedProductLines: [],
+    selectedItemGroups: [],
+    salesTarget: '',
   }),
 }));

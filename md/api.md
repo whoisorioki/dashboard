@@ -29,25 +29,25 @@ For the main dashboard, use the `dashboardData` query to fetch all necessary dat
 
 ### Available Queries
 
-| Query Name                 | Arguments (all optional unless noted) | Returns/Schema                    |
-| -------------------------- | ------------------------------------- | --------------------------------- |
-| `dashboardData`            | startDate!, endDate!, branch, productLine, target | `DashboardData`                   |
-| `salespersonLeaderboard`   | startDate, endDate, branch            | `[SalespersonLeaderboardEntry]`   |
-| `productProfitability`     | startDate, endDate, branch            | `[ProductProfitabilityEntry]`     |
-| `salespersonProductMix`    | startDate, endDate, branch            | `[SalespersonProductMixEntry]`    |
-| `topCustomers`             | startDate, endDate, branch, n         | `[TopCustomerEntry]`              |
-| `monthlySalesGrowth`       | startDate, endDate, branch, productLine | `[MonthlySalesGrowth]`       |
-| `salesPerformance`         | startDate, endDate, branch, productLine | `[SalesPerformance]`         |
-| `productAnalytics`         | startDate, endDate, branch, productLine | `[ProductAnalytics]`         |
-| `revenueSummary`           | startDate, endDate, branch, productLine | `RevenueSummary`                  |
-| `branchPerformance`        | startDate, endDate, branch, productLine | `[BranchPerformance]`        |
-| `branchProductHeatmap`     | startDate, endDate, branch, productLine | `[BranchProductHeatmap]`     |
-| `targetAttainment`         | startDate, endDate, target            | `TargetAttainment`           |
-| `marginTrends`             | startDate, endDate                    | `[MarginTrendEntry]`              |
-| `returnsAnalysis`          | startDate, endDate, itemNames, salesPersons, branchNames | `[ReturnsAnalysisEntry]` |
-| `profitabilityByDimension` | startDate, endDate, dimension         | `[ProfitabilityByDimension]` |
-| `branchList`               | startDate, endDate                    | `[BranchListEntry]`               |
-| `dataRange`                |                                       | `DataRange`                       |
+| Query Name                 | Arguments (all optional unless noted)                                                     | Returns/Schema                  |
+| -------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------- |
+| `dashboardData`            | startDate!, endDate!, branch, productLine, itemGroups, target                             | `DashboardData`                 |
+| `salespersonLeaderboard`   | startDate, endDate, branch, itemGroups                                                    | `[SalespersonLeaderboardEntry]` |
+| `productProfitability`     | startDate, endDate, branch, itemGroups                                                    | `[ProductProfitabilityEntry]`   |
+| `salespersonProductMix`    | startDate, endDate, branch, itemGroups                                                    | `[SalespersonProductMixEntry]`  |
+| `topCustomers`             | startDate, endDate, branch, n, productLine, itemGroups                                    | `[TopCustomerEntry]`            |
+| `monthlySalesGrowth`       | startDate, endDate, branch, productLine, itemGroups                                       | `[MonthlySalesGrowth]`          |
+| `salesPerformance`         | startDate, endDate, branch, productLine, itemGroups                                       | `[SalesPerformance]`            |
+| `productAnalytics`         | startDate, endDate, branch, productLine, itemGroups                                       | `[ProductAnalytics]`            |
+| `revenueSummary`           | startDate, endDate, branch, productLine, itemGroups                                       | `RevenueSummary`                |
+| `branchPerformance`        | startDate, endDate, branch, productLine, itemGroups                                       | `[BranchPerformance]`           |
+| `branchProductHeatmap`     | startDate, endDate, branch, productLine, itemGroups                                       | `[BranchProductHeatmap]`        |
+| `targetAttainment`         | startDate, endDate, target, itemGroups                                                    | `TargetAttainment`              |
+| `marginTrends`             | startDate, endDate, itemGroups                                                            | `[MarginTrendEntry]`            |
+| `returnsAnalysis`          | startDate, endDate, itemNames, salesPersons, branchNames, branch, productLine, itemGroups | `[ReturnsAnalysisEntry]`        |
+| `profitabilityByDimension` | startDate, endDate, dimension, itemGroups                                                 | `[ProfitabilityByDimension]`    |
+| `branchList`               | startDate, endDate, itemGroups                                                            | `[BranchListEntry]`             |
+| `dataRange`                |                                                                                           | `DataRange`                     |
 
 ---
 
@@ -159,5 +159,16 @@ These endpoints are for system health checks and raw data access. They still fol
 
 - **Endpoint:** `/api/druid/datasources`
 - **Returns:** `{ "datasources": ["sales_analytics"], "count": 1 }`
+
+---
+
+## Filtering Architecture & Best Practices (2024 Update)
+
+- **Global Filter Bar:** Standardized, appears on all main pages. Contains Date Range, Branch, Product Line, and Item Group filters (all multi-select, searchable).
+- **State Management:** Global filter state managed by Zustand (`filterStore.ts`), not React Context. State shape: `{ startDate, endDate, selectedBranches, selectedProductLines, selectedItemGroups }`.
+- **Data Fetching:** All GraphQL hooks use queryKey derived from filterStore. When a filter changes, a new queryKey triggers React Query to check cache or fetch new data.
+- **Caching:** Cached data is returned instantly for previously used filter combinations. Filter state is persisted to localStorage.
+- **UI/UX:** Active filters shown as chips/tags, with individual removal and a reset button. Local (page-specific) filters do not affect global state.
+- **Field Distinction:** ProductLine = high-level brand/category; ItemGroup = sub-category (e.g., "Parts", "Units"). Both are first-class filters in all relevant queries and components.
 
 ---

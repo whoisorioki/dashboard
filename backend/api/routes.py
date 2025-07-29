@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from backend.services.sales_data import fetch_sales_data
 from backend.core.druid_client import druid_conn
 from backend.utils.response_envelope import envelope
+import logging
 
 router = APIRouter(prefix="/api", tags=["sales"])
 
@@ -230,6 +231,7 @@ async def get_data_range(request: Request):
         return str(val)
 
     try:
+        logging.info("Querying Druid for data range...")
         # Query Druid directly for min/max dates
         query = {
             "queryType": "scan",
@@ -245,6 +247,7 @@ async def get_data_range(request: Request):
         url = "http://localhost:8888/druid/v2/"
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, json=query, headers=headers, timeout=30)
+        logging.info(f"Earliest date Druid response: {response.text}")
 
         if response.status_code != 200:
             raise Exception(f"Druid query failed: {response.text}")
@@ -254,6 +257,7 @@ async def get_data_range(request: Request):
         # Get latest date
         query["order"] = "descending"
         response = requests.post(url, json=query, headers=headers, timeout=30)
+        logging.info(f"Latest date Druid response: {response.text}")
 
         if response.status_code != 200:
             raise Exception(f"Druid query failed: {response.text}")
@@ -295,10 +299,14 @@ async def get_data_range(request: Request):
             for segment in count_result:
                 if "events" in segment:
                     total_records += len(segment["events"])
+        logging.info(f"Total records Druid response: {response.text}")
 
         # Convert to ISO8601
         earliest_date = to_iso8601(earliest_date)
         latest_date = to_iso8601(latest_date)
+        logging.info(
+            f"Extracted earliest_date: {earliest_date}, latest_date: {latest_date}, total_records: {total_records}"
+        )
         return envelope(
             [
                 {

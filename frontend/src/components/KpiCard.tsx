@@ -15,6 +15,8 @@ import { useState, useEffect, useRef } from "react";
 import { formatKshAbbreviated } from "../lib/numberFormat";
 import { ResponsiveLine } from '@nivo/line';
 import { useNivoTheme } from '../hooks/useNivoTheme';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 
 // Animation for the card hover effect
 const floatAnimation = keyframes`

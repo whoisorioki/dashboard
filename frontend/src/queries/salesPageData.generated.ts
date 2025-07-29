@@ -20,7 +20,7 @@ export type SalesPageDataQueryVariables = Types.Exact<{
 }>;
 
 
-export type SalesPageDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, monthlySalesGrowth: Array<{ __typename?: 'MonthlySalesGrowth', date: string, totalSales?: number | null, grossProfit?: number | null }>, salesPerformance: Array<{ __typename?: 'SalesPerformance', salesPerson: string, totalSales: number, grossProfit?: number | null, transactionCount: number, averageSale: number, uniqueBranches: number, uniqueProducts: number, avgMargin?: number | null }>, salespersonProductMix: Array<{ __typename?: 'SalespersonProductMixEntry', salesperson: string, productLine: string, avgProfitMargin?: number | null }> };
+export type SalesPageDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, monthlySalesGrowth: Array<{ __typename?: 'MonthlySalesGrowth', date: string, totalSales?: number | null, grossProfit?: number | null }>, salesPerformance: Array<{ __typename?: 'SalesPerformance', salesPerson: string, totalSales: number, grossProfit?: number | null, transactionCount: number, averageSale: number, uniqueBranches: number, uniqueProducts: number, avgMargin?: number | null }> };
 
 
 
@@ -66,16 +66,6 @@ export const SalesPageDataDocument = `
     uniqueBranches
     uniqueProducts
     avgMargin
-  }
-  salespersonProductMix(
-    startDate: $startDate
-    endDate: $endDate
-    branch: $branch
-    productLine: $productLine
-  ) {
-    salesperson
-    productLine
-    avgProfitMargin
   }
 }
     ${MonthlySalesGrowthFieldsFragmentDoc}`;

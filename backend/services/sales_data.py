@@ -9,8 +9,8 @@ from fastapi import HTTPException
 import requests
 import json
 import logging
-import time    
-    
+import time
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -22,10 +22,28 @@ async def fetch_sales_data(
     item_names: Optional[List[str]] = None,
     sales_persons: Optional[List[str]] = None,
     branch_names: Optional[List[str]] = None,
+    item_groups: Optional[List[str]] = None,
 ) -> pl.DataFrame:
-    """
-    Asynchronously fetches sales data from Druid and returns it as a Polars DataFrame.
-    Raises HTTPException if Druid is unavailable or returns no data.
+    """Asynchronously fetches sales data from Druid and returns it as a Polars DataFrame.
+
+    Raises HTTPException if Druid is unavailable or returns no data. Supports filtering by item names, sales persons, branch names, and item groups.
+
+    Args:
+        start_date (str): Start date (YYYY-MM-DD).
+        end_date (str): End date (YYYY-MM-DD).
+        item_names (List[str], optional): List of item names to filter by.
+        sales_persons (List[str], optional): List of sales persons to filter by.
+        branch_names (List[str], optional): List of branch names to filter by.
+        item_groups (List[str], optional): List of item groups to filter by.
+
+    Returns:
+        pl.DataFrame: Polars DataFrame with sales data.
+
+    Raises:
+        HTTPException: If Druid is unavailable or returns no data.
+
+    Example:
+        >>> fetch_sales_data('2024-01-01', '2024-01-31', item_groups=['Parts'])
     """
 
     def _build_filter() -> Optional[Dict[str, Any]]:
@@ -48,6 +66,10 @@ async def fetch_sales_data(
         if branch_names:
             filters.append(
                 {"type": "in", "dimension": "Branch", "values": branch_names}
+            )
+        if item_groups:
+            filters.append(
+                {"type": "in", "dimension": "ItemGroup", "values": item_groups}
             )
         if not filters:
             return None
@@ -334,6 +356,7 @@ def get_employee_quotas(start_date: str, end_date: str) -> pl.DataFrame:
     Calculates the quota for all employees as the median of total sales for all employees during the specified time period.
     Returns a DataFrame with columns: SalesPerson, quota
     """
+
     async def _get():
         df = await fetch_sales_data(start_date, end_date)
         if (
@@ -358,4 +381,5 @@ def get_employee_quotas(start_date: str, end_date: str) -> pl.DataFrame:
                 "quota": [median_quota] * sales_per_employee.height,
             }
         )
+
     return asyncio.run(_get())

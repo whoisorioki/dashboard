@@ -1,0 +1,236 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Doosan",
+        "COUNTY_NAME": "Nairobi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [36.845, -1.305]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Eldoret",
+        "COUNTY_NAME": "Uasin Gishu"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [35.2699, 0.5143]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Engineering",
+        "COUNTY_NAME": "Nairobi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [36.8219, -1.2921]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Garmins",
+        "COUNTY_NAME": "Nairobi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [36.845, -1.305]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "IR",
+        "COUNTY_NAME": "Nairobi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [36.8219, -1.2921]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Kisii",
+        "COUNTY_NAME": "Kisii"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [34.7675, -0.6817]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Kisumu trading",
+        "COUNTY_NAME": "Kisumu"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [34.768, -0.0917]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Kitale",
+        "COUNTY_NAME": "Trans-Nzoia"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [35.0039, 1.0167]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Kitengela",
+        "COUNTY_NAME": "Kajiado"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [36.9667, -1.85]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Kubota",
+        "COUNTY_NAME": "Nairobi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [36.845, -1.305]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Lease",
+        "COUNTY_NAME": "Nairobi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [36.8219, -1.2921]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "MRF",
+        "COUNTY_NAME": "Nairobi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [36.8219, -1.2921]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Malindi",
+        "COUNTY_NAME": "Kilifi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [40.1167, -3.2167]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Mombasa trading",
+        "COUNTY_NAME": "Mombasa"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [39.6682, -4.0435]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Nairobi trading",
+        "COUNTY_NAME": "Nairobi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [36.845, -1.305]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Nakuru Distribution",
+        "COUNTY_NAME": "Nakuru"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [36.07, -0.3031]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Nakuru trading",
+        "COUNTY_NAME": "Nakuru"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [36.07, -0.3031]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Thika",
+        "COUNTY_NAME": "Kiambu"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [37.0833, -1.05]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Toyota",
+        "COUNTY_NAME": "Nairobi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [36.825, -1.304]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Voi",
+        "COUNTY_NAME": "Taita-Taveta"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [38.5667, -3.3917]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "BRANCH_NAME": "Unknown",
+        "COUNTY_NAME": "Nairobi"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [36.8219, -1.2921]
+      }
+    }
+  ]
+} 

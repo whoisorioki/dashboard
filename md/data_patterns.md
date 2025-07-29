@@ -11,6 +11,9 @@ This document describes the data flow, data pipeline, and data-fetching patterns
 - **Data Fetching:**
   - Uses generated GraphQL hooks (e.g., `useMonthlySalesGrowthQuery`, `useProductPerformanceQuery`) for each dashboard component.
   - Filters (date range, branch, product line) are passed as query params to each API call.
+  - **As of 2024, all global filter state is managed by Zustand (`filterStore.ts`), including new `itemGroups` filter.**
+  - **All data-fetching hooks construct their queryKey from the Zustand filterStore, ensuring optimal caching and minimal re-renders.**
+  - **Filter state is persisted to localStorage for seamless reloads.**
   - Data is fetched per-component, but batching via consolidated GraphQL queries is in progress for some pages.
   - React Query is used for caching, loading, and error states.
 
@@ -78,13 +81,24 @@ This document describes the data flow, data pipeline, and data-fetching patterns
 
 ## 4. Summary Table
 
-| Area                | Current Pattern                  | Recommendation                |
-|---------------------|----------------------------------|-------------------------------|
-| Data Fetching       | Per-component, per-endpoint      | Single query per dashboard    |
-| Over-fetching       | Yes (broad endpoints)            | No (request only needed fields)|
-| Under-fetching      | Yes (multiple endpoints needed)  | No (fetch all needed at once) |
-| Redundant Requests  | Yes (similar data fetched often) | No (batch in one query)       |
-| Error Handling      | Per-component                    | Global or per-dashboard       |
+| Area               | Current Pattern                  | Recommendation                  |
+| ------------------ | -------------------------------- | ------------------------------- |
+| Data Fetching      | Per-component, per-endpoint      | Single query per dashboard      |
+| Over-fetching      | Yes (broad endpoints)            | No (request only needed fields) |
+| Under-fetching     | Yes (multiple endpoints needed)  | No (fetch all needed at once)   |
+| Redundant Requests | Yes (similar data fetched often) | No (batch in one query)         |
+| Error Handling     | Per-component                    | Global   |
+
+---
+
+## 5. Filtering Architecture & Best Practices (2024 Update)
+
+- **Global Filter Bar:** Standardized, appears on all main pages. Contains Date Range, Branch, Product Line, and Item Group filters (all multi-select, searchable).
+- **State Management:** Global filter state managed by Zustand (`filterStore.ts`), not React Context. State shape: `{ startDate, endDate, selectedBranches, selectedProductLines, selectedItemGroups }`.
+- **Data Fetching:** All GraphQL hooks use queryKey derived from filterStore. When a filter changes, a new queryKey triggers React Query to check cache or fetch new data.
+- **Caching:** Cached data is returned instantly for previously used filter combinations. Filter state is persisted to localStorage.
+- **UI/UX:** Active filters shown as chips/tags, with individual removal and a reset button. Local (page-specific) filters do not affect global state.
+- **Field Distinction:** ProductLine = high-level brand/category; ItemGroup = sub-category (e.g., "Parts", "Units"). Both are first-class filters in all relevant queries and components.
 
 ---
 
