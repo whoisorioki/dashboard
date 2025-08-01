@@ -5,9 +5,9 @@ from pydantic import BaseModel
 from typing import Optional
 import requests
 from datetime import datetime, timezone
-from backend.services.sales_data import fetch_sales_data
-from backend.core.druid_client import druid_conn
-from backend.utils.response_envelope import envelope
+from services.sales_data import fetch_sales_data
+from core.druid_client import druid_conn
+from utils.response_envelope import envelope
 import logging
 
 router = APIRouter(prefix="/api", tags=["sales"])

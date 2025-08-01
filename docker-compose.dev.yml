@@ -10,9 +10,9 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DRUID_BROKER_HOST=localhost # Connect to Druid running on the host machine
+      - DRUID_BROKER_HOST=host.docker.internal 
       - DRUID_BROKER_PORT=8888
-      - DRUID_DATASOURCE=sales_data
+      - DRUID_DATASOURCE=sales_analytics
       - PYTHONPATH=/app
     volumes:
       - ./backend:/app/backend

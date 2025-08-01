@@ -177,7 +177,7 @@ services:
     image: apache/druid:0.23.0
     container_name: druid-router
     ports:
-      - "8888:8888"
+      - "8889:8888"
     environment:
       - DRUID_XMX=1g
       - DRUID_XMS=1g

@@ -5,7 +5,7 @@ import logging
 import requests
 from datetime import datetime
 import asyncio
-from backend.services.sales_data import fetch_sales_data
+from services.sales_data import fetch_sales_data
 
 
 def _ensure_time_is_datetime(df: pl.DataFrame) -> pl.DataFrame:
@@ -52,7 +52,10 @@ def _ensure_time_is_datetime(df: pl.DataFrame) -> pl.DataFrame:
 
 
 async def calculate_monthly_sales_growth(
-    start_date: str, end_date: str, branch: str | None = None, product_line: str | None = None
+    start_date: str,
+    end_date: str,
+    branch: str | None = None,
+    product_line: str | None = None,
 ) -> list:
     """
     Fetches sales data from Druid (via sales_data.py) and aggregates by month, with optional branch and product_line filters.

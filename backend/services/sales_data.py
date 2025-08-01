@@ -2,7 +2,7 @@ import os
 import polars as pl
 import asyncio
 from datetime import datetime, timedelta
-from backend.core.druid_client import druid_conn, DRUID_DATASOURCE
+from core.druid_client import druid_conn, DRUID_DATASOURCE
 from starlette.concurrency import run_in_threadpool
 from typing import Optional, List, Dict, Any
 from fastapi import HTTPException
@@ -300,6 +300,28 @@ def get_data_range_from_druid() -> dict:
     Returns a dict: { 'earliest_date': str, 'latest_date': str, 'total_records': int }
     """
     import requests
+    from datetime import datetime
+
+    def convert_timestamp_to_iso(timestamp_value):
+        """Convert Unix timestamp (ms or s) to ISO 8601 string"""
+        if timestamp_value is None:
+            return None
+        
+        try:
+            # Handle string timestamps
+            if isinstance(timestamp_value, str):
+                timestamp_value = int(timestamp_value)
+            
+            # If timestamp is in seconds (< year 2100 in milliseconds), convert to milliseconds
+            if timestamp_value < 4102444800000:
+                timestamp_value = timestamp_value * 1000
+            
+            # Convert to datetime and format as ISO string
+            dt = datetime.fromtimestamp(timestamp_value / 1000)
+            return dt.isoformat() + "Z"
+        except (ValueError, TypeError) as e:
+            print(f"Error converting timestamp {timestamp_value}: {e}")
+            return None
 
     url = "http://localhost:8888/druid/v2/"
     headers = {"Content-Type": "application/json"}
@@ -319,7 +341,8 @@ def get_data_range_from_druid() -> dict:
         result = response.json()
         if result and len(result) > 0 and "events" in result[0]:
             if len(result[0]["events"]) > 0:
-                earliest_date = result[0]["events"][0][0]
+                raw_earliest = result[0]["events"][0][0]
+                earliest_date = convert_timestamp_to_iso(raw_earliest)
     # Latest date
     query["order"] = "descending"
     response = requests.post(url, json=query, headers=headers, timeout=30)
@@ -328,7 +351,8 @@ def get_data_range_from_druid() -> dict:
         result = response.json()
         if result and len(result) > 0 and "events" in result[0]:
             if len(result[0]["events"]) > 0:
-                latest_date = result[0]["events"][0][0]
+                raw_latest = result[0]["events"][0][0]
+                latest_date = convert_timestamp_to_iso(raw_latest)
     # Total records
     count_query = {
         "queryType": "scan",

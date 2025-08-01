@@ -22,24 +22,20 @@ import {
   Dashboard as DashboardIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
-import { differenceInCalendarDays, subDays, parseISO } from "date-fns";
+import { differenceInCalendarDays, subDays } from "date-fns";
 import PageHeader from "../components/PageHeader";
 import KpiCard from "../components/KpiCard";
 import MonthlySalesTrendChart from "../components/MonthlySalesTrendChart";
 import GeographicProfitabilityMap from "../components/GeographicProfitabilityMap";
+import BranchProductHeatmap from "../components/BranchProductHeatmap";
 import EnhancedTopCustomersTable from "../components/EnhancedTopCustomersTable";
-import ChartEmptyState from "../components/states/ChartEmptyState";
-import DataStateWrapper from "../components/DataStateWrapper";
 import { useDashboardDataQuery } from "../queries/dashboardData.generated";
-import { useFilters } from "../context/FilterContext";
 import { queryKeys } from "../lib/queryKeys";
 import { useMemo } from "react";
 import { useDataRange } from "../hooks/useDataRange";
 
-import { useNavigate } from "react-router-dom";
 import { graphqlClient } from "../lib/graphqlClient";
-import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
-import FilterBar from "../components/FilterBar";
+import { formatKshAbbreviated, formatPercentage, formatChange } from "../lib/numberFormat";
 import { useFilterStore, FilterStore } from "../store/filterStore";
 import Alert from '@mui/material/Alert';
 
@@ -243,23 +239,53 @@ const Dashboard = () => {
   const grossProfitMarginChange = grossProfitMargin - prevGrossProfitMargin;
   const grossProfitMarginDirection = grossProfitMarginChange > 0 ? 'up' : grossProfitMarginChange < 0 ? 'down' : 'neutral';
 
-  // Avg Deal Size (using lineItemCount for transaction count)
-  const avgDealSize = safeRevenueSummary?.lineItemCount && safeRevenueSummary.lineItemCount > 0
-    ? totalSales / safeRevenueSummary.lineItemCount
+  // Average Profit per Transaction (using lineItemCount for transaction count)
+  const avgProfitPerTransaction = safeRevenueSummary?.lineItemCount && safeRevenueSummary.lineItemCount > 0
+    ? grossProfit / safeRevenueSummary.lineItemCount
     : null;
-  const prevAvgDealSize = safePrevRevenueSummary?.lineItemCount && safePrevRevenueSummary.lineItemCount > 0
-    ? prevTotalSales / safePrevRevenueSummary.lineItemCount
+  const prevAvgProfitPerTransaction = safePrevRevenueSummary?.lineItemCount && safePrevRevenueSummary.lineItemCount > 0
+    ? prevGrossProfit / safePrevRevenueSummary.lineItemCount
     : null;
-  const avgDealSizeChange = (avgDealSize ?? 0) - (prevAvgDealSize ?? 0);
-  const avgDealSizeDirection = avgDealSizeChange > 0 ? 'up' : avgDealSizeChange < 0 ? 'down' : 'neutral';
+  const avgProfitPerTransactionChange = (avgProfitPerTransaction ?? 0) - (prevAvgProfitPerTransaction ?? 0);
+  const avgProfitPerTransactionDirection = avgProfitPerTransactionChange > 0 ? 'up' : avgProfitPerTransactionChange < 0 ? 'down' : 'neutral';
+
+  // Prepare sparkline data from monthly sales growth
+  const salesSparklineData = useMemo(() => {
+    if (!safeMonthlySalesGrowth || safeMonthlySalesGrowth.length === 0) return [];
+    return safeMonthlySalesGrowth.map((item, index) => ({
+      x: index,
+      y: item.totalSales || 0
+    }));
+  }, [safeMonthlySalesGrowth]);
+
+  const profitSparklineData = useMemo(() => {
+    if (!safeMonthlySalesGrowth || safeMonthlySalesGrowth.length === 0) return [];
+    return safeMonthlySalesGrowth.map((item, index) => ({
+      x: index,
+      y: item.grossProfit || 0
+    }));
+  }, [safeMonthlySalesGrowth]);
+
+  const marginSparklineData = useMemo(() => {
+    if (!safeMonthlySalesGrowth || safeMonthlySalesGrowth.length === 0) return [];
+    return safeMonthlySalesGrowth.map((item, index) => {
+      const sales = item.totalSales || 0;
+      const profit = item.grossProfit || 0;
+      const margin = sales > 0 ? (profit / sales) * 100 : 0;
+      return {
+        x: index,
+        y: margin
+      };
+    });
+  }, [safeMonthlySalesGrowth]);
 
   // Prepare sparkline data for the last 12 periods
   const getLastN = (arr, n) => arr.slice(-n);
   const salesSparkline = getLastN(safeMonthlySalesGrowth, 12).map(d => ({ x: d.month || d.date || '', y: d.totalSales || 0 }));
   const grossProfitSparkline = getLastN(safeMonthlySalesGrowth, 12).map(d => ({ x: d.month || d.date || '', y: d.grossProfit || 0 }));
-  const avgDealSizeSparkline = getLastN(safeMonthlySalesGrowth, 12).map(d => ({
+  const avgProfitPerTransactionSparkline = getLastN(safeMonthlySalesGrowth, 12).map(d => ({
     x: d.month || d.date || '',
-    y: d.totalTransactions ? d.totalSales / d.totalTransactions : 0,
+    y: d.totalTransactions ? (d.grossProfit || 0) / d.totalTransactions : 0,
   }));
   const grossProfitMarginSparkline = getLastN(safeMonthlySalesGrowth, 12).map(d => ({
     x: d.month || d.date || '',
@@ -273,9 +299,9 @@ const Dashboard = () => {
   const showNoDataWarning = !dashboardData; // Changed to check if dashboardData is available
 
   return (
-    <>
+    <Box sx={{ mt: { xs: 1, sm: 2 }, p: { xs: 1, sm: 2 } }}>
       {showNoDataWarning && (
-        <Alert severity="warning" sx={{ mt: 0, mb: 0 }}>
+        <Alert severity="warning" sx={{ mb: 2 }}>
           No data found for the selected date range. Please adjust your filters.
         </Alert>
       )}
@@ -286,14 +312,14 @@ const Dashboard = () => {
       />
 
       {/* Dynamic Summary Sentence */}
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: 2 }}>
         <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 500 }}>
           {totalSales > 0 ? (
             <>
               {grossProfitDirection === 'up' ? 'Strong' : grossProfitDirection === 'down' ? 'Challenging' : 'Stable'} performance with{' '}
               <strong>{formatKshAbbreviated(totalSales)}</strong> in sales and{' '}
               <strong>{formatKshAbbreviated(grossProfit)}</strong> in gross profit
-              ({formatPercentage(grossProfitMargin)} margin).
+              ({formatPercentage(grossProfitMargin, { decimals: 1, showBadge: false })} margin).
               {grossProfitMargin > 20 ? ' Excellent profitability maintained.' :
                 grossProfitMargin > 10 ? ' Good profitability levels.' :
                   ' Focus on margin improvement needed.'}
@@ -303,7 +329,9 @@ const Dashboard = () => {
           )}
         </Typography>
       </Box>
-      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 2 }}>
+
+      {/* KPI CARDS SECTION */}
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
             title="Total Sales"
@@ -312,10 +340,10 @@ const Dashboard = () => {
             tooltipText="Total sales revenue for the selected period."
             isLoading={loadingDashboard}
             trend={totalSalesDirection}
-            trendValue={formatKshAbbreviated(totalSales)}
+            trendValue={formatChange(prevTotalSales > 0 ? (totalSalesChange / prevTotalSales) * 100 : 0, { showArrow: true })}
             color="primary"
             metricKey="totalSales"
-            sparklineData={salesSparkline}
+            sparklineData={salesSparklineData}
             vsValue={totalSalesChange}
             vsPercent={prevTotalSales > 0 ? (totalSalesChange / prevTotalSales) * 100 : 0}
             vsDirection={totalSalesDirection}
@@ -330,10 +358,10 @@ const Dashboard = () => {
             tooltipText="Gross profit for the selected period."
             isLoading={loadingDashboard}
             trend={grossProfitDirection}
-            trendValue={formatKshAbbreviated(grossProfit)}
+            trendValue={formatChange(prevGrossProfit > 0 ? (grossProfitChange / prevGrossProfit) * 100 : 0, { showArrow: true })}
             color="success"
             metricKey="grossProfit"
-            sparklineData={grossProfitSparkline}
+            sparklineData={profitSparklineData}
             vsValue={grossProfitChange}
             vsPercent={prevGrossProfit > 0 ? (grossProfitChange / prevGrossProfit) * 100 : 0}
             vsDirection={grossProfitDirection}
@@ -342,34 +370,34 @@ const Dashboard = () => {
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
-            title="Avg Deal Size"
-            value={avgDealSize}
+            title="Average Profit per Transaction"
+            value={avgProfitPerTransaction}
             icon={<ReceiptLongIcon />}
-            tooltipText="Average value per transaction."
+            tooltipText="Average gross profit earned per transaction."
             isLoading={loadingDashboard}
-            trend={avgDealSizeDirection}
-            trendValue={formatKshAbbreviated(avgDealSize ?? 0)}
+            trend={avgProfitPerTransactionDirection}
+            trendValue={formatChange(prevAvgProfitPerTransaction && prevAvgProfitPerTransaction > 0 ? (avgProfitPerTransactionChange / prevAvgProfitPerTransaction) * 100 : 0, { showArrow: true })}
             color="info"
-            metricKey="avgDealSize"
-            sparklineData={avgDealSizeSparkline}
-            vsValue={avgDealSizeChange}
-            vsPercent={prevAvgDealSize && prevAvgDealSize > 0 ? (avgDealSizeChange / prevAvgDealSize) * 100 : 0}
-            vsDirection={avgDealSizeDirection}
-            vsColor={avgDealSizeDirection === 'up' ? 'success' : avgDealSizeDirection === 'down' ? 'error' : 'default'}
+            metricKey="avgProfitPerTransaction"
+            sparklineData={profitSparklineData}
+            vsValue={avgProfitPerTransactionChange}
+            vsPercent={prevAvgProfitPerTransaction && prevAvgProfitPerTransaction > 0 ? (avgProfitPerTransactionChange / prevAvgProfitPerTransaction) * 100 : 0}
+            vsDirection={avgProfitPerTransactionDirection}
+            vsColor={avgProfitPerTransactionDirection === 'up' ? 'success' : avgProfitPerTransactionDirection === 'down' ? 'error' : 'default'}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
             title="Gross Profit Margin %"
-            value={formatPercentage(grossProfitMargin)}
+            value={formatPercentage(grossProfitMargin, { decimals: 1, showBadge: true })}
             icon={<TargetIcon />}
             tooltipText="Gross profit margin percentage for the selected period."
             isLoading={loadingDashboard}
             trend={grossProfitMarginDirection}
-            trendValue={formatPercentage(grossProfitMargin)}
+            trendValue={formatChange(grossProfitMarginChange, { showArrow: true, decimals: 1 })}
             color="warning"
             metricKey="grossProfitMargin"
-            sparklineData={grossProfitMarginSparkline}
+            sparklineData={marginSparklineData}
             vsValue={grossProfitMarginChange}
             vsPercent={grossProfitMarginChange}
             vsDirection={grossProfitMarginDirection}
@@ -379,7 +407,7 @@ const Dashboard = () => {
       </Grid>
 
       {/* CHARTS SECTION - F-Pattern Layout: Most critical info top-left */}
-      <Grid container spacing={{ xs: 2, sm: 3 }}>
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mt: 2 }}>
         {/* Sales vs. Profit Trend Chart (Primary - Top Left) */}
         <Grid item xs={12} md={8}>
           <MonthlySalesTrendChart
@@ -397,8 +425,18 @@ const Dashboard = () => {
         </Grid>
       </Grid>
 
+      {/* Branch Product Heatmap (Full Width) */}
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mt: 2 }}>
+        <Grid item xs={12}>
+          <BranchProductHeatmap
+            data={safeHeatmapData}
+            isLoading={loadingDashboard}
+          />
+        </Grid>
+      </Grid>
+
       {/* Second Row - Top Customers Table (Full Width) */}
-      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mt: 1 }}>
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mt: 2 }}>
         <Grid item xs={12}>
           <EnhancedTopCustomersTable
             customers={safeTopCustomers}
@@ -428,7 +466,7 @@ const Dashboard = () => {
           </Box>
         )
       }
-    </>
+    </Box>
   );
 };
 export default Dashboard;

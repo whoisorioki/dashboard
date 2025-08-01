@@ -17,6 +17,10 @@ import { DarkMode, LightMode, AccountCircle } from '@mui/icons-material';
 import DateRangePicker from '../DateRangePicker';
 import { useFilterStore } from '../../store/filterStore';
 import { useTheme } from '../../context/ThemeContext';
+import { useDashboardDataQuery } from '../../queries/dashboardData.generated';
+import { graphqlClient } from '../../lib/graphqlClient';
+import { format } from 'date-fns';
+import { useMemo } from 'react';
 
 /**
  * MergedHeader component that combines the filter bar with theme toggle and user profile.
@@ -49,6 +53,38 @@ export default function MergedHeader() {
     } = useFilterStore();
 
     const { isDarkMode, toggleTheme } = useTheme();
+
+    // Fetch real data for filter options
+    const { data: dashboardDataResult } = useDashboardDataQuery(
+        graphqlClient,
+        {
+            startDate: startDate ? format(startDate, 'yyyy-MM-dd') : format(new Date(2025, 0, 1), 'yyyy-MM-dd'),
+            endDate: endDate ? format(endDate, 'yyyy-MM-dd') : format(new Date(2025, 0, 31), 'yyyy-MM-dd'),
+        }
+    );
+    const dashboardData = dashboardDataResult?.dashboardData;
+
+    // Extract real options from API data
+    const branchOptions = useMemo(() => {
+        if (dashboardData?.branchList && Array.isArray(dashboardData.branchList)) {
+            return dashboardData.branchList.map((b: any) => b.branch).filter(Boolean);
+        }
+        return []; // Empty array instead of hardcoded fallback
+    }, [dashboardData]);
+
+    const productLineOptions = useMemo(() => {
+        if (dashboardData?.productAnalytics && Array.isArray(dashboardData.productAnalytics)) {
+            return Array.from(new Set(dashboardData.productAnalytics.map((p: any) => p.productLine))).filter(Boolean);
+        }
+        return []; // Empty array instead of hardcoded fallback
+    }, [dashboardData]);
+
+    const itemGroupOptions = useMemo(() => {
+        if (dashboardData?.productAnalytics && Array.isArray(dashboardData.productAnalytics)) {
+            return Array.from(new Set(dashboardData.productAnalytics.map((p: any) => p.itemGroup))).filter(Boolean);
+        }
+        return []; // Empty array instead of hardcoded fallback
+    }, [dashboardData]);
 
     // Handle date changes from the DateRangePicker
     const handleDateRangeChange = ([start, end]: [Date | null, Date | null]) => {
@@ -125,9 +161,11 @@ export default function MergedHeader() {
                             input={<OutlinedInput label="Branches" />}
                             renderValue={renderChips}
                         >
-                            <MenuItem value="Nairobi">Nairobi</MenuItem>
-                            <MenuItem value="Mombasa">Mombasa</MenuItem>
-                            <MenuItem value="Kisumu">Kisumu</MenuItem>
+                            {branchOptions.map((branch) => (
+                                <MenuItem key={branch} value={branch}>
+                                    {branch}
+                                </MenuItem>
+                            ))}
                         </Select>
                     </FormControl>
                     <FormControl size="small" sx={{ minWidth: 180 }}>
@@ -139,9 +177,11 @@ export default function MergedHeader() {
                             input={<OutlinedInput label="Product Lines" />}
                             renderValue={renderChips}
                         >
-                            <MenuItem value="Electronics">Electronics</MenuItem>
-                            <MenuItem value="Clothing">Clothing</MenuItem>
-                            <MenuItem value="Home & Garden">Home & Garden</MenuItem>
+                            {productLineOptions.map((productLine) => (
+                                <MenuItem key={productLine} value={productLine}>
+                                    {productLine}
+                                </MenuItem>
+                            ))}
                         </Select>
                     </FormControl>
                     <FormControl size="small" sx={{ minWidth: 180 }}>
@@ -153,9 +193,11 @@ export default function MergedHeader() {
                             input={<OutlinedInput label="Item Groups" />}
                             renderValue={renderChips}
                         >
-                            <MenuItem value="Smartphones">Smartphones</MenuItem>
-                            <MenuItem value="Laptops">Laptops</MenuItem>
-                            <MenuItem value="Accessories">Accessories</MenuItem>
+                            {itemGroupOptions.map((itemGroup) => (
+                                <MenuItem key={itemGroup} value={itemGroup}>
+                                    {itemGroup}
+                                </MenuItem>
+                            ))}
                         </Select>
                     </FormControl>
                     <Button

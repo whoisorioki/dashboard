@@ -1,6 +1,13 @@
 #import "./fragments.graphql"
 
-query DashboardData($startDate: String!, $endDate: String!, $branch: String, $productLine: String, $itemGroups: [String!], $target: Float) {
+query DashboardData(
+  $startDate: String!
+  $endDate: String!
+  $branch: String
+  $productLine: String
+  $itemGroups: [String!]
+  $target: Float
+) {
   dashboardData(
     startDate: $startDate
     endDate: $endDate
