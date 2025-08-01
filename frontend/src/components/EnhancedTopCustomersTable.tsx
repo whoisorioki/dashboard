@@ -63,7 +63,7 @@ const EnhancedTopCustomersTable: React.FC<EnhancedTopCustomersTableProps> = ({
 
     // State for pagination and search
     const [page, setPage] = useState(0);
-    const [rowsPerPage, setRowsPerPage] = useState(5); // Changed to 5 for default view
+    const [rowsPerPage, setRowsPerPage] = useState(10); // Changed from 5 to 10 to match available options
     const [searchTerm, setSearchTerm] = useState("");
     const [sortBy, setSortBy] = useState<"grossProfit" | "salesAmount" | "margin">("grossProfit");
 
@@ -362,7 +362,7 @@ const EnhancedTopCustomersTable: React.FC<EnhancedTopCustomersTableProps> = ({
                     onPageChange={handleChangePage}
                     rowsPerPage={rowsPerPage}
                     onRowsPerPageChange={handleChangeRowsPerPage}
-                    rowsPerPageOptions={[10, 25, 50, 100, 250, 500]}
+                    rowsPerPageOptions={[5, 10, 25, 50, 100, 250, 500]}
                     labelRowsPerPage="Rows per page:"
                     labelDisplayedRows={({ from, to, count }) => `${from}-${to} of ${count}`}
                     sx={{

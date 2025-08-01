@@ -34,6 +34,7 @@ import { useDashboardDataQuery } from "../queries/dashboardData.generated";
 import { useFilters } from "../context/FilterContext";
 import { queryKeys } from "../lib/queryKeys";
 import { useMemo } from "react";
+import { useDataRange } from "../hooks/useDataRange";
 
 import { useNavigate } from "react-router-dom";
 import { graphqlClient } from "../lib/graphqlClient";
@@ -67,9 +68,36 @@ const Dashboard = () => {
   const setSalesTarget = filterStore.setSalesTarget;
   const clearFilters = filterStore.clearFilters;
 
+  // Get data range constraints
+  const { minDate, maxDate, isLoading: dataRangeLoading } = useDataRange();
+
+  // Set default dates if none are selected - ensure we use dates where data exists
+  const effectiveStartDate = startDate || minDate || new Date('2025-01-01');
+  const effectiveEndDate = endDate || maxDate || new Date('2025-01-31');
+
+  // Ensure we don't query beyond the available data range
+  const finalStartDate = maxDate && effectiveStartDate > maxDate ? maxDate : effectiveStartDate;
+  const finalEndDate = minDate && effectiveEndDate < minDate ? minDate : effectiveEndDate;
+
+  // Development-only: Force reset to January 2025 if dates are wrong
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development' && startDate && endDate) {
+      const startMonth = startDate.getMonth();
+      const startYear = startDate.getFullYear();
+      const endMonth = endDate.getMonth();
+      const endYear = endDate.getFullYear();
+
+      // If dates are not January 2025, reset them
+      if (startYear !== 2025 || startMonth !== 0 || endYear !== 2025 || endMonth !== 0) {
+        console.log('Development: Resetting dates to January 2025');
+        filterStore.resetToDefaults();
+      }
+    }
+  }, [startDate, endDate, filterStore]);
+
   // Calculate previous period
-  const currentStart = startDate;
-  const currentEnd = endDate;
+  const currentStart = finalStartDate;
+  const currentEnd = finalEndDate;
   let prevStart: Date | null = null;
   let prevEnd: Date | null = null;
   if (currentStart && currentEnd) {
@@ -82,12 +110,12 @@ const Dashboard = () => {
 
   // Memoized filters for query keys
   const filters = useMemo(() => ({
-    dateRange: { start: startDate, end: endDate },
+    dateRange: { start: finalStartDate, end: finalEndDate },
     branches: selectedBranches,
     productLines: selectedProductLines,
     itemGroups: selectedItemGroups,
     target: salesTarget ? parseFloat(salesTarget) : undefined,
-  }), [startDate, endDate, selectedBranches, selectedProductLines, selectedItemGroups, salesTarget]);
+  }), [finalStartDate, finalEndDate, selectedBranches, selectedProductLines, selectedItemGroups, salesTarget]);
   const prevFilters = useMemo(() => ({
     dateRange: { start: prevStartStr, end: prevEndStr },
     branches: selectedBranches,
@@ -100,21 +128,21 @@ const Dashboard = () => {
   const dashboardQueryKey = useMemo(() => [
     'dashboardData',
     {
-      startDate: startDate instanceof Date ? format(startDate, 'yyyy-MM-dd') : undefined,
-      endDate: endDate instanceof Date ? format(endDate, 'yyyy-MM-dd') : undefined,
+      startDate: format(finalStartDate, 'yyyy-MM-dd'),
+      endDate: format(finalEndDate, 'yyyy-MM-dd'),
       branches: selectedBranches,
       productLines: selectedProductLines,
       itemGroups: selectedItemGroups,
       target: salesTarget,
     }
-  ], [startDate, endDate, selectedBranches, selectedProductLines, selectedItemGroups, salesTarget]);
+  ], [finalStartDate, finalEndDate, selectedBranches, selectedProductLines, selectedItemGroups, salesTarget]);
 
   // Fetch dashboard data with all filters
   const { data: dashboardDataResult, isLoading: loadingDashboard, error: dashboardError } = useDashboardDataQuery(
     graphqlClient,
     {
-      startDate: startDate instanceof Date ? format(startDate, 'yyyy-MM-dd') : undefined,
-      endDate: endDate instanceof Date ? format(endDate, 'yyyy-MM-dd') : undefined,
+      startDate: format(finalStartDate, 'yyyy-MM-dd'),
+      endDate: format(finalEndDate, 'yyyy-MM-dd'),
       branch: selectedBranches.length === 1 ? selectedBranches[0] : undefined,
       productLine: selectedProductLines.length === 1 ? selectedProductLines[0] : undefined,
       itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
@@ -247,7 +275,7 @@ const Dashboard = () => {
   return (
     <>
       {showNoDataWarning && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
+        <Alert severity="warning" sx={{ mt: 0, mb: 0 }}>
           No data found for the selected date range. Please adjust your filters.
         </Alert>
       )}

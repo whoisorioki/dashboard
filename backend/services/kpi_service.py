@@ -52,7 +52,7 @@ def _ensure_time_is_datetime(df: pl.DataFrame) -> pl.DataFrame:
 
 
 async def calculate_monthly_sales_growth(
-    start_date: str, end_date: str, branch: str = None, product_line: str = None
+    start_date: str, end_date: str, branch: str | None = None, product_line: str | None = None
 ) -> list:
     """
     Fetches sales data from Druid (via sales_data.py) and aggregates by month, with optional branch and product_line filters.
@@ -426,6 +426,7 @@ def calculate_revenue_summary(df: pl.DataFrame) -> dict:
         return {
             "total_revenue": 0.0,
             "net_sales": 0.0,
+            "gross_profit": 0.0,
             "line_item_count": 0,
             "average_transaction": 0.0,
             "unique_products": 0,
@@ -436,6 +437,7 @@ def calculate_revenue_summary(df: pl.DataFrame) -> dict:
         }
     total_revenue = sum_gross_revenue(df)
     net_sales = sum_net_sales(df)
+    gross_profit = calc_gross_profit(df)
     net_units_sold = sum_net_units_sold(df)
     line_item_count = (
         float(df.lazy().select(pl.sum("lineItemCount")).collect().item())
@@ -458,6 +460,7 @@ def calculate_revenue_summary(df: pl.DataFrame) -> dict:
     return {
         "total_revenue": round(total_revenue, 2),
         "net_sales": round(net_sales, 2),
+        "gross_profit": round(gross_profit, 2),
         "line_item_count": int(line_item_count),
         "average_transaction": round(average_transaction, 2),
         "unique_products": unique_products,

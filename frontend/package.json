@@ -41,6 +41,7 @@
     "mui-daterange-picker-plus": "^1.0.8",
     "node-fetch": "^3.3.2",
     "react": "^18.3.1",
+    "react-date-range": "^2.0.1",
     "react-day-picker": "^9.8.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.22.3",

@@ -14,12 +14,14 @@ import {
 } from "@mui/material";
 import DateRangePicker from "./DateRangePicker";
 import { useFilterStore } from "../store/filterStore";
+import { useDataRange } from "../hooks/useDataRange";
 
 /**
  * Global Filter Bar for the dashboard.
  *
  * Provides a consistent, global filter UI for date range, branches, product lines, and item groups.
  * Uses Zustand for state management and persists state to localStorage. Supports multi-select and chip display for all filters.
+ * Integrates with data range constraints to ensure valid date selections.
  *
  * Args:
  *   branchOptions (string[]): List of available branches.
@@ -56,6 +58,9 @@ const FilterBar: React.FC<FilterBarProps> = ({
     setItemGroups,
     clearFilters,
   } = useFilterStore();
+
+  // Get data range constraints
+  const { minDate, maxDate, isLoading: dataRangeLoading } = useDataRange();
 
   // Helper for multi-select
   const handleMultiSelect = (
@@ -95,12 +100,8 @@ const FilterBar: React.FC<FilterBarProps> = ({
     </Stack>
   );
 
-  // Handle date and time changes from the new DateRangePicker
+  // Handle date changes from the DateRangePicker
   const handleDateRangeChange = ([start, end]: [Date | null, Date | null]) => {
-    setStartDate(start);
-    setEndDate(end);
-  };
-  const handleTimeChange = ([start, end]: [Date | null, Date | null]) => {
     setStartDate(start);
     setEndDate(end);
   };
@@ -128,8 +129,9 @@ const FilterBar: React.FC<FilterBarProps> = ({
         <DateRangePicker
           startDate={startDate}
           endDate={endDate}
+          minDate={minDate}
+          maxDate={maxDate}
           onChange={handleDateRangeChange}
-          onTimeChange={handleTimeChange}
         />
         <FormControl size="small" sx={{ minWidth: 180 }}>
           <InputLabel>Branches</InputLabel>

@@ -4,15 +4,16 @@ import { subDays } from 'date-fns';
 // These are fallback values if the API fails
 
 export const FALLBACK_DATE_RANGE = {
-  // Earliest data available (fallback)
-  MIN_DATE: subDays(new Date(), 90),
+  // Earliest data available (fallback) - extended to last year (2024)
+  MIN_DATE: new Date('2024-01-01'),
   // Latest data available (fallback)
   MAX_DATE: new Date('2025-06-01'),
 }
 
-// Helper function to get fallback date range (last 90 days)
+// Helper function to get default date range (January 2025 where data exists)
 export const getDefaultDateRange = (): [Date, Date] => {
-  return [FALLBACK_DATE_RANGE.MIN_DATE, FALLBACK_DATE_RANGE.MAX_DATE]
+  // Return January 2025 as the default period where we know data exists
+  return [new Date('2025-01-01'), new Date('2025-01-31')]
 }
 
 // Helper function to validate date range
