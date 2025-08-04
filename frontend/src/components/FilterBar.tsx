@@ -12,7 +12,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import EnhancedDateRangePicker from "./EnhancedDateRangePicker";
+import SimpleDateRangePicker from "./SimpleDateRangePicker";
 import { useFilterStore } from "../store/filterStore";
 import { useDataRange } from "../hooks/useDataRange";
 
@@ -102,8 +102,16 @@ const FilterBar: React.FC<FilterBarProps> = ({
 
   // Handle date changes from the DateRangePicker
   const handleDateRangeChange = ([start, end]: [Date | null, Date | null]) => {
+    console.log('🔄 FilterBar - Received date change:', {
+      start: start ? start.toISOString().split('T')[0] : null,
+      end: end ? end.toISOString().split('T')[0] : null,
+      timestamp: new Date().toISOString()
+    });
+
     setStartDate(start);
     setEndDate(end);
+
+    console.log('🔄 FilterBar - Updated filter store');
   };
 
   return (
@@ -126,9 +134,11 @@ const FilterBar: React.FC<FilterBarProps> = ({
       }}
     >
       <Box sx={{ width: "100%", display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
-        <EnhancedDateRangePicker
+        <SimpleDateRangePicker
           startDate={startDate}
           endDate={endDate}
+          minDate={minDate}
+          maxDate={maxDate}
           onChange={handleDateRangeChange}
         />
         <FormControl size="small" sx={{ minWidth: 180 }}>

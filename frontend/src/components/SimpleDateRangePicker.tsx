@@ -71,14 +71,18 @@ export default function SimpleDateRangePicker({
     const handleApply = () => {
         const newStartDate = tempStartDate?.toDate() || null;
         const newEndDate = tempEndDate?.toDate() || null;
-        
+
         console.log('📅 Simple Date Picker - Applying dates:', {
             start: newStartDate ? format(newStartDate, 'yyyy-MM-dd') : null,
             end: newEndDate ? format(newEndDate, 'yyyy-MM-dd') : null,
-            duration: newStartDate && newEndDate ? differenceInDays(newEndDate, newStartDate) + 1 : 0
+            duration: newStartDate && newEndDate ? differenceInDays(newEndDate, newStartDate) + 1 : 0,
+            timestamp: new Date().toISOString()
         });
-        
+
+        // Call the parent onChange function
         onChange([newStartDate, newEndDate]);
+
+        console.log('📅 onChange called with:', [newStartDate, newEndDate]);
         setIsOpen(false);
     };
 
