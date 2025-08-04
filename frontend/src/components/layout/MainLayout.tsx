@@ -56,10 +56,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   // Check if user has completed the tour
   React.useEffect(() => {
     const tourCompleted = localStorage.getItem("dashboardTourCompleted");
+    // Temporarily disable auto-tour for better UX
+    // Users can manually start the tour from the user menu
     if (!tourCompleted) {
-      // Show tour after a short delay to let the page load
-      const timer = setTimeout(() => setShowTour(true), 2000);
-      return () => clearTimeout(timer);
+      // Mark as completed by default to skip auto-show
+      localStorage.setItem("dashboardTourCompleted", "true");
     }
   }, []);
 
@@ -237,7 +238,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           <ListItemIcon>
             <DashboardIcon fontSize="small" />
           </ListItemIcon>
-          <Typography variant="body2">Reset Tour</Typography>
+          <Typography variant="body2">Start Tour</Typography>
         </MenuItem>
         <Divider />
         <MenuItem onClick={handleLogout}>
@@ -336,7 +337,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           sx={{
             flexGrow: 1,
             minWidth: 0, // Ensure flex item can shrink
-            mt: { xs: "120px", sm: "140px" }, // Adjusted for MergedHeader height
+            mt: { xs: "60px", sm: "70px" }, // Reduced margin to match actual header height
             position: "relative",
           }}
         >

@@ -56,6 +56,7 @@ async def calculate_monthly_sales_growth(
     end_date: str,
     branch: str | None = None,
     product_line: str | None = None,
+    item_groups: list[str] | None = None,
 ) -> list:
     """
     Fetches sales data from Druid (via sales_data.py) and aggregates by month, with optional branch and product_line filters.
@@ -65,6 +66,7 @@ async def calculate_monthly_sales_growth(
         start_date,
         end_date,
         branch_names=[branch] if branch else None,
+        item_groups=item_groups,
     )
     if df.is_empty():
         return []

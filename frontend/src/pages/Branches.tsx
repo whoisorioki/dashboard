@@ -35,7 +35,7 @@ import { format } from "date-fns";
 import PageHeader from "../components/PageHeader";
 import KpiCard from "../components/KpiCard";
 import BranchProductHeatmap from "../components/BranchProductHeatmap";
-import { useFilters } from "../context/FilterContext";
+import { useFilterStore } from "../store/filterStore";
 import { useBranchesPageDataQuery } from "../queries/branchesPageData.generated";
 import { graphqlClient } from "../lib/graphqlClient";
 import ChartEmptyState from "../components/states/ChartEmptyState";
@@ -45,12 +45,24 @@ import { useMemo } from "react";
 import DataStateWrapper from "../components/DataStateWrapper";
 
 const Branches = () => {
-  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const filterStore = useFilterStore();
+  const startDate = filterStore.startDate;
+  const endDate = filterStore.endDate;
+  const selectedBranches = filterStore.selectedBranches;
+  const selectedProductLines = filterStore.selectedProductLines;
+  const selectedItemGroups = filterStore.selectedItemGroups;
+
+  // Convert dates to strings for API calls
+  const start_date = startDate ? format(startDate, 'yyyy-MM-dd') : null;
+  const end_date = endDate ? format(endDate, 'yyyy-MM-dd') : null;
+  const selected_branch = selectedBranches.length === 1 ? selectedBranches[0] : "all";
+  const selected_product_line = selectedProductLines.length === 1 ? selectedProductLines[0] : "all";
   const filters = useMemo(() => ({
     dateRange: { start: start_date, end: end_date },
     branch: selected_branch !== "all" ? selected_branch : undefined,
     productLine: selected_product_line !== "all" ? selected_product_line : undefined,
-  }), [start_date, end_date, selected_branch, selected_product_line]);
+    itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
+  }), [start_date, end_date, selected_branch, selected_product_line, selectedItemGroups]);
   const [selectedMetric, setSelectedMetric] = useState<string>("sales");
   const [sortBy, setSortBy] = useState<string>("sales");
 
@@ -66,6 +78,7 @@ const Branches = () => {
       endDate: end_date,
       branch: selected_branch !== "all" ? selected_branch : undefined,
       productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+      itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
     },
     {
       queryKey: queryKeys.branchPerformance ? queryKeys.branchPerformance(filters) : ["branchPerformance", filters],
@@ -117,7 +130,7 @@ const Branches = () => {
 
   // Calculate average growth from growth data
   const latestGrowthData = safeBranchGrowthData?.reduce(
-    (acc: Record<string, { monthYear: string; growthPct: number }>, item) => {
+    (acc: Record<string, { monthYear: string; growthPct?: number }>, item) => {
       if (!acc[item.branch] || item.monthYear > acc[item.branch].monthYear) {
         acc[item.branch] = item;
       }
@@ -129,7 +142,7 @@ const Branches = () => {
   const averageGrowth =
     latestGrowthData && Object.values(latestGrowthData).length > 0
       ? Object.values(latestGrowthData).reduce(
-        (sum, item) => sum + item.growthPct,
+        (sum, item) => sum + (item.growthPct || 0),
         0
       ) / Object.values(latestGrowthData).length
       : 0;
@@ -155,7 +168,7 @@ const Branches = () => {
   // Helper function to get latest growth for a branch
   const getBranchGrowth = (branchName: string): number => {
     if (!latestGrowthData || !latestGrowthData[branchName]) return 0;
-    return latestGrowthData[branchName].growthPct;
+    return latestGrowthData[branchName].growthPct || 0;
   };
 
   // Prepare data for BranchProductHeatmap
@@ -188,8 +201,6 @@ const Branches = () => {
             icon={<StoreIcon />}
             tooltipText="Combined revenue across all branches for the selected period"
             isLoading={isLoading}
-            trend={averageGrowth >= 0 ? "up" : "down"}
-            trendValue={`${formatPercentage(averageGrowth)}`}
             color="primary"
             metricKey="totalSales"
             sparklineData={totalSalesSparkline}
@@ -202,8 +213,6 @@ const Branches = () => {
             icon={<RegionIcon />}
             tooltipText="Total number of transactions across all branches"
             isLoading={isLoading}
-            trend="up"
-            trendValue="All branches"
             color="info"
             sparklineData={totalTransactionsSparkline}
           />
@@ -215,8 +224,6 @@ const Branches = () => {
             icon={<PeopleIcon />}
             tooltipText="Number of unique customers/employees served"
             isLoading={isLoading}
-            trend="up"
-            trendValue="Active"
             color="success"
             sparklineData={totalCustomersSparkline}
           />
@@ -228,8 +235,6 @@ const Branches = () => {
             icon={<GrowthIcon />}
             tooltipText="Unique products sold across all branches"
             isLoading={isLoading}
-            trend={averageGrowth >= 0 ? "up" : "down"}
-            trendValue={`${formatPercentage(averageGrowth)} avg growth`}
             color="warning"
             sparklineData={totalProductsSparkline}
           />

@@ -16,20 +16,22 @@ export type BranchesPageDataQueryVariables = Types.Exact<{
   endDate: Types.Scalars['String']['input'];
   branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
   productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  itemGroups?: Types.InputMaybe<Array<Types.Scalars['String']['input']> | Types.Scalars['String']['input']>;
 }>;
 
 
-export type BranchesPageDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, branchPerformance: Array<{ __typename?: 'BranchPerformance', branch: string, totalSales: number, transactionCount: number, averageSale: number, uniqueCustomers: number, uniqueProducts: number }>, branchGrowth: Array<{ __typename?: 'BranchGrowth', branch: string, monthYear: string, monthlySales: number, growthPct: number }>, branchProductHeatmap: Array<{ __typename?: 'BranchProductHeatmap', branch: string, product: string, sales: number }> };
+export type BranchesPageDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, branchPerformance: Array<{ __typename?: 'BranchPerformance', branch: string, totalSales?: number | null, transactionCount: number, averageSale?: number | null, uniqueCustomers: number, uniqueProducts: number }>, branchGrowth: Array<{ __typename?: 'BranchGrowth', branch: string, monthYear: string, monthlySales?: number | null, growthPct?: number | null }>, branchProductHeatmap: Array<{ __typename?: 'BranchProductHeatmap', branch: string, product: string, sales?: number | null }> };
 
 
 
 export const BranchesPageDataDocument = `
-    query BranchesPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+    query BranchesPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String, $itemGroups: [String!]) {
   revenueSummary(
     startDate: $startDate
     endDate: $endDate
     branch: $branch
     productLine: $productLine
+    itemGroups: $itemGroups
   ) {
     totalRevenue
     netSales
@@ -48,6 +50,7 @@ export const BranchesPageDataDocument = `
     endDate: $endDate
     branch: $branch
     productLine: $productLine
+    itemGroups: $itemGroups
   ) {
     branch
     totalSales
@@ -61,6 +64,7 @@ export const BranchesPageDataDocument = `
     endDate: $endDate
     branch: $branch
     productLine: $productLine
+    itemGroups: $itemGroups
   ) {
     branch
     monthYear

@@ -5,8 +5,15 @@ query SalesPageData(
   $endDate: String!
   $branch: String
   $productLine: String
+  $itemGroups: [String!]
 ) {
-  revenueSummary(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+  revenueSummary(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemGroups: $itemGroups
+  ) {
     totalRevenue
     netSales
     grossProfit
@@ -19,10 +26,22 @@ query SalesPageData(
     uniqueEmployees
     netUnitsSold
   }
-  monthlySalesGrowth(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+  monthlySalesGrowth(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemGroups: $itemGroups
+  ) {
     ...MonthlySalesGrowthFields
   }
-  salesPerformance(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+  salesPerformance(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemGroups: $itemGroups
+  ) {
     salesPerson
     totalSales
     grossProfit
@@ -32,4 +51,15 @@ query SalesPageData(
     uniqueProducts
     avgMargin
   }
-} 
+  salespersonProductMix(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemGroups: $itemGroups
+  ) {
+    salesperson
+    productLine
+    avgProfitMargin
+  }
+}

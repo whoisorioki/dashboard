@@ -1,22 +1,15 @@
-import sys
-import os
-from pathlib import Path
-
-# Add backend directory to Python path for absolute imports
-backend_dir = Path(__file__).parent
-if str(backend_dir) not in sys.path:
-    sys.path.insert(0, str(backend_dir))
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import os
 from dotenv import load_dotenv
 from api.routes import router
 from api.kpi_routes import router as kpi_router
 from core.druid_client import lifespan, druid_conn
-from schema.schema import schema
+from schema import schema
 import strawberry.fastapi
-from schema.schema import Query
+from schema import Query
 import strawberry
+from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
 from fastapi import Request, Response
 from fastapi_redis_cache import FastApiRedisCache

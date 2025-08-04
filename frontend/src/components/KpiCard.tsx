@@ -84,6 +84,21 @@ const KpiCard: React.FC<KpiCardProps> = ({
     setEditValue(targetValue);
   }, [targetValue]);
 
+  // Calculate trend direction from sparkline data
+  const calculateTrendDirection = (): "up" | "down" | "neutral" => {
+    if (!sparklineData || sparklineData.length < 2) return "neutral";
+
+    const lastValue = sparklineData[sparklineData.length - 1]?.y || 0;
+    const previousValue = sparklineData[sparklineData.length - 2]?.y || 0;
+
+    if (lastValue > previousValue) return "up";
+    if (lastValue < previousValue) return "down";
+    return "neutral";
+  };
+
+  const calculatedTrend = calculateTrendDirection();
+  const effectiveTrend = sparklineData && sparklineData.length > 1 ? calculatedTrend : trend;
+
   if (isLoading) {
     return <KpiCardSkeleton />;
   }
@@ -104,6 +119,20 @@ const KpiCard: React.FC<KpiCardProps> = ({
   };
 
   const colorPalette = getColorPalette();
+
+  // Get sparkline color based on trend
+  const getSparklineColor = () => {
+    if (!sparklineData || sparklineData.length < 2) return colorPalette.main;
+
+    switch (effectiveTrend) {
+      case "up":
+        return theme.palette.success.main;
+      case "down":
+        return theme.palette.error.main;
+      default:
+        return colorPalette.main;
+    }
+  };
 
   // Accessibility: ARIA label for card
   const ariaLabel = `${title}: ${value}`;
@@ -289,24 +318,6 @@ const KpiCard: React.FC<KpiCardProps> = ({
               {title}
             </Typography>
           </Box>
-          {trendValue && (
-            <Typography
-              variant="caption"
-              sx={{
-                color:
-                  trend === "up"
-                    ? theme.palette.success.main
-                    : trend === "down"
-                      ? theme.palette.error.main
-                      : theme.palette.text.secondary,
-                fontWeight: 600,
-                fontSize: "0.75rem",
-              }}
-              aria-label={`Trend: ${trendValue}`}
-            >
-              {trendValue}
-            </Typography>
-          )}
         </Box>
         {/* Inline editing for Target Attainment */}
         {editableTarget && editing ? (
@@ -382,10 +393,10 @@ const KpiCard: React.FC<KpiCardProps> = ({
                 : value}
             </Typography>
             {/* Sparkline below main value */}
-            {sparklineData && sparklineData.length > 1 && (
+            {sparklineData && sparklineData.length > 1 ? (
               <Box sx={{
-                height: 32,
-                mt: 1,
+                height: 40,
+                mt: 1.5,
                 mb: 0.5,
                 background: "transparent",
                 borderRadius: 2,
@@ -404,42 +415,20 @@ const KpiCard: React.FC<KpiCardProps> = ({
                   axisLeft={null}
                   enableGridX={false}
                   enableGridY={false}
-                  colors={[colorPalette.main]}
-                  lineWidth={2}
+                  colors={[getSparklineColor()]}
+                  lineWidth={2.5}
                   pointSize={0}
                   enablePoints={false}
                   enableArea={true}
-                  areaOpacity={0.15}
+                  areaOpacity={0.2}
                   isInteractive={false}
                   animate={true}
                   motionConfig="wobbly"
                 />
               </Box>
-            )}
-            {/* vs previous period badge */}
-            {typeof vsValue === "number" && typeof vsPercent === "number" && (
-              <Box sx={{ display: "flex", alignItems: "center", mt: 1 }}>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: getVsColor(),
-                    fontWeight: 600,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                  }}
-                  aria-label={`Change vs previous period: ${vsValue} (${vsPercent.toFixed(1)}%)`}
-                >
-                  {getVsArrow()} {vsValue > 0 ? "+" : vsValue < 0 ? "" : ""}
-                  {metricKey && ["sales", "totalSales", "grossProfit", "avgDealSize", "averageDealSize", "target", "targetValue"].includes(metricKey)
-                    ? formatKshAbbreviated(Math.abs(vsValue))
-                    : Math.abs(vsValue)}
-                  {" ("}
-                  {vsPercent > 0 ? "+" : vsPercent < 0 ? "" : ""}
-                  {Math.abs(vsPercent).toFixed(1)}%
-                  {") vs previous period"}
-                </Typography>
-              </Box>
+            ) : (
+              // Maintain consistent height even without sparkline
+              <Box sx={{ height: 40, mt: 1.5, mb: 0.5 }} />
             )}
           </>
         )}

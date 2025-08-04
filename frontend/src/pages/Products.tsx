@@ -35,7 +35,7 @@ import { format } from "date-fns";
 import PageHeader from "../components/PageHeader";
 import KpiCard from "../components/KpiCard";
 import ProductPerformanceChart from "../components/ProductPerformanceChart";
-import { useFilters } from "../context/FilterContext";
+import { useFilterStore } from "../store/filterStore";
 import { useProductsPageDataQuery } from "../queries/productsPageData.generated";
 import { graphqlClient } from "../lib/graphqlClient";
 import ChartEmptyState from "../components/states/ChartEmptyState";
@@ -45,12 +45,24 @@ import { useMemo } from "react";
 import DataStateWrapper from "../components/DataStateWrapper";
 
 const Products = () => {
-  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const filterStore = useFilterStore();
+  const startDate = filterStore.startDate;
+  const endDate = filterStore.endDate;
+  const selectedBranches = filterStore.selectedBranches;
+  const selectedProductLines = filterStore.selectedProductLines;
+  const selectedItemGroups = filterStore.selectedItemGroups;
+
+  // Convert dates to strings for API calls
+  const start_date = startDate ? format(startDate, 'yyyy-MM-dd') : null;
+  const end_date = endDate ? format(endDate, 'yyyy-MM-dd') : null;
+  const selected_branch = selectedBranches.length === 1 ? selectedBranches[0] : "all";
+  const selected_product_line = selectedProductLines.length === 1 ? selectedProductLines[0] : "all";
   const filters = useMemo(() => ({
     dateRange: { start: start_date, end: end_date },
     productLine: selected_product_line !== "all" ? selected_product_line : undefined,
     branch: selected_branch !== "all" ? selected_branch : undefined,
-  }), [start_date, end_date, selected_product_line, selected_branch]);
+    itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
+  }), [start_date, end_date, selected_product_line, selected_branch, selectedItemGroups]);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("totalSales");
 
@@ -66,6 +78,7 @@ const Products = () => {
       endDate: end_date,
       branch: selected_branch !== "all" ? selected_branch : undefined,
       productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+      itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
     },
     {
       queryKey: queryKeys.productAnalytics(filters),

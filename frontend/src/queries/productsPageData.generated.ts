@@ -17,24 +17,22 @@ export type ProductsPageDataQueryVariables = Types.Exact<{
   endDate: Types.Scalars['String']['input'];
   branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
   productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
-  n?: Types.InputMaybe<Types.Scalars['Int']['input']>;
-  itemNames?: Types.InputMaybe<Array<Types.Scalars['String']['input']> | Types.Scalars['String']['input']>;
-  salesPersons?: Types.InputMaybe<Array<Types.Scalars['String']['input']> | Types.Scalars['String']['input']>;
-  branchNames?: Types.InputMaybe<Array<Types.Scalars['String']['input']> | Types.Scalars['String']['input']>;
+  itemGroups?: Types.InputMaybe<Array<Types.Scalars['String']['input']> | Types.Scalars['String']['input']>;
 }>;
 
 
-export type ProductsPageDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, productAnalytics: Array<{ __typename?: 'ProductAnalytics', itemName: string, productLine: string, itemGroup: string, totalSales: number, grossProfit?: number | null, margin?: number | null, totalQty: number, transactionCount: number, uniqueBranches: number, averagePrice: number }>, topCustomers: Array<{ __typename?: 'TopCustomerEntry', cardName: string, salesAmount?: number | null, grossProfit?: number | null }>, returnsAnalysis: Array<{ __typename?: 'ReturnsAnalysisEntry', reason: string, count: number }>, salespersonProductMix: Array<{ __typename?: 'SalespersonProductMixEntry', salesperson: string, productLine: string, avgProfitMargin?: number | null }> };
+export type ProductsPageDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, productAnalytics: Array<{ __typename?: 'ProductAnalytics', itemName: string, productLine: string, itemGroup: string, totalSales?: number | null, grossProfit?: number | null, margin?: number | null, totalQty?: number | null, transactionCount: number, uniqueBranches: number, averagePrice?: number | null }>, topCustomers: Array<{ __typename?: 'TopCustomerEntry', cardName: string, salesAmount?: number | null, grossProfit?: number | null }>, returnsAnalysis: Array<{ __typename?: 'ReturnsAnalysisEntry', reason: string, count: number }>, salespersonProductMix: Array<{ __typename?: 'SalespersonProductMixEntry', salesperson: string, productLine: string, avgProfitMargin?: number | null }> };
 
 
 
 export const ProductsPageDataDocument = `
-    query ProductsPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String, $n: Int, $itemNames: [String!], $salesPersons: [String!], $branchNames: [String!]) {
+    query ProductsPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String, $itemGroups: [String!]) {
   revenueSummary(
     startDate: $startDate
     endDate: $endDate
     branch: $branch
     productLine: $productLine
+    itemGroups: $itemGroups
   ) {
     totalRevenue
     netSales
@@ -53,6 +51,7 @@ export const ProductsPageDataDocument = `
     endDate: $endDate
     branch: $branch
     productLine: $productLine
+    itemGroups: $itemGroups
   ) {
     itemName
     productLine
@@ -69,11 +68,8 @@ export const ProductsPageDataDocument = `
     startDate: $startDate
     endDate: $endDate
     branch: $branch
-    n: $n
-    itemNames: $itemNames
-    salesPersons: $salesPersons
-    branchNames: $branchNames
     productLine: $productLine
+    itemGroups: $itemGroups
   ) {
     ...TopCustomerFields
   }
@@ -82,9 +78,7 @@ export const ProductsPageDataDocument = `
     endDate: $endDate
     branch: $branch
     productLine: $productLine
-    itemNames: $itemNames
-    salesPersons: $salesPersons
-    branchNames: $branchNames
+    itemGroups: $itemGroups
   ) {
     reason
     count
@@ -94,6 +88,7 @@ export const ProductsPageDataDocument = `
     endDate: $endDate
     branch: $branch
     productLine: $productLine
+    itemGroups: $itemGroups
   ) {
     salesperson
     productLine

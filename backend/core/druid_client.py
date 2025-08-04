@@ -1,4 +1,5 @@
 import os
+import requests
 from contextlib import asynccontextmanager
 from typing import Optional
 from dotenv import load_dotenv
@@ -123,52 +124,132 @@ async def lifespan(app: FastAPI):
     druid_conn.client = None
 
 
-def get_druid_health():
-    """Get Druid health status"""
+def get_data_range_from_druid() -> dict:
+    """
+    Queries Druid for the min and max __time values and total record count.
+    Returns a dict: { 'earliest_date': str, 'latest_date': str, 'total_records': int }
+    """
+    import requests
+    from datetime import datetime
+
+    def convert_timestamp_to_iso(timestamp_value):
+        """Convert Unix timestamp (ms or s) to ISO 8601 string"""
+        if timestamp_value is None:
+            return None
+
+        try:
+            # Handle string timestamps
+            if isinstance(timestamp_value, str):
+                timestamp_value = int(timestamp_value)
+
+            # If timestamp is in seconds (< year 2100 in milliseconds), convert to milliseconds
+            if timestamp_value < 4102444800000:
+                timestamp_value = timestamp_value * 1000
+
+            # Convert to datetime and format as ISO string
+            dt = datetime.fromtimestamp(timestamp_value / 1000)
+            return dt.isoformat() + "Z"
+        except (ValueError, TypeError) as e:
+            print(f"Error converting timestamp {timestamp_value}: {e}")
+            return None
+
+    url = f"http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}/druid/v2/"
+    headers = {"Content-Type": "application/json"}
+
+    # Earliest date
+    query = {
+        "queryType": "scan",
+        "dataSource": DRUID_DATASOURCE,
+        "intervals": ["1900-01-01/2100-01-01"],
+        "columns": ["__time"],
+        "resultFormat": "compactedList",
+        "limit": 1,
+        "order": "ascending",
+    }
+
     try:
-        if druid_conn.is_connected():
-            return {"status": "healthy", "is_available": True}
-        else:
-            return {"status": "unhealthy", "is_available": False}
-    except Exception as e:
-        print(f"Error checking Druid health: {e}")
-        return {"status": "error", "is_available": False}
+        response = requests.post(url, json=query, headers=headers, timeout=30)
+        earliest_date = None
+        if response.status_code == 200:
+            result = response.json()
+            if result and len(result) > 0 and "events" in result[0]:
+                if len(result[0]["events"]) > 0:
+                    raw_earliest = result[0]["events"][0][0]
+                    earliest_date = convert_timestamp_to_iso(raw_earliest)
 
+        # Latest date
+        query["order"] = "descending"
+        response = requests.post(url, json=query, headers=headers, timeout=30)
+        latest_date = None
+        if response.status_code == 200:
+            result = response.json()
+            if result and len(result) > 0 and "events" in result[0]:
+                if len(result[0]["events"]) > 0:
+                    raw_latest = result[0]["events"][0][0]
+                    latest_date = convert_timestamp_to_iso(raw_latest)
 
-def get_druid_datasources():
-    """Get list of available Druid datasources"""
-    try:
-        if druid_conn.client:
-            datasources = druid_conn.get_available_datasources()
-            return {"datasources": datasources}
-        else:
-            return {"datasources": []}
-    except Exception as e:
-        print(f"Error getting Druid datasources: {e}")
-        return {"datasources": []}
+        # Total records
+        count_query = {
+            "queryType": "scan",
+            "dataSource": DRUID_DATASOURCE,
+            "intervals": ["1900-01-01/2100-01-01"],
+            "columns": [],
+            "resultFormat": "compactedList",
+        }
+        response = requests.post(url, json=count_query, headers=headers, timeout=30)
+        total_records = 0
+        if response.status_code == 200:
+            count_result = response.json()
+            for segment in count_result:
+                if "events" in segment:
+                    total_records += len(segment["events"])
 
-
-def get_data_range_from_druid():
-    """Get data range from Druid"""
-    try:
-        if druid_conn.client:
-            # This function should already exist based on usage in schema.py
-            # You can implement the actual Druid query here
-            return {
-                "earliest_date": "2024-04-26T00:00:00.000Z",
-                "latest_date": "2025-06-30T00:00:00.000Z", 
-                "total_records": 461949
-            }
-        else:
-            return {
-                "earliest_date": "2024-04-26T00:00:00.000Z",
-                "latest_date": "2025-06-30T00:00:00.000Z",
-                "total_records": 461949
-            }
+        return {
+            "earliest_date": earliest_date,
+            "latest_date": latest_date,
+            "total_records": total_records,
+        }
     except Exception as e:
         print(f"Error getting data range from Druid: {e}")
         return {
-            "earliest_date": "2024-04-26T00:00:00.000Z",
-            "latest_date": "2025-06-30T00:00:00.000Z",
-            "total_records": 461949
+            "earliest_date": None,
+            "latest_date": None,
+            "total_records": 0,
+        }
+
+
+def get_druid_health() -> dict:
+    """Get Druid health status"""
+    try:
+        druid_conn = DruidConnection()
+        is_connected = druid_conn.is_connected()
+        return {
+            "status": "healthy" if is_connected else "unhealthy",
+            "is_available": is_connected,
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "is_available": False,
+        }
+
+
+def get_druid_datasources() -> dict:
+    """Get list of Druid datasources"""
+    try:
+        url = f"http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}/druid/v2/datasources"
+        response = requests.get(url, timeout=10)
+
+        if response.status_code == 200:
+            datasources = response.json()
+            return {
+                "datasources": datasources,
+            }
+        else:
+            return {
+                "datasources": [],
+            }
+    except Exception as e:
+        return {
+            "datasources": [],
         }

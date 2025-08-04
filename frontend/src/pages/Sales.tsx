@@ -37,7 +37,7 @@ import KpiCard from "../components/KpiCard";
 import MonthlySalesTrendChart from "../components/MonthlySalesTrendChart";
 import { useSalesPageDataQuery } from "../queries/salesPageData.generated";
 import { graphqlClient } from "../lib/graphqlClient";
-import { useFilters } from "../context/FilterContext";
+import { useFilterStore } from "../store/filterStore";
 import { queryKeys } from "../lib/queryKeys";
 import { useMemo } from "react";
 import ChartEmptyState from "../components/states/ChartEmptyState";
@@ -46,12 +46,24 @@ import SalespersonProductMixTable from "../components/SalespersonProductMixTable
 import DataStateWrapper from "../components/DataStateWrapper";
 
 const Sales = () => {
-  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const filterStore = useFilterStore();
+  const startDate = filterStore.startDate;
+  const endDate = filterStore.endDate;
+  const selectedBranches = filterStore.selectedBranches;
+  const selectedProductLines = filterStore.selectedProductLines;
+  const selectedItemGroups = filterStore.selectedItemGroups;
+
+  // Convert dates to strings for API calls
+  const start_date = startDate ? format(startDate, 'yyyy-MM-dd') : null;
+  const end_date = endDate ? format(endDate, 'yyyy-MM-dd') : null;
+  const selected_branch = selectedBranches.length === 1 ? selectedBranches[0] : "all";
+  const selected_product_line = selectedProductLines.length === 1 ? selectedProductLines[0] : "all";
   const filters = useMemo(() => ({
     dateRange: { start: start_date, end: end_date },
     productLine: selected_product_line !== "all" ? selected_product_line : undefined,
     branch: selected_branch !== "all" ? selected_branch : undefined,
-  }), [start_date, end_date, selected_product_line, selected_branch]);
+    itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
+  }), [start_date, end_date, selected_product_line, selected_branch, selectedItemGroups]);
   const [sortBy, setSortBy] = useState<string>("totalSales");
 
   const handleResetLocalFilters = () => {
@@ -65,6 +77,7 @@ const Sales = () => {
       endDate: end_date,
       branch: selected_branch !== "all" ? selected_branch : undefined,
       productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+      itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
     },
     {
       queryKey: queryKeys.salesPerformance(filters),

@@ -5,12 +5,15 @@ query ProductsPageData(
   $endDate: String!
   $branch: String
   $productLine: String
-  $n: Int
-  $itemNames: [String!]
-  $salesPersons: [String!]
-  $branchNames: [String!]
+  $itemGroups: [String!]
 ) {
-  revenueSummary(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+  revenueSummary(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemGroups: $itemGroups
+  ) {
     totalRevenue
     netSales
     grossProfit
@@ -23,7 +26,13 @@ query ProductsPageData(
     uniqueEmployees
     netUnitsSold
   }
-  productAnalytics(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+  productAnalytics(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemGroups: $itemGroups
+  ) {
     itemName
     productLine
     itemGroup
@@ -39,11 +48,8 @@ query ProductsPageData(
     startDate: $startDate
     endDate: $endDate
     branch: $branch
-    n: $n
-    itemNames: $itemNames
-    salesPersons: $salesPersons
-    branchNames: $branchNames
     productLine: $productLine
+    itemGroups: $itemGroups
   ) {
     ...TopCustomerFields
   }
@@ -52,16 +58,20 @@ query ProductsPageData(
     endDate: $endDate
     branch: $branch
     productLine: $productLine
-    itemNames: $itemNames
-    salesPersons: $salesPersons
-    branchNames: $branchNames
+    itemGroups: $itemGroups
   ) {
     reason
     count
   }
-  salespersonProductMix(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+  salespersonProductMix(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemGroups: $itemGroups
+  ) {
     salesperson
     productLine
     avgProfitMargin
   }
-} 
+}

@@ -18,9 +18,8 @@ import DateRangePicker from '../DateRangePicker';
 import { useFilterStore } from '../../store/filterStore';
 import { useTheme } from '../../context/ThemeContext';
 import { useDashboardDataQuery } from '../../queries/dashboardData.generated';
-import { graphqlClient } from '../../lib/graphqlClient';
 import { format } from 'date-fns';
-import { useMemo } from 'react';
+import { graphqlClient } from '../../lib/graphqlClient';
 
 /**
  * MergedHeader component that combines the filter bar with theme toggle and user profile.
@@ -54,36 +53,42 @@ export default function MergedHeader() {
 
     const { isDarkMode, toggleTheme } = useTheme();
 
-    // Fetch real data for filter options
+    // Get dynamic filter options from dashboard data
+    const startDateStr = startDate ? format(startDate, 'yyyy-MM-dd') : '2024-12-01';
+    const endDateStr = endDate ? format(endDate, 'yyyy-MM-dd') : '2024-12-31';
+
     const { data: dashboardDataResult } = useDashboardDataQuery(
         graphqlClient,
         {
-            startDate: startDate ? format(startDate, 'yyyy-MM-dd') : format(new Date(2025, 0, 1), 'yyyy-MM-dd'),
-            endDate: endDate ? format(endDate, 'yyyy-MM-dd') : format(new Date(2025, 0, 31), 'yyyy-MM-dd'),
+            startDate: startDateStr,
+            endDate: endDateStr,
+        },
+        {
+            staleTime: 5 * 60 * 1000, // 5 minutes
         }
     );
     const dashboardData = dashboardDataResult?.dashboardData;
 
-    // Extract real options from API data
-    const branchOptions = useMemo(() => {
+    // Extract dynamic filter options
+    const availableBranches = React.useMemo(() => {
         if (dashboardData?.branchList && Array.isArray(dashboardData.branchList)) {
             return dashboardData.branchList.map((b: any) => b.branch).filter(Boolean);
         }
-        return []; // Empty array instead of hardcoded fallback
+        return [];
     }, [dashboardData]);
 
-    const productLineOptions = useMemo(() => {
+    const availableProductLines = React.useMemo(() => {
         if (dashboardData?.productAnalytics && Array.isArray(dashboardData.productAnalytics)) {
             return Array.from(new Set(dashboardData.productAnalytics.map((p: any) => p.productLine))).filter(Boolean);
         }
-        return []; // Empty array instead of hardcoded fallback
+        return [];
     }, [dashboardData]);
 
-    const itemGroupOptions = useMemo(() => {
+    const availableItemGroups = React.useMemo(() => {
         if (dashboardData?.productAnalytics && Array.isArray(dashboardData.productAnalytics)) {
             return Array.from(new Set(dashboardData.productAnalytics.map((p: any) => p.itemGroup))).filter(Boolean);
         }
-        return []; // Empty array instead of hardcoded fallback
+        return [];
     }, [dashboardData]);
 
     // Handle date changes from the DateRangePicker
@@ -161,9 +166,9 @@ export default function MergedHeader() {
                             input={<OutlinedInput label="Branches" />}
                             renderValue={renderChips}
                         >
-                            {branchOptions.map((branch) => (
-                                <MenuItem key={branch} value={branch}>
-                                    {branch}
+                            {availableBranches.map((branch) => (
+                                <MenuItem key={String(branch)} value={branch as string}>
+                                    {String(branch)}
                                 </MenuItem>
                             ))}
                         </Select>
@@ -177,9 +182,9 @@ export default function MergedHeader() {
                             input={<OutlinedInput label="Product Lines" />}
                             renderValue={renderChips}
                         >
-                            {productLineOptions.map((productLine) => (
-                                <MenuItem key={productLine} value={productLine}>
-                                    {productLine}
+                            {availableProductLines.map((productLine) => (
+                                <MenuItem key={String(productLine)} value={productLine as string}>
+                                    {String(productLine)}
                                 </MenuItem>
                             ))}
                         </Select>
@@ -193,9 +198,9 @@ export default function MergedHeader() {
                             input={<OutlinedInput label="Item Groups" />}
                             renderValue={renderChips}
                         >
-                            {itemGroupOptions.map((itemGroup) => (
-                                <MenuItem key={itemGroup} value={itemGroup}>
-                                    {itemGroup}
+                            {availableItemGroups.map((itemGroup) => (
+                                <MenuItem key={String(itemGroup)} value={itemGroup as string}>
+                                    {String(itemGroup)}
                                 </MenuItem>
                             ))}
                         </Select>

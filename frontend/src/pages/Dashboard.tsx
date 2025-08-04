@@ -22,20 +22,27 @@ import {
   Dashboard as DashboardIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
-import { differenceInCalendarDays, subDays } from "date-fns";
+import { differenceInCalendarDays, subDays, parseISO } from "date-fns";
 import PageHeader from "../components/PageHeader";
 import KpiCard from "../components/KpiCard";
 import MonthlySalesTrendChart from "../components/MonthlySalesTrendChart";
 import GeographicProfitabilityMap from "../components/GeographicProfitabilityMap";
+import EnhancedGeographicMap from "../components/EnhancedGeographicMap";
+import GoogleMapsBranchView from "../components/GoogleMapsBranchView";
+import PreciseGoogleMaps from "../components/PreciseGoogleMaps";
 import BranchProductHeatmap from "../components/BranchProductHeatmap";
 import EnhancedTopCustomersTable from "../components/EnhancedTopCustomersTable";
+import ChartEmptyState from "../components/states/ChartEmptyState";
+import DataStateWrapper from "../components/DataStateWrapper";
 import { useDashboardDataQuery } from "../queries/dashboardData.generated";
 import { queryKeys } from "../lib/queryKeys";
 import { useMemo } from "react";
 import { useDataRange } from "../hooks/useDataRange";
 
+import { useNavigate } from "react-router-dom";
 import { graphqlClient } from "../lib/graphqlClient";
-import { formatKshAbbreviated, formatPercentage, formatChange } from "../lib/numberFormat";
+import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
+import FilterBar from "../components/FilterBar";
 import { useFilterStore, FilterStore } from "../store/filterStore";
 import Alert from '@mui/material/Alert';
 
@@ -44,11 +51,9 @@ import Alert from '@mui/material/Alert';
 
 const Dashboard = () => {
   const [debugMode, setDebugMode] = useState(false);
-  // Remove useFilters/context usage
-  // const { date_range, start_date, end_date, selected_branch, selected_product_line, sales_target, setSalesTarget } = useFilters();
+  const [mapView, setMapView] = useState<'choropleth' | 'enhanced' | 'google' | 'precise'>('enhanced');
 
   // Zustand global filter state
-  // Explicitly type the store usage
   const filterStore: FilterStore = useFilterStore();
   const startDate = filterStore.startDate;
   const endDate = filterStore.endDate;
@@ -74,22 +79,6 @@ const Dashboard = () => {
   // Ensure we don't query beyond the available data range
   const finalStartDate = maxDate && effectiveStartDate > maxDate ? maxDate : effectiveStartDate;
   const finalEndDate = minDate && effectiveEndDate < minDate ? minDate : effectiveEndDate;
-
-  // Development-only: Force reset to January 2025 if dates are wrong
-  useEffect(() => {
-    if (process.env.NODE_ENV === 'development' && startDate && endDate) {
-      const startMonth = startDate.getMonth();
-      const startYear = startDate.getFullYear();
-      const endMonth = endDate.getMonth();
-      const endYear = endDate.getFullYear();
-
-      // If dates are not January 2025, reset them
-      if (startYear !== 2025 || startMonth !== 0 || endYear !== 2025 || endMonth !== 0) {
-        console.log('Development: Resetting dates to January 2025');
-        filterStore.resetToDefaults();
-      }
-    }
-  }, [startDate, endDate, filterStore]);
 
   // Calculate previous period
   const currentStart = finalStartDate;
@@ -249,36 +238,6 @@ const Dashboard = () => {
   const avgProfitPerTransactionChange = (avgProfitPerTransaction ?? 0) - (prevAvgProfitPerTransaction ?? 0);
   const avgProfitPerTransactionDirection = avgProfitPerTransactionChange > 0 ? 'up' : avgProfitPerTransactionChange < 0 ? 'down' : 'neutral';
 
-  // Prepare sparkline data from monthly sales growth
-  const salesSparklineData = useMemo(() => {
-    if (!safeMonthlySalesGrowth || safeMonthlySalesGrowth.length === 0) return [];
-    return safeMonthlySalesGrowth.map((item, index) => ({
-      x: index,
-      y: item.totalSales || 0
-    }));
-  }, [safeMonthlySalesGrowth]);
-
-  const profitSparklineData = useMemo(() => {
-    if (!safeMonthlySalesGrowth || safeMonthlySalesGrowth.length === 0) return [];
-    return safeMonthlySalesGrowth.map((item, index) => ({
-      x: index,
-      y: item.grossProfit || 0
-    }));
-  }, [safeMonthlySalesGrowth]);
-
-  const marginSparklineData = useMemo(() => {
-    if (!safeMonthlySalesGrowth || safeMonthlySalesGrowth.length === 0) return [];
-    return safeMonthlySalesGrowth.map((item, index) => {
-      const sales = item.totalSales || 0;
-      const profit = item.grossProfit || 0;
-      const margin = sales > 0 ? (profit / sales) * 100 : 0;
-      return {
-        x: index,
-        y: margin
-      };
-    });
-  }, [safeMonthlySalesGrowth]);
-
   // Prepare sparkline data for the last 12 periods
   const getLastN = (arr, n) => arr.slice(-n);
   const salesSparkline = getLastN(safeMonthlySalesGrowth, 12).map(d => ({ x: d.month || d.date || '', y: d.totalSales || 0 }));
@@ -299,7 +258,7 @@ const Dashboard = () => {
   const showNoDataWarning = !dashboardData; // Changed to check if dashboardData is available
 
   return (
-    <Box sx={{ mt: { xs: 1, sm: 2 }, p: { xs: 1, sm: 2 } }}>
+    <Box sx={{ mt: { xs: 2, sm: 3 }, p: { xs: 1, sm: 2 } }}>
       {showNoDataWarning && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           No data found for the selected date range. Please adjust your filters.
@@ -312,14 +271,14 @@ const Dashboard = () => {
       />
 
       {/* Dynamic Summary Sentence */}
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ mb: 3 }}>
         <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 500 }}>
           {totalSales > 0 ? (
             <>
               {grossProfitDirection === 'up' ? 'Strong' : grossProfitDirection === 'down' ? 'Challenging' : 'Stable'} performance with{' '}
               <strong>{formatKshAbbreviated(totalSales)}</strong> in sales and{' '}
               <strong>{formatKshAbbreviated(grossProfit)}</strong> in gross profit
-              ({formatPercentage(grossProfitMargin, { decimals: 1, showBadge: false })} margin).
+              ({formatPercentage(grossProfitMargin)} margin).
               {grossProfitMargin > 20 ? ' Excellent profitability maintained.' :
                 grossProfitMargin > 10 ? ' Good profitability levels.' :
                   ' Focus on margin improvement needed.'}
@@ -339,15 +298,9 @@ const Dashboard = () => {
             icon={<AttachMoneyIcon />}
             tooltipText="Total sales revenue for the selected period."
             isLoading={loadingDashboard}
-            trend={totalSalesDirection}
-            trendValue={formatChange(prevTotalSales > 0 ? (totalSalesChange / prevTotalSales) * 100 : 0, { showArrow: true })}
             color="primary"
             metricKey="totalSales"
-            sparklineData={salesSparklineData}
-            vsValue={totalSalesChange}
-            vsPercent={prevTotalSales > 0 ? (totalSalesChange / prevTotalSales) * 100 : 0}
-            vsDirection={totalSalesDirection}
-            vsColor={totalSalesDirection === 'up' ? 'success' : totalSalesDirection === 'down' ? 'error' : 'default'}
+            sparklineData={salesSparkline}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
@@ -357,15 +310,9 @@ const Dashboard = () => {
             icon={<TrendingUpIcon />}
             tooltipText="Gross profit for the selected period."
             isLoading={loadingDashboard}
-            trend={grossProfitDirection}
-            trendValue={formatChange(prevGrossProfit > 0 ? (grossProfitChange / prevGrossProfit) * 100 : 0, { showArrow: true })}
             color="success"
             metricKey="grossProfit"
-            sparklineData={profitSparklineData}
-            vsValue={grossProfitChange}
-            vsPercent={prevGrossProfit > 0 ? (grossProfitChange / prevGrossProfit) * 100 : 0}
-            vsDirection={grossProfitDirection}
-            vsColor={grossProfitDirection === 'up' ? 'success' : grossProfitDirection === 'down' ? 'error' : 'default'}
+            sparklineData={grossProfitSparkline}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
@@ -375,33 +322,21 @@ const Dashboard = () => {
             icon={<ReceiptLongIcon />}
             tooltipText="Average gross profit earned per transaction."
             isLoading={loadingDashboard}
-            trend={avgProfitPerTransactionDirection}
-            trendValue={formatChange(prevAvgProfitPerTransaction && prevAvgProfitPerTransaction > 0 ? (avgProfitPerTransactionChange / prevAvgProfitPerTransaction) * 100 : 0, { showArrow: true })}
             color="info"
             metricKey="avgProfitPerTransaction"
-            sparklineData={profitSparklineData}
-            vsValue={avgProfitPerTransactionChange}
-            vsPercent={prevAvgProfitPerTransaction && prevAvgProfitPerTransaction > 0 ? (avgProfitPerTransactionChange / prevAvgProfitPerTransaction) * 100 : 0}
-            vsDirection={avgProfitPerTransactionDirection}
-            vsColor={avgProfitPerTransactionDirection === 'up' ? 'success' : avgProfitPerTransactionDirection === 'down' ? 'error' : 'default'}
+            sparklineData={avgProfitPerTransactionSparkline}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
             title="Gross Profit Margin %"
-            value={formatPercentage(grossProfitMargin, { decimals: 1, showBadge: true })}
+            value={formatPercentage(grossProfitMargin)}
             icon={<TargetIcon />}
             tooltipText="Gross profit margin percentage for the selected period."
             isLoading={loadingDashboard}
-            trend={grossProfitMarginDirection}
-            trendValue={formatChange(grossProfitMarginChange, { showArrow: true, decimals: 1 })}
             color="warning"
             metricKey="grossProfitMargin"
-            sparklineData={marginSparklineData}
-            vsValue={grossProfitMarginChange}
-            vsPercent={grossProfitMarginChange}
-            vsDirection={grossProfitMarginDirection}
-            vsColor={grossProfitMarginDirection === 'up' ? 'success' : grossProfitMarginDirection === 'down' ? 'error' : 'default'}
+            sparklineData={grossProfitMarginSparkline}
           />
         </Grid>
       </Grid>
@@ -416,12 +351,71 @@ const Dashboard = () => {
           />
         </Grid>
 
-        {/* Geographic Profitability Map (Secondary - Top Right) */}
+        {/* Enhanced Geographic Maps with Toggle (Secondary - Top Right) */}
         <Grid item xs={12} md={4}>
-          <GeographicProfitabilityMap
-            data={safeProfitability}
-            isLoading={loadingDashboard}
-          />
+          <Box>
+            {/* Map View Toggle */}
+            <Box mb={1} display="flex" gap={1} flexWrap="wrap">
+              <Button
+                size="small"
+                variant={mapView === 'enhanced' ? 'contained' : 'outlined'}
+                onClick={() => setMapView('enhanced')}
+                sx={{ fontSize: '0.75rem', py: 0.5 }}
+              >
+                Enhanced View
+              </Button>
+              <Button
+                size="small"
+                variant={mapView === 'choropleth' ? 'contained' : 'outlined'}
+                onClick={() => setMapView('choropleth')}
+                sx={{ fontSize: '0.75rem', py: 0.5 }}
+              >
+                Basic Map
+              </Button>
+              <Button
+                size="small"
+                variant={mapView === 'precise' ? 'contained' : 'outlined'}
+                onClick={() => setMapView('precise')}
+                sx={{ fontSize: '0.75rem', py: 0.5 }}
+              >
+                Precise GPS
+              </Button>
+              <Button
+                size="small"
+                variant={mapView === 'google' ? 'contained' : 'outlined'}
+                onClick={() => setMapView('google')}
+                sx={{ fontSize: '0.75rem', py: 0.5 }}
+              >
+                Google Maps
+              </Button>
+            </Box>
+
+            {/* Render Selected Map View */}
+            {mapView === 'enhanced' && (
+              <EnhancedGeographicMap
+                data={safeProfitability}
+                isLoading={loadingDashboard}
+              />
+            )}
+            {mapView === 'choropleth' && (
+              <GeographicProfitabilityMap
+                data={safeProfitability}
+                isLoading={loadingDashboard}
+              />
+            )}
+            {mapView === 'precise' && (
+              <PreciseGoogleMaps
+                data={safeProfitability}
+                isLoading={loadingDashboard}
+              />
+            )}
+            {mapView === 'google' && (
+              <GoogleMapsBranchView
+                data={safeProfitability}
+                isLoading={loadingDashboard}
+              />
+            )}
+          </Box>
         </Grid>
       </Grid>
 

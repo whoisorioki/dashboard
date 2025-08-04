@@ -15,52 +15,7 @@ export function formatKshAbbreviated(value: number): string {
   return `KSh ${formatted}`;
 }
 
-export function formatPercentage(
-  value: number | null | undefined, 
-  options: {
-    decimals?: number;
-    showSign?: boolean;
-    showBadge?: boolean;
-  } = {}
-): string {
+export function formatPercentage(value: number | null | undefined): string {
   if (value == null || isNaN(value)) return '--';
-  
-  const {
-    decimals = 1,
-    showSign = false,
-    showBadge = false
-  } = options;
-  
-  const sign = showSign && value > 0 ? '+' : '';
-  const formatted = `${sign}${value.toFixed(decimals)}%`;
-  
-  if (showBadge) {
-    if (value > 0) return `📈 ${formatted}`;
-    if (value < 0) return `📉 ${formatted}`;
-    return `➖ ${formatted}`;
-  }
-  
-  return formatted;
-}
-
-export function formatChange(
-  value: number | null | undefined,
-  options: {
-    decimals?: number;
-    showArrow?: boolean;
-    colorCode?: boolean;
-  } = {}
-): string {
-  if (value == null || isNaN(value)) return '--';
-  
-  const {
-    decimals = 1,
-    showArrow = true,
-    colorCode = false
-  } = options;
-  
-  const sign = value > 0 ? '+' : '';
-  const arrow = showArrow ? (value > 0 ? '↗' : value < 0 ? '↘' : '→') : '';
-  
-  return `${arrow} ${sign}${value.toFixed(decimals)}%`;
+  return `${value.toFixed(1)}%`;
 } 

@@ -84,7 +84,7 @@ const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, icon }) => {
     return (
         <Box
             sx={{
-                mb: 1,
+                mb: 1.5,
                 // mt: { xs: 2, sm: 3 }, // Add top margin for space from header
                 pl: { xs: 2, sm: 4 }, // Add consistent left padding
                 pt: { xs: 1.5, sm: 2 },

@@ -4,7 +4,6 @@ import CssBaseline from "@mui/material/CssBaseline";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ThemeContextProvider } from "./context/ThemeContext";
 import { NotificationProvider } from "./context/NotificationContext";
-import { FilterProvider } from "./context/FilterContext";
 import Dashboard from "./pages/Dashboard";
 import Sales from "./pages/Sales";
 import Products from "./pages/Products";
@@ -49,78 +48,76 @@ function App() {
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <ThemeContextProvider>
           <NotificationProvider>
-            <FilterProvider>
-              <CssBaseline />
-              <LocalFilterResetProvider>
-                <LayoutWithReset>
-                  <Routes>
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/register" element={<Register />} />
-                    <Route
-                      path="/*"
-                      element={
-                        <ProtectedRoute>
-                          <Routes>
-                            <Route
-                              path="/"
-                              element={<Navigate to="/overview" replace />}
-                            />
-                            <Route
-                              path="/overview"
-                              element={
-                                <ErrorBoundary>
-                                  <Dashboard />
-                                </ErrorBoundary>
-                              }
-                            />
-                            <Route
-                              path="/sales"
-                              element={
-                                <ErrorBoundary>
-                                  <Sales />
-                                </ErrorBoundary>
-                              }
-                            />
-                            <Route
-                              path="/products"
-                              element={
-                                <ErrorBoundary>
-                                  <Products />
-                                </ErrorBoundary>
-                              }
-                            />
-                            <Route
-                              path="/branches"
-                              element={
-                                <ErrorBoundary>
-                                  <Branches />
-                                </ErrorBoundary>
-                              }
-                            />
-                            <Route
-                              path="/profitability"
-                              element={
-                                <ErrorBoundary>
-                                  <ProfitabilityAnalysis />
-                                </ErrorBoundary>
-                              }
-                            />
-                            <Route
-                              path="/alerts"
-                              element={
-                                <ErrorBoundary>
-                                  <AlertsDiagnostics />
-                                </ErrorBoundary>
-                              }
-                            />
-                          </Routes>
-                        </ProtectedRoute>
-                      }
-                    />
-                  </Routes>
-                </LayoutWithReset>
-              </LocalFilterResetProvider>
-            </FilterProvider>
+            <CssBaseline />
+            <LocalFilterResetProvider>
+              <LayoutWithReset>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route
+                    path="/*"
+                    element={
+                      <ProtectedRoute>
+                        <Routes>
+                          <Route
+                            path="/"
+                            element={<Navigate to="/overview" replace />}
+                          />
+                          <Route
+                            path="/overview"
+                            element={
+                              <ErrorBoundary>
+                                <Dashboard />
+                              </ErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/sales"
+                            element={
+                              <ErrorBoundary>
+                                <Sales />
+                              </ErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/products"
+                            element={
+                              <ErrorBoundary>
+                                <Products />
+                              </ErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/branches"
+                            element={
+                              <ErrorBoundary>
+                                <Branches />
+                              </ErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/profitability"
+                            element={
+                              <ErrorBoundary>
+                                <ProfitabilityAnalysis />
+                              </ErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/alerts"
+                            element={
+                              <ErrorBoundary>
+                                <AlertsDiagnostics />
+                              </ErrorBoundary>
+                            }
+                          />
+                        </Routes>
+                      </ProtectedRoute>
+                    }
+                  />
+                </Routes>
+              </LayoutWithReset>
+            </LocalFilterResetProvider>
           </NotificationProvider>
         </ThemeContextProvider>
       </LocalizationProvider>

@@ -16,6 +16,7 @@ export type ProfitabilityPageDataQueryVariables = Types.Exact<{
   endDate: Types.Scalars['String']['input'];
   branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
   productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  itemGroups?: Types.InputMaybe<Array<Types.Scalars['String']['input']> | Types.Scalars['String']['input']>;
   dimension: Types.Scalars['String']['input'];
 }>;
 
@@ -25,12 +26,13 @@ export type ProfitabilityPageDataQuery = { __typename?: 'Query', marginTrends: A
 
 
 export const ProfitabilityPageDataDocument = `
-    query ProfitabilityPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String, $dimension: String!) {
+    query ProfitabilityPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String, $itemGroups: [String!], $dimension: String!) {
   marginTrends(
     startDate: $startDate
     endDate: $endDate
     branch: $branch
     productLine: $productLine
+    itemGroups: $itemGroups
   ) {
     date
     marginPct
@@ -41,6 +43,7 @@ export const ProfitabilityPageDataDocument = `
     endDate: $endDate
     branch: $branch
     productLine: $productLine
+    itemGroups: $itemGroups
   ) {
     branch
     productLine

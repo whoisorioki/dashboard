@@ -12,7 +12,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import DateRangePicker from "./DateRangePicker";
+import EnhancedDateRangePicker from "./EnhancedDateRangePicker";
 import { useFilterStore } from "../store/filterStore";
 import { useDataRange } from "../hooks/useDataRange";
 
@@ -126,11 +126,9 @@ const FilterBar: React.FC<FilterBarProps> = ({
       }}
     >
       <Box sx={{ width: "100%", display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
-        <DateRangePicker
+        <EnhancedDateRangePicker
           startDate={startDate}
           endDate={endDate}
-          minDate={minDate}
-          maxDate={maxDate}
           onChange={handleDateRangeChange}
         />
         <FormControl size="small" sx={{ minWidth: 180 }}>

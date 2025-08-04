@@ -17,20 +17,22 @@ export type SalesPageDataQueryVariables = Types.Exact<{
   endDate: Types.Scalars['String']['input'];
   branch?: Types.InputMaybe<Types.Scalars['String']['input']>;
   productLine?: Types.InputMaybe<Types.Scalars['String']['input']>;
+  itemGroups?: Types.InputMaybe<Array<Types.Scalars['String']['input']> | Types.Scalars['String']['input']>;
 }>;
 
 
-export type SalesPageDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, monthlySalesGrowth: Array<{ __typename?: 'MonthlySalesGrowth', date: string, totalSales?: number | null, grossProfit?: number | null }>, salesPerformance: Array<{ __typename?: 'SalesPerformance', salesPerson: string, totalSales: number, grossProfit?: number | null, transactionCount: number, averageSale: number, uniqueBranches: number, uniqueProducts: number, avgMargin?: number | null }> };
+export type SalesPageDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, monthlySalesGrowth: Array<{ __typename?: 'MonthlySalesGrowth', date: string, totalSales?: number | null, grossProfit?: number | null }>, salesPerformance: Array<{ __typename?: 'SalesPerformance', salesPerson: string, totalSales?: number | null, grossProfit?: number | null, transactionCount: number, averageSale?: number | null, uniqueBranches: number, uniqueProducts: number, avgMargin?: number | null }>, salespersonProductMix: Array<{ __typename?: 'SalespersonProductMixEntry', salesperson: string, productLine: string, avgProfitMargin?: number | null }> };
 
 
 
 export const SalesPageDataDocument = `
-    query SalesPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String) {
+    query SalesPageData($startDate: String!, $endDate: String!, $branch: String, $productLine: String, $itemGroups: [String!]) {
   revenueSummary(
     startDate: $startDate
     endDate: $endDate
     branch: $branch
     productLine: $productLine
+    itemGroups: $itemGroups
   ) {
     totalRevenue
     netSales
@@ -49,6 +51,7 @@ export const SalesPageDataDocument = `
     endDate: $endDate
     branch: $branch
     productLine: $productLine
+    itemGroups: $itemGroups
   ) {
     ...MonthlySalesGrowthFields
   }
@@ -57,6 +60,7 @@ export const SalesPageDataDocument = `
     endDate: $endDate
     branch: $branch
     productLine: $productLine
+    itemGroups: $itemGroups
   ) {
     salesPerson
     totalSales
@@ -66,6 +70,17 @@ export const SalesPageDataDocument = `
     uniqueBranches
     uniqueProducts
     avgMargin
+  }
+  salespersonProductMix(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemGroups: $itemGroups
+  ) {
+    salesperson
+    productLine
+    avgProfitMargin
   }
 }
     ${MonthlySalesGrowthFieldsFragmentDoc}`;

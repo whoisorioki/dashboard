@@ -136,9 +136,13 @@ async def fetch_sales_data(
 
     sales_data_dicts = await run_in_threadpool(_query_druid)
     if not sales_data_dicts:
-        raise HTTPException(
-            status_code=404, detail="No sales data found for the given filters."
+        # Return empty DataFrame instead of raising exception
+        # This is a normal state when filters don't match any data
+        logger.info(
+            f"No sales data found for filters: start_date={start_date}, end_date={end_date}, branch_names={branch_names}, item_groups={item_groups}"
         )
+        return pl.DataFrame()
+
     raw_sales_df = pl.from_dicts(sales_data_dicts)
     logger.info(
         f"Raw data retrieved from Druid: {raw_sales_df.shape[0]} rows, {raw_sales_df.shape[1]} columns"
@@ -306,16 +310,16 @@ def get_data_range_from_druid() -> dict:
         """Convert Unix timestamp (ms or s) to ISO 8601 string"""
         if timestamp_value is None:
             return None
-        
+
         try:
             # Handle string timestamps
             if isinstance(timestamp_value, str):
                 timestamp_value = int(timestamp_value)
-            
+
             # If timestamp is in seconds (< year 2100 in milliseconds), convert to milliseconds
             if timestamp_value < 4102444800000:
                 timestamp_value = timestamp_value * 1000
-            
+
             # Convert to datetime and format as ISO string
             dt = datetime.fromtimestamp(timestamp_value / 1000)
             return dt.isoformat() + "Z"

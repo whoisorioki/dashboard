@@ -5,8 +5,15 @@ query BranchesPageData(
   $endDate: String!
   $branch: String
   $productLine: String
+  $itemGroups: [String!]
 ) {
-  revenueSummary(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+  revenueSummary(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemGroups: $itemGroups
+  ) {
     totalRevenue
     netSales
     grossProfit
@@ -19,7 +26,13 @@ query BranchesPageData(
     uniqueEmployees
     netUnitsSold
   }
-  branchPerformance(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+  branchPerformance(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemGroups: $itemGroups
+  ) {
     branch
     totalSales
     transactionCount
@@ -27,13 +40,24 @@ query BranchesPageData(
     uniqueCustomers
     uniqueProducts
   }
-  branchGrowth(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+  branchGrowth(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemGroups: $itemGroups
+  ) {
     branch
     monthYear
     monthlySales
     growthPct
   }
-  branchProductHeatmap(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
+  branchProductHeatmap(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+  ) {
     branch
     product
     sales

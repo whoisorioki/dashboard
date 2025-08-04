@@ -3,13 +3,25 @@ import PageHeader from '../components/PageHeader';
 import { MonetizationOn as MonetizationOnIcon } from '@mui/icons-material';
 import TrendChart from '../components/TrendChart';
 import ProfitabilityByDimensionChart from '../components/ProfitabilityByDimensionChart';
-import { useFilters } from '../context/FilterContext';
+import { useFilterStore } from "../store/filterStore";
 import { useProfitabilityPageDataQuery } from '../queries/profitabilityPageData.generated';
 import { graphqlClient } from '../lib/graphqlClient';
 import DataStateWrapper from "../components/DataStateWrapper";
+import { format } from "date-fns";
 
 const ProfitabilityAnalysis = () => {
-    const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+    const filterStore = useFilterStore();
+    const startDate = filterStore.startDate;
+    const endDate = filterStore.endDate;
+    const selectedBranches = filterStore.selectedBranches;
+    const selectedProductLines = filterStore.selectedProductLines;
+    const selectedItemGroups = filterStore.selectedItemGroups;
+
+    // Convert dates to strings for API calls
+    const start_date = startDate ? format(startDate, 'yyyy-MM-dd') : null;
+    const end_date = endDate ? format(endDate, 'yyyy-MM-dd') : null;
+    const selected_branch = selectedBranches.length === 1 ? selectedBranches[0] : "all";
+    const selected_product_line = selectedProductLines.length === 1 ? selectedProductLines[0] : "all";
     // Default dimension for initial load
     const dimension = 'Branch';
     const { data, isLoading, error } = useProfitabilityPageDataQuery(
@@ -19,6 +31,7 @@ const ProfitabilityAnalysis = () => {
             endDate: end_date || undefined,
             branch: selected_branch !== 'all' ? selected_branch : undefined,
             productLine: selected_product_line !== 'all' ? selected_product_line : undefined,
+            itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
             dimension,
         }
     );

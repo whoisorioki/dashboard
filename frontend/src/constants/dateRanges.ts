@@ -10,10 +10,10 @@ export const FALLBACK_DATE_RANGE = {
   MAX_DATE: new Date('2025-06-01'),
 }
 
-// Helper function to get default date range (January 2025 where data exists)
+// Helper function to get default date range (December 2024 where data exists)
 export const getDefaultDateRange = (): [Date, Date] => {
-  // Return January 2025 as the default period where we know data exists
-  return [new Date('2025-01-01'), new Date('2025-01-31')]
+  // Return December 2024 as the default period to match Zustand store
+  return [new Date('2024-12-01'), new Date('2024-12-31')]
 }
 
 // Helper function to validate date range
