@@ -23,51 +23,51 @@
 ## 📊 Component Architecture
 
 ### Frontend Structure (React + TypeScript)
-```
-src/
-├── 🎨 components/           # UI Components
-│   ├── FilterBar.tsx       # Date/Branch/Product Filters
-│   ├── DashboardCards/     # KPI Display Cards
-│   ├── GeographicMaps/     # 4 Map Visualization Types
-│   └── DatePickers/        # Enhanced Date Selection
-│
-├── 🔗 hooks/               # Data Fetching
-│   ├── useApi.ts           # Generic API Hook
-│   ├── useDynamicApi.ts    # Dynamic Endpoint Hook
-│   └── useDataRange.ts     # Date Range Logic
-│
-├── 📡 queries/             # API Contracts
-│   ├── kpiQueries.ts       # KPI Endpoints
-│   └── salesQueries.ts     # Sales Data Endpoints
-│
-├── 🗃️ store/              # State Management
-│   └── filterStore.ts      # Zustand Global State
-│
-└── 📄 pages/               # Route Components
-    └── Dashboard.tsx       # Main Analytics View
-```
+The frontend follows a modular, scalable architecture:
+
+**🎨 Components Layer**
+- `FilterBar.tsx` - Global date, branch, and product filtering
+- `DashboardCards/` - Reusable KPI display components
+- `GeographicMaps/` - Four distinct map visualization types
+- `DatePickers/` - Enhanced date selection with validation
+
+**🔗 Data Layer**
+- `useApi.ts` - Generic API communication hook
+- `useDynamicApi.ts` - Dynamic endpoint management
+- `useDataRange.ts` - Date range logic and validation
+
+**📡 API Integration**
+- `kpiQueries.ts` - KPI-specific endpoint definitions
+- `salesQueries.ts` - Sales data API contracts
+
+**🗃️ State Management**
+- `filterStore.ts` - Zustand-based global state management
+
+**📄 Pages**
+- `Dashboard.tsx` - Primary analytics interface
 
 ### Backend Structure (FastAPI + Python)
-```
-backend/
-├── 🚀 main.py              # FastAPI Application Entry
-├── 📡 api/                 # API Routes
-│   ├── routes.py           # Core Endpoints
-│   └── kpi_routes.py       # KPI-Specific Routes
-│
-├── 💼 services/            # Business Logic
-│   ├── sales_data.py       # Mock/Real Data Service
-│   └── kpi_service.py      # KPI Calculations
-│
-├── 🔌 core/               # Infrastructure
-│   └── druid_client.py     # Apache Druid Integration
-│
-├── 📋 schema/             # Data Validation
-│   └── schema.py           # Pandera Schemas
-│
-└── 🛠️ utils/              # Utilities
-    └── response_envelope.py # Standard API Response
-```
+The backend emphasizes performance, reliability, and maintainability:
+
+**🚀 Application Core**
+- `main.py` - FastAPI application entry point and configuration
+
+**📡 API Routes**
+- `routes.py` - Core REST endpoints for analytics
+- `kpi_routes.py` - Specialized KPI calculation endpoints
+
+**💼 Business Logic**
+- `sales_data.py` - Data service with mock/real data switching
+- `kpi_service.py` - KPI calculations and business metrics
+
+**🔌 Infrastructure**
+- `druid_client.py` - Apache Druid integration and connection management
+
+**📋 Data Validation**
+- `schema.py` - Pandera schemas for data quality assurance
+
+**🛠️ Utilities**
+- `response_envelope.py` - Standardized API response formatting
 
 ## 🔄 Data Flow Architecture
 
@@ -95,50 +95,66 @@ backend/
 
 ## 🎯 Core Components Deep Dive
 
-### 1. 📊 Dashboard Components
-| Component | Purpose | Data Source | Key Features |
-|-----------|---------|-------------|--------------|
-| `RevenueCard` | Revenue KPIs | `/api/kpi/revenue` | Real-time revenue tracking |
-| `SalesCard` | Sales metrics | `/api/kpi/sales` | Volume & growth trends |
-| `ProfitCard` | Profit analysis | `/api/kpi/profit` | Margin calculations |
-| `GeographicMap` | Location analysis | `/api/geographic-data` | 4 visualization modes |
+### 📊 Dashboard Component Overview
+**Revenue & Financial Metrics**
+- `RevenueCard` - Real-time revenue tracking with growth indicators
+- `SalesCard` - Sales volume and velocity measurements  
+- `ProfitCard` - Profit analysis with margin calculations
+- `TargetCard` - Sales target vs. actual performance tracking
 
-### 2. 🗺️ Geographic Visualization Types
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    GEOGRAPHIC MAP TYPES                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  1️⃣ ENHANCED MAP      │  2️⃣ BASIC CHOROPLETH                   │
-│     - County Aggregate │     - Simple Color Coding             │
-│     - Profit Density   │     - Regional Overview               │
-│                        │                                       │
-│  3️⃣ PRECISE GPS       │  4️⃣ GOOGLE MAPS INTERACTIVE           │
-│     - Real Coordinates │     - Street View Integration         │
-│     - Geocoding API    │     - Satellite/Terrain Views         │
-│                        │                                       │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Geographic & Location Intelligence**
+- `GeographicMap` - Four distinct visualization modes for location analysis
+- `BranchComparison` - Multi-location performance comparison tools
+- `TerritoryAnalysis` - Geographic territory optimization insights
 
-### 3. 🔧 Enhanced Date Range Picker
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                 ENHANCED DATE PICKER FEATURES                  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ⚡ Quick Presets     │  📅 Custom Range Selection             │
-│    - This Month       │    - Start/End Date Pickers           │
-│    - Last Month       │    - Visual Calendar Interface        │
-│    - This Year        │    - Date Validation                  │
-│    - 7/30/90 Days     │    - Error Handling                   │
-│                       │                                        │
-│  ✅ Validation        │  📊 Data Range Constraints             │
-│    - Date Order       │    - Min: 2020-01-01                  │
-│    - Future Dates     │    - Max: Current Date                │
-│    - Required Fields  │    - Duration Limits                  │
-│                       │                                        │
-└─────────────────────────────────────────────────────────────────┘
-```
+**Performance Analytics**
+- `SalespersonLeaderboard` - Individual and team performance rankings
+- `ProductPerformance` - Product line profitability and trend analysis
+- `CustomerInsights` - Customer value and behavior analytics
+
+### 🗺️ Geographic Visualization System
+**Enhanced Map Features**
+- County-level aggregation with profit density visualization
+- Interactive hover details with drill-down capabilities
+- Regional performance comparison and benchmarking tools
+- Color-coded performance indicators with customizable thresholds
+
+**Basic Choropleth Implementation**
+- Lightweight rendering for mobile and low-bandwidth scenarios
+- Simple color coding for quick regional overview
+- Fast-loading performance optimization
+- Export capabilities for presentations and reports
+
+**Precise GPS Integration**
+- Real-time coordinate validation with Google Geocoding API
+- Exact branch location mapping with accuracy verification
+- Distance calculations and accessibility analysis
+- Integration with navigation and traffic data
+
+**Interactive Google Maps**
+- Full Google Maps JavaScript API integration
+- Multiple view modes: satellite, terrain, street view
+- Custom business intelligence overlays
+- Real-time traffic and navigation integration
+
+### 🔧 Enhanced Date Management System
+**Quick Preset Functionality**
+- Pre-configured ranges: This Month, Last Month, This Year
+- Common business periods: Last 7/30/90 days
+- Fiscal year alignment for Kenyan business calendar
+- Holiday and seasonal period recognition
+
+**Custom Range Selection**
+- Advanced date picker with calendar interface
+- Start and end date validation with business logic
+- Date order verification and conflict resolution
+- Future date prevention and historical data limits
+
+**Data Validation & Constraints**
+- Automatic validation against available data ranges
+- Minimum date: 2020-01-01 for historical analysis
+- Maximum date: Current date with real-time updates
+- Duration limits and performance optimization
 
 ## 🔗 API Integration Patterns
 
