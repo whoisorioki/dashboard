@@ -25,7 +25,7 @@ const SimpleGoogleMaps: React.FC<SimpleGoogleMapsProps> = ({
         if (element) {
             mapRef.current = element;
             console.log('✅ SimpleGoogleMaps - Map container ref set via callback');
-            
+
             // Try to initialize if API is ready
             if (apiReady && window.google && window.google.maps) {
                 console.log('🚀 SimpleGoogleMaps - Both ref and API ready, initializing...');
@@ -47,7 +47,7 @@ const SimpleGoogleMaps: React.FC<SimpleGoogleMapsProps> = ({
 
         if (!mapRef.current) {
             console.warn('⏳ SimpleGoogleMaps - Map container ref not ready, retrying...', { retryCount });
-            
+
             // Retry up to 5 times with increasing delay
             if (retryCount < 5) {
                 setTimeout(() => {
