@@ -1,0 +1,13 @@
+query AlertsPageData {
+  systemHealth {
+    status
+  }
+  druidHealth {
+    druidStatus
+    isAvailable
+  }
+  druidDatasources {
+    datasources
+    count
+  }
+} 

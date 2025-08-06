@@ -2,12 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
-from backend.api.routes import router
-from backend.api.kpi_routes import router as kpi_router
-from backend.core.druid_client import lifespan, druid_conn
-from backend.schema import schema
+from api.routes import router
+from api.kpi_routes import router as kpi_router
+from core.druid_client import lifespan, druid_conn
+from schema import schema
 import strawberry.fastapi
-from backend.schema import Query
+from schema import Query
 import strawberry
 from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
@@ -71,8 +71,8 @@ if ENV == "development":
             "http://localhost:5174",  # Vite alternative port
             "http://127.0.0.1:5173",
             "http://127.0.0.1:5174",
-            "http://localhost:5175",  
-            "http://127.0.0.1:5175", 
+            "http://localhost:5175",
+            "http://127.0.0.1:5175",
         ]
     )
 

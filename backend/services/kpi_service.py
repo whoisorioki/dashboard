@@ -2,6 +2,11 @@ import polars as pl
 import numpy as np
 from typing import Dict, List
 import logging
+import requests
+from datetime import datetime
+import asyncio
+from services.sales_data import fetch_sales_data
+
 
 def _ensure_time_is_datetime(df: pl.DataFrame) -> pl.DataFrame:
     if "__time" not in df.columns:
@@ -11,9 +16,7 @@ def _ensure_time_is_datetime(df: pl.DataFrame) -> pl.DataFrame:
         return df
     elif dtype == pl.Int64 or dtype == pl.UInt64:
         # Assume ms since epoch, convert to us for Polars Datetime
-        df = df.with_columns(
-            (pl.col("__time") * 1000).cast(pl.Datetime)
-        )
+        df = df.with_columns((pl.col("__time") * 1000).cast(pl.Datetime))
         return df
     else:
         # Try string parsing as before
@@ -25,7 +28,9 @@ def _ensure_time_is_datetime(df: pl.DataFrame) -> pl.DataFrame:
         ]:
             try:
                 df = df.with_columns(
-                    pl.col("__time").cast(pl.Utf8).str.strptime(pl.Datetime, fmt, strict=False)
+                    pl.col("__time")
+                    .cast(pl.Utf8)
+                    .str.strptime(pl.Datetime, fmt, strict=False)
                 )
                 if df["__time"].dtype == pl.Datetime:
                     return df
@@ -33,40 +38,65 @@ def _ensure_time_is_datetime(df: pl.DataFrame) -> pl.DataFrame:
                 continue
         # Fallback: try casting directly
         try:
-            df = df.with_columns(
-                pl.col("__time").cast(pl.Datetime)
-            )
+            df = df.with_columns(pl.col("__time").cast(pl.Datetime))
             if df["__time"].dtype == pl.Datetime:
                 return df
         except Exception:
             pass
-    logging.error(f"Failed to convert __time to Datetime. Dtype: {df['__time'].dtype}, Sample: {df['__time'].head(5)}")
-    raise ValueError(f"Failed to convert __time to Datetime. Dtype: {df['__time'].dtype}")
-
-
-def calculate_monthly_sales_growth(df: pl.DataFrame) -> list:
-    """
-    Calculates monthly sales totals and returns in frontend format.
-    Returns: [{date: string, sales: number}]
-    """
-    if df.is_empty():
-        return []
-
-    df = _ensure_time_is_datetime(df)
-    group_every = "1mo"
-    monthly_sales = (
-        df.lazy()
-        .sort("__time")
-        .group_by_dynamic("__time", every=group_every)
-        .agg(pl.sum("grossRevenue").alias("monthly_sales"))
-        .collect()
+    logging.error(
+        f"Failed to convert __time to Datetime. Dtype: {df['__time'].dtype}, Sample: {df['__time'].head(5)}"
+    )
+    raise ValueError(
+        f"Failed to convert __time to Datetime. Dtype: {df['__time'].dtype}"
     )
 
-    result = [
-        {"date": row["__time"].strftime("%Y-%m"), "sales": row["monthly_sales"]}
-        for row in monthly_sales.to_dicts()
+
+async def calculate_monthly_sales_growth(
+    start_date: str,
+    end_date: str,
+    branch: str | None = None,
+    product_line: str | None = None,
+    item_groups: list[str] | None = None,
+) -> list:
+    """
+    Fetches sales data from Druid (via sales_data.py) and aggregates by month, with optional branch and product_line filters.
+    Returns: [{date: string, totalSales: number, grossProfit: number}]
+    """
+    df = await fetch_sales_data(
+        start_date,
+        end_date,
+        branch_names=[branch] if branch else None,
+        item_groups=item_groups,
+    )
+    if df.is_empty():
+        return []
+    # Apply product_line filter if needed
+    if product_line and product_line != "all":
+        df = df.filter(pl.col("ProductLine") == product_line)
+    # Ensure __time is datetime using the shared helper
+    df = _ensure_time_is_datetime(df)
+    # Group by month
+    df = df.with_columns([pl.col("__time").dt.strftime("%Y-%m").alias("month")])
+    grouped = (
+        df.lazy()
+        .group_by("month")
+        .agg(
+            [
+                pl.sum("grossRevenue").alias("totalSales"),
+                (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("grossProfit"),
+            ]
+        )
+        .sort("month")
+        .collect()
+    )
+    return [
+        {
+            "date": row["month"],
+            "totalSales": row["totalSales"],
+            "grossProfit": row["grossProfit"],
+        }
+        for row in grouped.iter_rows(named=True)
     ]
-    return result
 
 
 def calculate_sales_target_attainment(df: pl.DataFrame, target: float) -> dict:
@@ -76,9 +106,7 @@ def calculate_sales_target_attainment(df: pl.DataFrame, target: float) -> dict:
     if target == 0 or df.is_empty():
         return {"total_sales": 0.0, "attainment_percentage": 0.0}
 
-    total_sales = float(
-        df.lazy().select(pl.sum("grossRevenue")).collect().item()
-    )
+    total_sales = float(df.lazy().select(pl.sum("grossRevenue")).collect().item())
 
     # Ensure no NaN values
     if np.isnan(total_sales) or np.isinf(total_sales):
@@ -182,8 +210,7 @@ def calculate_employee_quota_attainment(
     )
     # Both employee_sales and quotas_df are DataFrames, so join directly
     performance_df = (
-        employee_sales
-        .join(quotas_df, on="SalesPerson", how="left")
+        employee_sales.join(quotas_df, on="SalesPerson", how="left")
         .with_columns(
             ((pl.col("total_sales") / pl.col("quota")) * 100)
             .round(2)
@@ -398,42 +425,54 @@ def get_product_analytics(df: pl.DataFrame) -> pl.DataFrame:
 
 def calculate_revenue_summary(df: pl.DataFrame) -> dict:
     """
-    Calculate overall revenue summary metrics.
+    Calculate overall revenue summary metrics, including gross revenue, net sales, net units sold, returns value, and line item count.
     """
     if df.is_empty():
         return {
             "total_revenue": 0.0,
-            "total_transactions": 0,
+            "net_sales": 0.0,
+            "gross_profit": 0.0,
+            "line_item_count": 0,
             "average_transaction": 0.0,
             "unique_products": 0,
             "unique_branches": 0,
             "unique_employees": 0,
+            "net_units_sold": 0.0,
+            "returns_value": 0.0,
         }
-    summary = (
-        df.lazy()
-        .select([
-            pl.sum("grossRevenue").alias("total_revenue"),
-            pl.n_unique("ItemName").alias("unique_products"),
-            pl.n_unique("Branch").alias("unique_branches"),
-            pl.n_unique("SalesPerson").alias("unique_employees"),
-        ])
-        .collect()
+    total_revenue = sum_gross_revenue(df)
+    net_sales = sum_net_sales(df)
+    gross_profit = calc_gross_profit(df)
+    net_units_sold = sum_net_units_sold(df)
+    line_item_count = (
+        float(df.lazy().select(pl.sum("lineItemCount")).collect().item())
+        if "lineItemCount" in df.columns
+        else df.height
     )
-    total_revenue = float(summary[0, "total_revenue"])
-    total_transactions = df.height
-    unique_products = int(summary[0, "unique_products"])
-    unique_branches = int(summary[0, "unique_branches"])
-    unique_employees = int(summary[0, "unique_employees"])
+    returns_value = (
+        float(df.lazy().select(pl.sum("returnsValue")).collect().item())
+        if "returnsValue" in df.columns
+        else 0.0
+    )
     average_transaction = (
-        total_revenue / total_transactions if total_transactions > 0 else 0.0
+        total_revenue / line_item_count if line_item_count > 0 else 0.0
+    )
+    unique_products = int(df.lazy().select(pl.n_unique("ItemName")).collect().item())
+    unique_branches = int(df.lazy().select(pl.n_unique("Branch")).collect().item())
+    unique_employees = int(
+        df.lazy().select(pl.n_unique("SalesPerson")).collect().item()
     )
     return {
         "total_revenue": round(total_revenue, 2),
-        "total_transactions": total_transactions,
+        "net_sales": round(net_sales, 2),
+        "gross_profit": round(gross_profit, 2),
+        "line_item_count": int(line_item_count),
         "average_transaction": round(average_transaction, 2),
         "unique_products": unique_products,
         "unique_branches": unique_branches,
         "unique_employees": unique_employees,
+        "net_units_sold": round(net_units_sold, 2),
+        "returns_value": round(returns_value, 2),
     }
 
 
@@ -451,8 +490,7 @@ def calculate_employee_performance(df: pl.DataFrame, quotas_df: pl.DataFrame) ->
     )
     # Both employee_sales and quotas_df are DataFrames, so join directly
     performance_df = (
-        employee_sales
-        .join(quotas_df, on="SalesPerson", how="left")
+        employee_sales.join(quotas_df, on="SalesPerson", how="left")
         .with_columns(
             [
                 pl.col("total_sales"),
@@ -486,9 +524,7 @@ def calculate_margin_trends(df: pl.DataFrame) -> list:
     df = _ensure_time_is_datetime(df)
     monthly = (
         df.lazy()
-        .with_columns([
-            pl.col("__time").dt.strftime("%Y-%m").alias("month")
-        ])
+        .with_columns([pl.col("__time").dt.strftime("%Y-%m").alias("month")])
         .group_by("month")
         .agg(
             [
@@ -511,3 +547,39 @@ def calculate_margin_trends(df: pl.DataFrame) -> list:
         for row in monthly.to_dicts()
     ]
     return result
+
+
+def sum_gross_revenue(df: pl.DataFrame) -> float:
+    """Sum of gross revenue (AR Invoice only)."""
+    return float(df.lazy().select(pl.sum("grossRevenue")).collect().item())
+
+
+def sum_net_sales(df: pl.DataFrame) -> float:
+    """Net sales: gross revenue plus returns (returnsValue is negative for returns)."""
+    return float(
+        df.lazy()
+        .select(pl.sum("grossRevenue") + pl.sum("returnsValue"))
+        .collect()
+        .item()
+    )
+
+
+def calc_gross_profit(df: pl.DataFrame) -> float:
+    """Gross profit: gross revenue minus total cost."""
+    return float(
+        df.lazy().select(pl.sum("grossRevenue") - pl.sum("totalCost")).collect().item()
+    )
+
+
+def calc_margin(df: pl.DataFrame) -> float:
+    """Margin: (gross revenue - total cost) / gross revenue."""
+    gross_revenue = sum_gross_revenue(df)
+    gross_profit = calc_gross_profit(df)
+    return (gross_profit / gross_revenue) if gross_revenue else 0.0
+
+
+def sum_net_units_sold(df: pl.DataFrame) -> float:
+    """Net units sold: units sold plus units returned."""
+    return float(
+        df.lazy().select(pl.sum("unitsSold") + pl.sum("unitsReturned")).collect().item()
+    )

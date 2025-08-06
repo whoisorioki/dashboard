@@ -64,19 +64,51 @@ const ExpandableCard: React.FC<ExpandableCardProps> = ({ title, children, infoCo
         </DialogContent>
       </Dialog>
       {/* Expand Modal */}
-      <Dialog open={expandOpen} onClose={() => setExpandOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          {title} (Expanded)
+      <Dialog
+        open={expandOpen}
+        onClose={() => setExpandOpen(false)}
+        maxWidth={false}
+        fullWidth
+        PaperProps={{
+          sx: {
+            width: '95vw',
+            height: '95vh',
+            maxWidth: 'none',
+            margin: '2.5vh auto',
+          }
+        }}
+      >
+        <DialogTitle sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          pb: 2
+        }}>
+          <Typography variant="h5" fontWeight={600}>
+            {title} (Expanded View)
+          </Typography>
           <IconButton
             aria-label="close"
             onClick={() => setExpandOpen(false)}
-            sx={{ position: "absolute", right: 8, top: 8, color: theme.palette.grey[500] }}
+            sx={{ color: theme.palette.grey[500] }}
           >
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent>
-          <Box sx={{ minHeight: 320, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <DialogContent sx={{
+          p: 3,
+          height: 'calc(95vh - 120px)',
+          overflow: 'auto',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <Box sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0
+          }}>
             {children}
           </Box>
         </DialogContent>

@@ -10,8 +10,9 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
-    // Add proxy if needed for API requests
+    proxy: {
+      '/api': 'http://localhost:8000', // or your backend port
+    }
   },
   optimizeDeps: {
     include: [

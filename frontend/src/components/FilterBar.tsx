@@ -6,47 +6,117 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Chip,
+  OutlinedInput,
+  Button,
+  Stack,
+  Typography,
 } from "@mui/material";
-import DateRangePicker from "./DateRangePicker";
-import dayjs, { Dayjs } from "dayjs";
+import SimpleDateRangePicker from "./SimpleDateRangePicker";
+import { useFilterStore } from "../store/filterStore";
+import { useDataRange } from "../hooks/useDataRange";
 
+/**
+ * Global Filter Bar for the dashboard.
+ *
+ * Provides a consistent, global filter UI for date range, branches, product lines, and item groups.
+ * Uses Zustand for state management and persists state to localStorage. Supports multi-select and chip display for all filters.
+ * Integrates with data range constraints to ensure valid date selections.
+ *
+ * Args:
+ *   branchOptions (string[]): List of available branches.
+ *   productLineOptions (string[]): List of available product lines.
+ *   itemGroupOptions (string[]): List of available item groups.
+ *
+ * Returns:
+ *   React component rendering the global filter bar.
+ *
+ * Example:
+ *   <FilterBar branchOptions={...} productLineOptions={...} itemGroupOptions={...} />
+ */
 interface FilterBarProps {
-  startDate?: Dayjs | null;
-  endDate?: Dayjs | null;
-  minDate?: Dayjs;
-  maxDate?: Dayjs;
-  onDateRangeChange?: (range: [Date | null, Date | null]) => void;
-  branch?: string;
-  onBranchChange?: (branch: string) => void;
   branchOptions?: string[];
-  productLine?: string;
-  onProductLineChange?: (productLine: string) => void;
   productLineOptions?: string[];
-  children?: React.ReactNode; // For contextual controls
+  itemGroupOptions?: string[];
 }
 
 const FilterBar: React.FC<FilterBarProps> = ({
-  startDate,
-  endDate,
-  minDate,
-  maxDate,
-  onDateRangeChange,
-  branch,
-  onBranchChange,
-  branchOptions = [
-    "All Branches",
-    "Nakuru",
-    "Thika",
-    "Nairobi",
-    "Kiambu",
-    "Eldoret",
-  ],
-  productLine,
-  onProductLineChange,
-  productLineOptions = ["All Products", "TVS", "Piaggio", "Accessories"],
-  children,
+  branchOptions = [],
+  productLineOptions = [],
+  itemGroupOptions = [],
 }) => {
-  return (
+  const {
+    startDate,
+    endDate,
+    setStartDate,
+    setEndDate,
+    selectedBranches,
+    setBranches,
+    selectedProductLines,
+    setProductLines,
+    selectedItemGroups,
+    setItemGroups,
+    clearFilters,
+  } = useFilterStore();
+
+  // Get data range constraints
+  const { minDate, maxDate, isLoading: dataRangeLoading } = useDataRange();
+
+  // Helper for multi-select
+  const handleMultiSelect = (
+    value: string[] | string,
+    setter: (v: string[]) => void
+  ) => {
+    setter(typeof value === "string" ? value.split(",") : value);
+  };
+
+  // Render chips for all active filters
+  const renderChips = () => (
+    <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mb: 1 }}>
+      {selectedBranches.map((b) => (
+        <Chip
+          key={"branch-" + b}
+          label={b}
+          onDelete={() => setBranches(selectedBranches.filter((x) => x !== b))}
+          color="primary"
+        />
+      ))}
+      {selectedProductLines.map((p) => (
+        <Chip
+          key={"pline-" + p}
+          label={p}
+          onDelete={() => setProductLines(selectedProductLines.filter((x) => x !== p))}
+          color="secondary"
+        />
+      ))}
+      {selectedItemGroups.map((g) => (
+        <Chip
+          key={"igroup-" + g}
+          label={g}
+          onDelete={() => setItemGroups(selectedItemGroups.filter((x) => x !== g))}
+          color="success"
+        />
+      ))}
+    </Stack>
+  );
+
+  // Handle date changes from the DateRangePicker
+  const handleDateRangeChange = ([start, end]: [Date | null, Date | null]) => {
+    console.log('🔄 FilterBar - Received date change:', {
+      start: start ? start.toISOString().split('T')[0] : null,
+      end: end ? end.toISOString().split('T')[0] : null,
+      timestamp: new Date().toISOString(),
+      previousDates: {
+        startDate: startDate ? startDate.toISOString().split('T')[0] : null,
+        endDate: endDate ? endDate.toISOString().split('T')[0] : null
+      }
+    });
+
+    setStartDate(start);
+    setEndDate(end);
+
+    console.log('🔄 FilterBar - Updated filter store, should trigger dashboard refresh');
+  }; return (
     <Paper
       elevation={1}
       sx={{
@@ -62,55 +132,70 @@ const FilterBar: React.FC<FilterBarProps> = ({
         alignItems: "center",
         gap: 2,
         flexWrap: "wrap",
+        flexDirection: "column",
       }}
     >
-      {onDateRangeChange && (
-        <DateRangePicker
-          startDate={startDate ? dayjs(startDate) : null}
-          endDate={endDate ? dayjs(endDate) : null}
-          minDate={minDate ? dayjs(minDate) : undefined}
-          maxDate={maxDate ? dayjs(maxDate) : undefined}
-          onChange={([start, end]) => {
-            onDateRangeChange([
-              start ? start.toDate() : null,
-              end ? end.toDate() : null,
-            ]);
-          }}
+      <Box sx={{ width: "100%", display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center" }}>
+        <SimpleDateRangePicker
+          startDate={startDate}
+          endDate={endDate}
+          minDate={minDate}
+          maxDate={maxDate}
+          onChange={handleDateRangeChange}
         />
-      )}
-      {onBranchChange && (
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Branch</InputLabel>
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel>Branches</InputLabel>
           <Select
-            value={branch || "all"}
-            label="Branch"
-            onChange={(e) => onBranchChange(e.target.value)}
+            multiple
+            value={selectedBranches}
+            onChange={(e) => handleMultiSelect(e.target.value, setBranches)}
+            input={<OutlinedInput label="Branches" />}
+            renderValue={(selected) => (selected as string[]).join(", ")}
           >
             {branchOptions.map((b) => (
-              <MenuItem key={b} value={b === "All Branches" ? "all" : b}>
+              <MenuItem key={b} value={b}>
                 {b}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
-      )}
-      {onProductLineChange && (
-        <FormControl size="small" sx={{ minWidth: 120 }}>
-          <InputLabel>Product Line</InputLabel>
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel>Product Lines</InputLabel>
           <Select
-            value={productLine || "all"}
-            label="Product Line"
-            onChange={(e) => onProductLineChange(e.target.value)}
+            multiple
+            value={selectedProductLines}
+            onChange={(e) => handleMultiSelect(e.target.value, setProductLines)}
+            input={<OutlinedInput label="Product Lines" />}
+            renderValue={(selected) => (selected as string[]).join(", ")}
           >
             {productLineOptions.map((p) => (
-              <MenuItem key={p} value={p === "All Products" ? "all" : p}>
+              <MenuItem key={p} value={p}>
                 {p}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
-      )}
-      {children}
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel>Item Groups</InputLabel>
+          <Select
+            multiple
+            value={selectedItemGroups}
+            onChange={(e) => handleMultiSelect(e.target.value, setItemGroups)}
+            input={<OutlinedInput label="Item Groups" />}
+            renderValue={(selected) => (selected as string[]).join(", ")}
+          >
+            {itemGroupOptions.map((g) => (
+              <MenuItem key={g} value={g}>
+                {g}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        <Button variant="outlined" color="error" onClick={clearFilters} sx={{ ml: 2 }}>
+          Reset Filters
+        </Button>
+      </Box>
+      {renderChips()}
     </Paper>
   );
 };

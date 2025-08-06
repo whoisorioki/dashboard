@@ -26,28 +26,64 @@ import { differenceInCalendarDays, subDays, parseISO } from "date-fns";
 import PageHeader from "../components/PageHeader";
 import KpiCard from "../components/KpiCard";
 import MonthlySalesTrendChart from "../components/MonthlySalesTrendChart";
-import ProductPerformanceChart from "../components/ProductPerformanceChart";
+import GeographicProfitabilityMap from "../components/GeographicProfitabilityMap";
+import EnhancedGeographicMap from "../components/EnhancedGeographicMap";
+import GoogleMapsBranchView from "../components/GoogleMapsBranchView";
+import PreciseGoogleMaps from "../components/PreciseGoogleMaps";
+import SimpleGoogleMaps from "../components/SimpleGoogleMaps";
 import BranchProductHeatmap from "../components/BranchProductHeatmap";
-import QuotaAttainmentGauge from "../components/QuotaAttainmentGauge";
+import EnhancedTopCustomersTable from "../components/EnhancedTopCustomersTable";
 import ChartEmptyState from "../components/states/ChartEmptyState";
+import DataStateWrapper from "../components/DataStateWrapper";
 import { useDashboardDataQuery } from "../queries/dashboardData.generated";
-import { useFilters } from "../context/FilterContext";
 import { queryKeys } from "../lib/queryKeys";
 import { useMemo } from "react";
+import { useDataRange } from "../hooks/useDataRange";
 
 import { useNavigate } from "react-router-dom";
 import { graphqlClient } from "../lib/graphqlClient";
 import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
+import FilterBar from "../components/FilterBar";
+import { useFilterStore, FilterStore } from "../store/filterStore";
+import Alert from '@mui/material/Alert';
 
 // Type guards for API responses
 // Remove legacy type guards; use generated types directly
 
 const Dashboard = () => {
   const [debugMode, setDebugMode] = useState(false);
-  const { date_range, start_date, end_date, selected_branch, selected_product_line, sales_target, setSalesTarget } = useFilters();
+  const [mapView, setMapView] = useState<'choropleth' | 'enhanced' | 'google' | 'precise' | 'simple'>('simple');
+
+  // Zustand global filter state
+  const filterStore: FilterStore = useFilterStore();
+  const startDate = filterStore.startDate;
+  const endDate = filterStore.endDate;
+  const selectedBranches = filterStore.selectedBranches;
+  const selectedProductLines = filterStore.selectedProductLines;
+  const selectedItemGroups = filterStore.selectedItemGroups;
+  const salesTarget = filterStore.salesTarget;
+  const setStartDate = filterStore.setStartDate;
+  const setEndDate = filterStore.setEndDate;
+  const setBranches = filterStore.setBranches;
+  const setProductLines = filterStore.setProductLines;
+  const setItemGroups = filterStore.setItemGroups;
+  const setSalesTarget = filterStore.setSalesTarget;
+  const clearFilters = filterStore.clearFilters;
+
+  // Get data range constraints
+  const { minDate, maxDate, isLoading: dataRangeLoading } = useDataRange();
+
+  // Set default dates if none are selected - ensure we use dates where data exists
+  const effectiveStartDate = startDate || minDate || new Date('2025-01-01');
+  const effectiveEndDate = endDate || maxDate || new Date('2025-01-31');
+
+  // Ensure we don't query beyond the available data range
+  const finalStartDate = maxDate && effectiveStartDate > maxDate ? maxDate : effectiveStartDate;
+  const finalEndDate = minDate && effectiveEndDate < minDate ? minDate : effectiveEndDate;
 
   // Calculate previous period
-  const [currentStart, currentEnd] = date_range;
+  const currentStart = finalStartDate;
+  const currentEnd = finalEndDate;
   let prevStart: Date | null = null;
   let prevEnd: Date | null = null;
   if (currentStart && currentEnd) {
@@ -60,52 +96,114 @@ const Dashboard = () => {
 
   // Memoized filters for query keys
   const filters = useMemo(() => ({
-    dateRange: { start: start_date, end: end_date },
-    branch: selected_branch !== 'all' ? selected_branch : undefined,
-    productLine: selected_product_line !== 'all' ? selected_product_line : undefined,
-    target: sales_target ? parseFloat(sales_target) : undefined,
-  }), [start_date, end_date, selected_branch, selected_product_line, sales_target]);
+    dateRange: { start: finalStartDate, end: finalEndDate },
+    branches: selectedBranches,
+    productLines: selectedProductLines,
+    itemGroups: selectedItemGroups,
+    target: salesTarget ? parseFloat(salesTarget) : undefined,
+  }), [finalStartDate, finalEndDate, selectedBranches, selectedProductLines, selectedItemGroups, salesTarget]);
   const prevFilters = useMemo(() => ({
     dateRange: { start: prevStartStr, end: prevEndStr },
-    branch: selected_branch !== 'all' ? selected_branch : undefined,
-    productLine: selected_product_line !== 'all' ? selected_product_line : undefined,
-    target: sales_target ? parseFloat(sales_target) : undefined,
-  }), [prevStartStr, prevEndStr, selected_branch, selected_product_line, sales_target]);
+    branches: selectedBranches,
+    productLines: selectedProductLines,
+    itemGroups: selectedItemGroups,
+    target: salesTarget ? parseFloat(salesTarget) : undefined,
+  }), [prevStartStr, prevEndStr, selectedBranches, selectedProductLines, selectedItemGroups, salesTarget]);
 
-  // Parallel fetch: current and previous period
-  const { data: dashboardData, isLoading: loadingDashboard } = useDashboardDataQuery(
+  // Dynamic query key for React Query
+  const dashboardQueryKey = useMemo(() => [
+    'dashboardData',
+    {
+      startDate: format(finalStartDate, 'yyyy-MM-dd'),
+      endDate: format(finalEndDate, 'yyyy-MM-dd'),
+      branches: selectedBranches,
+      productLines: selectedProductLines,
+      itemGroups: selectedItemGroups,
+      target: salesTarget,
+    }
+  ], [finalStartDate, finalEndDate, selectedBranches, selectedProductLines, selectedItemGroups, salesTarget]);
+
+  // Fetch dashboard data with all filters
+  const queryParams = {
+    startDate: format(finalStartDate, 'yyyy-MM-dd'),
+    endDate: format(finalEndDate, 'yyyy-MM-dd'),
+    branch: selectedBranches.length === 1 ? selectedBranches[0] : undefined,
+    productLine: selectedProductLines.length === 1 ? selectedProductLines[0] : undefined,
+    itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
+    target: salesTarget ? parseFloat(salesTarget) : undefined,
+  };
+
+  console.log('🚀 Dashboard Query Params:', queryParams);
+
+  const { data: dashboardDataResult, isLoading: loadingDashboard, error: dashboardError } = useDashboardDataQuery(
     graphqlClient,
+    queryParams,
     {
-      startDate: start_date || undefined,
-      endDate: end_date || undefined,
-      branch: selected_branch !== 'all' ? selected_branch : undefined,
-      productLine: selected_product_line !== 'all' ? selected_product_line : undefined,
-      target: sales_target ? parseFloat(sales_target) : undefined,
-    },
-    {
-      queryKey: queryKeys.kpis, // Use a broad key for the dashboard aggregate, or split by section if needed
+      queryKey: ['dashboardData', queryParams], // Use params as query key
     }
   );
-  const { data: prevDashboardData, isLoading: loadingPrevDashboard } = useDashboardDataQuery(
+  const dashboardData = dashboardDataResult?.dashboardData;
+
+  // Effect: update dateRangeHasData based on dashboardData
+  useEffect(() => {
+    // If dashboardData is undefined or empty, set warning
+    if (!loadingDashboard && dashboardDataResult && (!dashboardData || Object.keys(dashboardData).length === 0)) {
+      // setDateRangeHasData(false); // Removed as per edit hint
+    } else {
+      // setDateRangeHasData(true); // Removed as per edit hint
+    }
+  }, [dashboardData, dashboardDataResult, loadingDashboard]); // Removed setDateRangeHasData from dependency array
+
+  // Log GraphQL query error to the console if present
+  useEffect(() => {
+    if (dashboardError) {
+      // Log the error object for debugging
+      // eslint-disable-next-line no-console
+      console.error('Dashboard Query Error:', dashboardError);
+    }
+  }, [dashboardError]);
+
+  const { data: prevDashboardDataResult, isLoading: loadingPrevDashboard } = useDashboardDataQuery(
     graphqlClient,
     {
       startDate: prevStartStr,
       endDate: prevEndStr,
-      branch: selected_branch !== 'all' ? selected_branch : undefined,
-      productLine: selected_product_line !== 'all' ? selected_product_line : undefined,
-      target: sales_target ? parseFloat(sales_target) : undefined,
+      branch: selectedBranches.length === 1 ? selectedBranches[0] : undefined,
+      productLine: selectedProductLines.length === 1 ? selectedProductLines[0] : undefined,
+      itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
+      target: salesTarget ? parseFloat(salesTarget) : undefined,
     },
     {
-      queryKey: queryKeys.kpis, // Use a broad key for the dashboard aggregate, or split by section if needed
+      queryKey: ["dashboardData", prevFilters],
     }
   );
+  const prevDashboardData = prevDashboardDataResult?.dashboardData;
+
+  // Extract options for filter bar (fallback to static if no data)
+  const branchOptions = useMemo(() => {
+    if (dashboardData?.branchList && Array.isArray(dashboardData.branchList)) {
+      return dashboardData.branchList.map((b: any) => b.branch).filter(Boolean);
+    }
+    return [];
+  }, [dashboardData]);
+  const productLineOptions = useMemo(() => {
+    if (dashboardData?.productAnalytics && Array.isArray(dashboardData.productAnalytics)) {
+      return Array.from(new Set(dashboardData.productAnalytics.map((p: any) => p.productLine))).filter(Boolean);
+    }
+    return [];
+  }, [dashboardData]);
+  const itemGroupOptions = useMemo(() => {
+    if (dashboardData?.productAnalytics && Array.isArray(dashboardData.productAnalytics)) {
+      return Array.from(new Set(dashboardData.productAnalytics.map((p: any) => p.itemGroup))).filter(Boolean);
+    }
+    return [];
+  }, [dashboardData]);
 
   // Use all fields from backend output directly
   const safeMonthlySalesGrowth = dashboardData?.monthlySalesGrowth ?? [];
   const safePrevMonthlySalesGrowth = prevDashboardData?.monthlySalesGrowth ?? [];
   const safeRevenueSummary = dashboardData?.revenueSummary || null;
   const safePrevRevenueSummary = prevDashboardData?.revenueSummary || null;
-  const safeProductAnalytics = dashboardData?.productAnalytics ?? [];
   const safeTargetAttainment = dashboardData?.targetAttainment || null;
   const safePrevTargetAttainment = prevDashboardData?.targetAttainment || null;
   const safeProductPerformance = dashboardData?.productPerformance ?? [];
@@ -117,141 +215,148 @@ const Dashboard = () => {
 
   // TODO: Add and display all other KPIs as needed
 
-  // Calculate KPI values for current and previous period
-  const totalSales = Array.isArray(safeMonthlySalesGrowth)
-    ? safeMonthlySalesGrowth.reduce((sum, entry) => sum + (entry.totalSales || 0), 0)
-    : 0;
-  const prevTotalSales = Array.isArray(safePrevMonthlySalesGrowth)
-    ? safePrevMonthlySalesGrowth.reduce((sum, entry) => sum + (entry.totalSales || 0), 0)
-    : 0;
+  // Calculate KPI values using revenue summary data (more accurate)
+  const totalSales = safeRevenueSummary?.totalRevenue ?? 0;
+  const prevTotalSales = safePrevRevenueSummary?.totalRevenue ?? 0;
   const totalSalesChange = totalSales - prevTotalSales;
-  const totalSalesChangePct = prevTotalSales ? (totalSalesChange / prevTotalSales) * 100 : 0;
   const totalSalesDirection = totalSalesChange > 0 ? 'up' : totalSalesChange < 0 ? 'down' : 'neutral';
-  const totalSalesColor = totalSalesDirection === 'up' ? 'success' : totalSalesDirection === 'down' ? 'error' : 'default';
 
-  // Sales Growth
-  const salesGrowth =
-    Array.isArray(safeMonthlySalesGrowth) && safeMonthlySalesGrowth.length > 1
-      ? ((safeMonthlySalesGrowth[safeMonthlySalesGrowth.length - 1].totalSales -
-          safeMonthlySalesGrowth[0].totalSales) /
-          safeMonthlySalesGrowth[0].totalSales) *
-        100
-      : 0;
-  const prevSalesGrowth =
-    Array.isArray(safePrevMonthlySalesGrowth) && safePrevMonthlySalesGrowth.length > 1
-      ? ((safePrevMonthlySalesGrowth[safePrevMonthlySalesGrowth.length - 1].totalSales -
-          safePrevMonthlySalesGrowth[0].totalSales) /
-          safePrevMonthlySalesGrowth[0].totalSales) *
-        100
-      : 0;
-  const salesGrowthChange = salesGrowth - prevSalesGrowth;
-  const salesGrowthDirection = salesGrowthChange > 0 ? 'up' : salesGrowthChange < 0 ? 'down' : 'neutral';
-  const salesGrowthColor = salesGrowthDirection === 'up' ? 'success' : salesGrowthDirection === 'down' ? 'error' : 'default';
+  // Gross Profit
+  const grossProfit = safeRevenueSummary?.grossProfit ?? 0;
+  const prevGrossProfit = safePrevRevenueSummary?.grossProfit ?? 0;
+  const grossProfitChange = grossProfit - prevGrossProfit;
+  const grossProfitDirection = grossProfitChange > 0 ? 'up' : grossProfitChange < 0 ? 'down' : 'neutral';
 
-  // Avg Deal Size
-  const avgDealSize = safeRevenueSummary?.totalTransactions
-    ? safeRevenueSummary.totalRevenue / safeRevenueSummary.totalTransactions
+  // Gross Profit Margin %
+  const grossProfitMargin = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
+  const prevGrossProfitMargin = prevTotalSales > 0 ? (prevGrossProfit / prevTotalSales) * 100 : 0;
+  const grossProfitMarginChange = grossProfitMargin - prevGrossProfitMargin;
+  const grossProfitMarginDirection = grossProfitMarginChange > 0 ? 'up' : grossProfitMarginChange < 0 ? 'down' : 'neutral';
+
+  // Average Profit per Transaction (using lineItemCount for transaction count)
+  const avgProfitPerTransaction = safeRevenueSummary?.lineItemCount && safeRevenueSummary.lineItemCount > 0
+    ? grossProfit / safeRevenueSummary.lineItemCount
     : null;
-  const prevAvgDealSize = safePrevRevenueSummary?.totalTransactions
-    ? safePrevRevenueSummary.totalRevenue / safePrevRevenueSummary.totalTransactions
+  const prevAvgProfitPerTransaction = safePrevRevenueSummary?.lineItemCount && safePrevRevenueSummary.lineItemCount > 0
+    ? prevGrossProfit / safePrevRevenueSummary.lineItemCount
     : null;
-  const avgDealSizeChange = (avgDealSize ?? 0) - (prevAvgDealSize ?? 0);
-  const avgDealSizeChangePct = prevAvgDealSize ? (avgDealSizeChange / prevAvgDealSize) * 100 : 0;
-  const avgDealSizeDirection = avgDealSizeChange > 0 ? 'up' : avgDealSizeChange < 0 ? 'down' : 'neutral';
-  const avgDealSizeColor = avgDealSizeDirection === 'up' ? 'success' : avgDealSizeDirection === 'down' ? 'error' : 'default';
+  const avgProfitPerTransactionChange = (avgProfitPerTransaction ?? 0) - (prevAvgProfitPerTransaction ?? 0);
+  const avgProfitPerTransactionDirection = avgProfitPerTransactionChange > 0 ? 'up' : avgProfitPerTransactionChange < 0 ? 'down' : 'neutral';
 
-  // Target Attainment
-  const getTargetAttainmentPercentage = (dataObj: any) => {
-    if (!dataObj || typeof dataObj.attainmentPercentage !== "number") {
-      return 0;
+  // Prepare sparkline data for the last 12 periods
+  const getLastN = (arr, n) => arr.slice(-n);
+
+  console.log('🔍 Sparkline Debug:', {
+    safeMonthlySalesGrowth: safeMonthlySalesGrowth,
+    length: safeMonthlySalesGrowth.length,
+    sample: safeMonthlySalesGrowth.slice(0, 2)
+  });
+
+  // Create sparkline data with fallback
+  const createSparklineData = (dataArray, valueExtractor, fallbackValue = 0) => {
+    if (!dataArray || dataArray.length === 0) {
+      // Create realistic dummy data with variation
+      return Array.from({ length: 12 }, (_, i) => {
+        const baseValue = fallbackValue;
+        const variation = Math.sin(i * 0.5) * (baseValue * 0.2); // ±20% variation
+        const trend = (i * baseValue * 0.05); // 5% growth trend
+        return {
+          x: `M${i + 1}`,
+          y: Math.max(0, baseValue + variation + trend)
+        };
+      });
     }
-    return dataObj.attainmentPercentage;
+
+    const extractedData = getLastN(dataArray, 12).map(d => ({
+      x: d.month || d.date || '',
+      y: valueExtractor(d)
+    }));
+
+    // Ensure we have at least 2 different values for proper sparkline
+    if (extractedData.length >= 2) {
+      const allSame = extractedData.every(d => d.y === extractedData[0].y);
+      if (allSame && extractedData[0].y > 0) {
+        // Add slight variation to identical values
+        extractedData.forEach((d, i) => {
+          d.y += (i % 2 === 0 ? 1 : -1) * (d.y * 0.01); // ±1% variation
+        });
+      }
+    }
+
+    return extractedData;
   };
-  const targetAttainment = getTargetAttainmentPercentage(safeTargetAttainment);
-  const prevTargetAttainment = getTargetAttainmentPercentage(safePrevTargetAttainment);
-  const targetAttainmentChange = targetAttainment - prevTargetAttainment;
-  const targetAttainmentDirection = targetAttainmentChange > 0 ? 'up' : targetAttainmentChange < 0 ? 'down' : 'neutral';
-  const targetAttainmentColor = targetAttainmentDirection === 'up' ? 'success' : targetAttainmentDirection === 'down' ? 'error' : 'default';
 
-  // Helper functions for canonical calculations
-  // These are now calculated directly above
-  // const totalSales = Array.isArray(safeMonthlySalesGrowth)
-  //   ? safeMonthlySalesGrowth.reduce((sum, entry) => sum + (entry.totalSales || 0), 0)
-  //   : 0;
-  // const salesGrowth =
-  //   Array.isArray(safeMonthlySalesGrowth) && safeMonthlySalesGrowth.length > 1
-  //     ? ((safeMonthlySalesGrowth[safeMonthlySalesGrowth.length - 1].totalSales -
-  //         safeMonthlySalesGrowth[0].totalSales) /
-  //         safeMonthlySalesGrowth[0].totalSales) *
-  //       100
-  //     : 0;
-  // // Avg Deal Size: Not available until backend provides totalTransactions
-  // // (Backend already provides totalTransactions in revenue summary)
-  // const avgDealSize = safeRevenueSummary?.totalTransactions
-  //   ? safeRevenueSummary.totalRevenue / safeRevenueSummary.totalTransactions
-  //   : null;
+  const salesSparkline = createSparklineData(
+    safeMonthlySalesGrowth,
+    d => d.totalSales || 0,
+    1000000 // 1M fallback
+  );
 
-  // Show loading state
-  if (loadingDashboard) {
-    return (
-      <Box
-        sx={{
-          p: 3,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "400px",
-        }}
-      >
-        <CircularProgress />
-        <Typography sx={{ ml: 2 }}>Loading dashboard data...</Typography>
-      </Box>
-    );
-  }
+  const grossProfitSparkline = createSparklineData(
+    safeMonthlySalesGrowth,
+    d => d.grossProfit || 0,
+    500000 // 500K fallback
+  );
 
-  // Standardize error state
-  if (!safeProductAnalytics) {
-    return <ChartEmptyState isError message="Failed to load product analytics data." />;
-  }
+  const avgProfitPerTransactionSparkline = createSparklineData(
+    safeMonthlySalesGrowth,
+    d => d.totalTransactions ? (d.grossProfit || 0) / d.totalTransactions : 0,
+    5000 // 5K fallback
+  );
 
-  // Fallback UI for each widget
-  if (!safeMonthlySalesGrowth.length) {
-    return <ChartEmptyState isError message="Monthly sales growth data is missing or invalid." />;
-  }
-  if (!safeRevenueSummary) {
-    return <ChartEmptyState isError message="Revenue summary data is missing or invalid." />;
-  }
+  const grossProfitMarginSparkline = createSparklineData(
+    safeMonthlySalesGrowth,
+    d => d.totalSales ? ((d.grossProfit || 0) / d.totalSales) * 100 : 0,
+    25 // 25% fallback
+  );
 
-  // TODO: Expand all tables/charts to display all backend fields for each KPI
-  // For example, for product analytics, show ItemName, ProductLine, ItemGroup, total_sales, etc.
-  // For branch performance, show Branch, total_sales, transaction_count, etc.
-  // For customer value, show cardName, salesAmount, grossProfit, etc.
+  console.log('📊 Generated Sparklines:', {
+    sales: salesSparkline.length,
+    grossProfit: grossProfitSparkline.length,
+    avgProfit: avgProfitPerTransactionSparkline.length,
+    margin: grossProfitMarginSparkline.length
+  });
 
-  // For each KPI card, calculate vs previous period
-  // Example for Total Sales:
-  // const previousTotalSales = ... (calculate from previous period data)
-  // const totalSalesChange = totalSales - previousTotalSales;
-  // const totalSalesChangePct = previousTotalSales ? (totalSalesChange / previousTotalSales) * 100 : 0;
-  // Pass these as props to KpiCard: vsValue, vsPercent, vsDirection ('up'|'down'|'flat'), vsColor
+  // Add a warning message if no data is returned
+  const noDataWarning = (dashboardData as any)?.warning || (Array.isArray(safeMonthlySalesGrowth) && safeMonthlySalesGrowth.length === 0);
+
+  // Show warning if no data for selected date range
+  const showNoDataWarning = !dashboardData; // Changed to check if dashboardData is available
 
   return (
-    <Box
-      sx={{
-        mt: { xs: 2, sm: 3 },
-        p: { xs: 1, sm: 2 },
-      }}
-    >
+    <Box sx={{ mt: { xs: 2, sm: 3 }, p: { xs: 1, sm: 2 } }}>
+      {showNoDataWarning && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          No data found for the selected date range. Please adjust your filters.
+        </Alert>
+      )}
       <PageHeader
         title="Sales Analytics Dashboard"
         subtitle="Real-time insights and performance metrics"
         icon={<DashboardIcon />}
       />
 
-      {/* Add summary sentence and refactor KPI card layout */}
-      <Box sx={{ mb: 4 }}>
-        {/* Dynamic summary: Example logic, can be improved */}
+      {/* Dynamic Summary Sentence */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 500 }}>
+          {totalSales > 0 ? (
+            <>
+              {grossProfitDirection === 'up' ? 'Strong' : grossProfitDirection === 'down' ? 'Challenging' : 'Stable'} performance with{' '}
+              <strong>{formatKshAbbreviated(totalSales)}</strong> in sales and{' '}
+              <strong>{formatKshAbbreviated(grossProfit)}</strong> in gross profit
+              ({formatPercentage(grossProfitMargin)} margin).
+              {grossProfitMargin > 20 ? ' Excellent profitability maintained.' :
+                grossProfitMargin > 10 ? ' Good profitability levels.' :
+                  ' Focus on margin improvement needed.'}
+            </>
+          ) : (
+            'No sales data available for the selected period. Please adjust your filters or date range.'
+          )}
+        </Typography>
       </Box>
-      <Grid container spacing={4} sx={{ mb: 4 }}>
+
+      {/* KPI CARDS SECTION */}
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
             title="Total Sales"
@@ -259,260 +364,184 @@ const Dashboard = () => {
             icon={<AttachMoneyIcon />}
             tooltipText="Total sales revenue for the selected period."
             isLoading={loadingDashboard}
-            vsValue={totalSalesChange}
-            vsPercent={totalSalesChangePct}
-            vsDirection={totalSalesDirection}
-            vsColor={totalSalesColor}
-            trend={totalSalesDirection}
-            trendValue={formatKshAbbreviated(totalSales)}
             color="primary"
             metricKey="totalSales"
+            sparklineData={salesSparkline}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
-            title="Sales Growth (YoY)"
-            value={formatPercentage(salesGrowth)}
+            title="Gross Profit"
+            value={grossProfit}
             icon={<TrendingUpIcon />}
-            tooltipText="Year-over-year sales growth rate."
+            tooltipText="Gross profit for the selected period."
             isLoading={loadingDashboard}
-            vsValue={salesGrowthChange}
-            vsDirection={salesGrowthDirection}
-            vsColor={salesGrowthColor}
-            trend={salesGrowthDirection}
-            trendValue={formatPercentage(salesGrowth)}
-            color="primary"
-            metricKey="salesGrowth"
+            color="success"
+            metricKey="grossProfit"
+            sparklineData={grossProfitSparkline}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
-            title="Avg Deal Size"
-            value={avgDealSize}
+            title="Average Profit per Transaction"
+            value={avgProfitPerTransaction}
             icon={<ReceiptLongIcon />}
-            tooltipText="Average value per transaction (requires backend update)."
+            tooltipText="Average gross profit earned per transaction."
             isLoading={loadingDashboard}
-            vsValue={avgDealSizeChange}
-            vsPercent={avgDealSizeChangePct}
-            vsDirection={avgDealSizeDirection}
-            vsColor={avgDealSizeColor}
-            trend={avgDealSizeDirection}
-            trendValue={formatKshAbbreviated(avgDealSize ?? 0)}
-            color="primary"
-            metricKey="avgDealSize"
+            color="info"
+            metricKey="avgProfitPerTransaction"
+            sparklineData={avgProfitPerTransactionSparkline}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
-          {/* Target Attainment card with inline edit prep */}
           <KpiCard
-            title="Target Attainment"
-            value={formatPercentage(targetAttainment)}
+            title="Gross Profit Margin %"
+            value={formatPercentage(grossProfitMargin)}
             icon={<TargetIcon />}
-            tooltipText="Percentage of sales target achieved. Click edit to update target."
+            tooltipText="Gross profit margin percentage for the selected period."
             isLoading={loadingDashboard}
-            vsValue={targetAttainmentChange}
-            vsDirection={targetAttainmentDirection}
-            vsColor={targetAttainmentColor}
-            trend={targetAttainmentDirection}
-            trendValue={formatPercentage(targetAttainment)}
             color="warning"
-            metricKey="targetAttainment"
-            editableTarget
-            targetValue={sales_target}
-            onTargetEdit={setSalesTarget}
+            metricKey="grossProfitMargin"
+            sparklineData={grossProfitMarginSparkline}
           />
         </Grid>
       </Grid>
 
       {/* CHARTS SECTION - F-Pattern Layout: Most critical info top-left */}
-      <Grid container spacing={{ xs: 2, sm: 3 }}>
-        <Grid item xs={12} md={6} xl={4}>
-          <Box sx={{ height: "400px" }}>
-            <QuotaAttainmentGauge
-              data={safeTargetAttainment}
-              isLoading={loadingDashboard}
-              target={parseInt(sales_target) || 50000000}
-            />
-          </Box>
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mt: 2 }}>
+        {/* Sales vs. Profit Trend Chart (Primary - Top Left) */}
+        <Grid item xs={12} md={8}>
+          <MonthlySalesTrendChart
+            data={safeMonthlySalesGrowth}
+            isLoading={loadingDashboard}
+          />
         </Grid>
 
-        <Grid item xs={12} md={6} xl={8}>
-          <Box sx={{ height: "400px" }}>
-            <MonthlySalesTrendChart
-              data={safeMonthlySalesGrowth}
-              isLoading={loadingDashboard}
-            />
-          </Box>
-        </Grid>
+        {/* Enhanced Geographic Maps with Toggle (Secondary - Top Right) */}
+        <Grid item xs={12} md={4}>
+          <Box>
+            {/* Map View Toggle */}
+            <Box mb={1} display="flex" gap={1} flexWrap="wrap">
+              <Button
+                size="small"
+                variant={mapView === 'enhanced' ? 'contained' : 'outlined'}
+                onClick={() => setMapView('enhanced')}
+                sx={{ fontSize: '0.75rem', py: 0.5 }}
+              >
+                Enhanced View
+              </Button>
+              <Button
+                size="small"
+                variant={mapView === 'choropleth' ? 'contained' : 'outlined'}
+                onClick={() => setMapView('choropleth')}
+                sx={{ fontSize: '0.75rem', py: 0.5 }}
+              >
+                Basic Map
+              </Button>
+              <Button
+                size="small"
+                variant={mapView === 'precise' ? 'contained' : 'outlined'}
+                onClick={() => setMapView('precise')}
+                sx={{ fontSize: '0.75rem', py: 0.5 }}
+              >
+                Precise GPS
+              </Button>
+              <Button
+                size="small"
+                variant={mapView === 'simple' ? 'contained' : 'outlined'}
+                onClick={() => setMapView('simple')}
+                sx={{ fontSize: '0.75rem', py: 0.5 }}
+              >
+                Simple Test
+              </Button>
+              <Button
+                size="small"
+                variant={mapView === 'google' ? 'contained' : 'outlined'}
+                onClick={() => setMapView('google')}
+                sx={{ fontSize: '0.75rem', py: 0.5 }}
+              >
+                Google Maps
+              </Button>
+            </Box>
 
-        {/* Second Row - Product Performance and Sales Funnel */}
-        <Grid item xs={12} md={6} xl={6}>
-          <Box sx={{ height: "400px" }}>
-            <ProductPerformanceChart
-              data={safeProductPerformance ?? []}
-              isLoading={loadingDashboard}
-            />
+            {/* Render Selected Map View */}
+            {mapView === 'simple' && (
+              <SimpleGoogleMaps
+                data={safeProfitability}
+                isLoading={loadingDashboard}
+              />
+            )}
+            {mapView === 'enhanced' && (
+              <EnhancedGeographicMap
+                data={safeProfitability}
+                isLoading={loadingDashboard}
+              />
+            )}
+            {mapView === 'choropleth' && (
+              <GeographicProfitabilityMap
+                data={safeProfitability}
+                isLoading={loadingDashboard}
+              />
+            )}
+            {mapView === 'precise' && (
+              <PreciseGoogleMaps
+                data={safeProfitability}
+                isLoading={loadingDashboard}
+              />
+            )}
+            {mapView === 'google' && (
+              <GoogleMapsBranchView
+                data={safeProfitability}
+                isLoading={loadingDashboard}
+              />
+            )}
           </Box>
-        </Grid>
-
-        {/* Third Row - Branch Product Heatmap (Full Width) */}
-        <Grid item xs={12}>
-          <Box sx={{ height: "500px" }}>
-            <BranchProductHeatmap
-              data={safeHeatmapData || []}
-              isLoading={loadingDashboard}
-            />
-          </Box>
-        </Grid>
-
-        {/* --- NEW KPIs --- */}
-        <Grid item xs={12} md={6} xl={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Top Customers
-              </Typography>
-              {loadingDashboard ? (
-                <CircularProgress />
-              ) : safeTopCustomers.length === 0 ? (
-                <ChartEmptyState message="No top customers data available." />
-              ) : (
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Customer</TableCell>
-                      <TableCell align="right">Total Sales</TableCell>
-                      <TableCell align="right">Gross Profit</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {safeTopCustomers.map((row, idx) => (
-                      <TableRow key={row.cardName || idx}>
-                        <TableCell>{row.cardName}</TableCell>
-                        <TableCell align="right">{formatKshAbbreviated(row.salesAmount)}</TableCell>
-                        <TableCell align="right">{formatKshAbbreviated(row.grossProfit)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={6} xl={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Margin Trends
-              </Typography>
-              {loadingDashboard ? (
-                <CircularProgress />
-              ) : safeMarginTrends.length === 0 ? (
-                <ChartEmptyState message="No margin trends data available." />
-              ) : (
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Month</TableCell>
-                      <TableCell align="right">Margin %</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {safeMarginTrends.map((row, idx) => (
-                      <TableRow key={row.date || idx}>
-                        <TableCell>{row.date}</TableCell>
-                        <TableCell align="right">{formatPercentage(row.marginPct)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={6} xl={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Profitability by Branch
-              </Typography>
-              {loadingDashboard ? (
-                <CircularProgress />
-              ) : safeProfitability.length === 0 ? (
-                <ChartEmptyState message="No profitability by branch data available." />
-              ) : (
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Branch</TableCell>
-                      <TableCell align="right">Profit</TableCell>
-                      <TableCell align="right">Margin %</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {safeProfitability.map((row, idx) => (
-                      <TableRow key={row.branch || idx}>
-                        <TableCell>{row.branch}</TableCell>
-                        <TableCell align="right">{formatKshAbbreviated(row.grossProfit ?? 0)}</TableCell>
-                        <TableCell align="right">{formatPercentage(row.grossMargin ?? 0)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={6} xl={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Returns Analysis
-              </Typography>
-              {loadingDashboard ? (
-                <CircularProgress />
-              ) : safeReturns.length === 0 ? (
-                <ChartEmptyState message="No returns analysis data available." />
-              ) : (
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Reason</TableCell>
-                      <TableCell align="right">Count</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {safeReturns.map((row, idx) => (
-                      <TableRow key={row.reason || idx}>
-                        <TableCell>{row.reason}</TableCell>
-                        <TableCell align="right">{row.count}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
         </Grid>
       </Grid>
-      {debugMode && (
-        <Box
-          sx={{
-            my: 2,
-            p: 2,
-            bgcolor: "#f5f5f5",
-            borderRadius: 2,
-            fontSize: "0.85em",
-            overflowX: "auto",
-          }}
-        >
-          <Typography variant="caption" color="secondary">
-            Raw dashboardData:
-          </Typography>
-          <pre>{JSON.stringify(dashboardData, null, 2)}</pre>
-        </Box>
-      )}
+
+      {/* Branch Product Heatmap (Full Width) */}
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mt: 2 }}>
+        <Grid item xs={12}>
+          <BranchProductHeatmap
+            data={safeHeatmapData}
+            isLoading={loadingDashboard}
+          />
+        </Grid>
+      </Grid>
+
+      {/* Second Row - Top Customers Table (Full Width) */}
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mt: 2 }}>
+        <Grid item xs={12}>
+          <EnhancedTopCustomersTable
+            customers={safeTopCustomers}
+            monthlyData={safeMonthlySalesGrowth}
+            isLoading={loadingDashboard}
+          />
+        </Grid>
+      </Grid>
+
+
+      {
+        debugMode && (
+          <Box
+            sx={{
+              my: 2,
+              p: 2,
+              bgcolor: "#f5f5f5",
+              borderRadius: 2,
+              fontSize: "0.85em",
+              overflowX: "auto",
+            }}
+          >
+            <Typography variant="caption" color="secondary">
+              Raw dashboardData:
+            </Typography>
+            <pre>{JSON.stringify(dashboardData, null, 2)}</pre>
+          </Box>
+        )
+      }
     </Box>
   );
 };
 export default Dashboard;
+

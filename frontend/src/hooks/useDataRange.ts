@@ -1,51 +1,39 @@
-import { useState, useEffect, useMemo } from "react";
-import { useDataRangeQuery } from "./generated/graphql";
-import { graphqlClient } from "../lib/graphqlClient";
-import { queryKeys } from "../lib/queryKeys";
+import { useState, useEffect } from 'react';
+import { useDataRangeQuery } from '../queries/dataRange.generated';
+import { graphqlClient } from '../lib/graphqlClient';
 
-interface DataRangeResult {
-  minDate: Date | null;
-  maxDate: Date | null;
-  isLoading: boolean;
-  error: unknown;
-}
+/**
+ * Hook to fetch the earliest and latest available dates from the backend.
+ * 
+ * This hook queries the backend to get the actual data range available in the system,
+ * which is used to set constraints on date pickers and ensure queries are within
+ * valid data boundaries.
+ *
+ * Returns:
+ *   minDate (Date): The earliest available date in the system.
+ *   maxDate (Date): The latest available date in the system.
+ *   isLoading (boolean): Whether the query is currently loading.
+ *   error (Error | null): Any error that occurred during the query.
+ */
+export const useDataRange = () => {
+  const [minDate, setMinDate] = useState<Date>(new Date("2024-01-01"));
+  const [maxDate, setMaxDate] = useState<Date>(new Date("2025-06-01"));
 
-interface DruidDataRange {
-  earliest_date: string;
-  latest_date: string;
-  total_records: number;
-}
+  const { data, error, isLoading } = useDataRangeQuery(graphqlClient);
 
-export const useDataRange = (): DataRangeResult => {
-  const filters = useMemo(() => ({}), []); // No filters, but memoized for consistency
-  const { data, error, isLoading } = useDataRangeQuery(
-    { client: graphqlClient },
-    {
-      queryKey: queryKeys.dataRange ? queryKeys.dataRange(filters) : ["dataRange", filters],
-    }
-  );
-
-  const [minDate, setMinDate] = useState<Date | null>(null);
-  const [maxDate, setMaxDate] = useState<Date | null>(null);
-
+  // Process successful API response
   useEffect(() => {
-    if (data && data.dataRange && data.dataRange.length > 0) {
-      const range = data.dataRange[0];
-      try {
-        // Parse the ISO date strings from Druid
-        const earliest = new Date(range.earliest_date);
-        const latest = new Date(range.latest_date);
-
-        // Validate dates
-        if (!isNaN(earliest.getTime()) && !isNaN(latest.getTime())) {
-          setMinDate(earliest);
-          setMaxDate(latest);
-        }
-      } catch (err) {
-        console.error("Error parsing dates from data range:", err);
-        // Fallback to hardcoded dates if parsing fails
-        setMinDate(new Date("2023-01-01"));
-        setMaxDate(new Date("2025-06-01"));
+    if (data?.dataRange) {
+      console.log("DataRange API response:", data.dataRange);
+      const earliest = new Date(data.dataRange.earliestDate);
+      const latest = new Date(data.dataRange.latestDate);
+      
+      if (!isNaN(earliest.getTime()) && !isNaN(latest.getTime())) {
+        setMinDate(earliest);
+        setMaxDate(latest);
+        console.log("DataRange updated:", { earliest: earliest.toISOString(), latest: latest.toISOString() });
+      } else {
+        console.warn("Invalid dates from API:", { earliest: data.dataRange.earliestDate, latest: data.dataRange.latestDate });
       }
     }
   }, [data]);
@@ -53,16 +41,14 @@ export const useDataRange = (): DataRangeResult => {
   // Fallback to hardcoded dates if API fails
   useEffect(() => {
     if (error || (!isLoading && !data)) {
-      console.warn("Using fallback dates due to API error:", error);
-      setMinDate(new Date("2023-01-01"));
+      console.log("DataRange API unavailable, using fallback dates (2024-01-01 to 2025-06-01)");
+      if (error) {
+        console.error("DataRange API error:", error);
+      }
+      setMinDate(new Date("2024-01-01"));
       setMaxDate(new Date("2025-06-01"));
     }
   }, [error, isLoading, data]);
 
-  return {
-    minDate,
-    maxDate,
-    isLoading,
-    error,
-  };
+  return { minDate, maxDate, isLoading, error };
 };

@@ -2,8 +2,12 @@ import { Box, Typography, Paper } from '@mui/material';
 import PageHeader from '../components/PageHeader';
 import { NotificationImportant as NotificationImportantIcon } from '@mui/icons-material';
 import ConnectionStatus from '../components/ConnectionStatus';
+import { useAlertsPageDataQuery } from "../queries/alertsPageData.generated";
+import { graphqlClient } from "../lib/graphqlClient";
 
 const AlertsDiagnostics = () => {
+    const { data, isLoading } = useAlertsPageDataQuery(graphqlClient);
+
     return (
         <Box
             sx={{
@@ -25,10 +29,16 @@ const AlertsDiagnostics = () => {
                 </Typography>
             </Paper>
             <Box sx={{ mt: 3 }}>
-                <ConnectionStatus />
+                <ConnectionStatus
+                    systemHealth={data?.systemHealth || null}
+                    druidHealth={data?.druidHealth || null}
+                    druidDatasources={data?.druidDatasources || null}
+                    isLoading={isLoading}
+                />
             </Box>
         </Box>
     );
 };
 
 export default AlertsDiagnostics;
+

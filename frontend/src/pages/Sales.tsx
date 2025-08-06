@@ -18,7 +18,6 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  CircularProgress,
   Avatar,
   Stack,
   Button,
@@ -38,20 +37,33 @@ import KpiCard from "../components/KpiCard";
 import MonthlySalesTrendChart from "../components/MonthlySalesTrendChart";
 import { useSalesPageDataQuery } from "../queries/salesPageData.generated";
 import { graphqlClient } from "../lib/graphqlClient";
-import { useFilters } from "../context/FilterContext";
+import { useFilterStore } from "../store/filterStore";
 import { queryKeys } from "../lib/queryKeys";
 import { useMemo } from "react";
 import ChartEmptyState from "../components/states/ChartEmptyState";
 import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
 import SalespersonProductMixTable from "../components/SalespersonProductMixTable";
+import DataStateWrapper from "../components/DataStateWrapper";
 
 const Sales = () => {
-  const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+  const filterStore = useFilterStore();
+  const startDate = filterStore.startDate;
+  const endDate = filterStore.endDate;
+  const selectedBranches = filterStore.selectedBranches;
+  const selectedProductLines = filterStore.selectedProductLines;
+  const selectedItemGroups = filterStore.selectedItemGroups;
+
+  // Convert dates to strings for API calls
+  const start_date = startDate ? format(startDate, 'yyyy-MM-dd') : null;
+  const end_date = endDate ? format(endDate, 'yyyy-MM-dd') : null;
+  const selected_branch = selectedBranches.length === 1 ? selectedBranches[0] : "all";
+  const selected_product_line = selectedProductLines.length === 1 ? selectedProductLines[0] : "all";
   const filters = useMemo(() => ({
     dateRange: { start: start_date, end: end_date },
     productLine: selected_product_line !== "all" ? selected_product_line : undefined,
     branch: selected_branch !== "all" ? selected_branch : undefined,
-  }), [start_date, end_date, selected_product_line, selected_branch]);
+    itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
+  }), [start_date, end_date, selected_product_line, selected_branch, selectedItemGroups]);
   const [sortBy, setSortBy] = useState<string>("totalSales");
 
   const handleResetLocalFilters = () => {
@@ -65,6 +77,7 @@ const Sales = () => {
       endDate: end_date,
       branch: selected_branch !== "all" ? selected_branch : undefined,
       productLine: selected_product_line !== "all" ? selected_product_line : undefined,
+      itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
     },
     {
       queryKey: queryKeys.salesPerformance(filters),
@@ -72,6 +85,7 @@ const Sales = () => {
   );
 
   const safeSalesData = data?.salesPerformance || [];
+  const safeRevenueSummary = data?.revenueSummary;
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat("en-US").format(value);
@@ -95,57 +109,32 @@ const Sales = () => {
   // Sort sales data
   const sortedSalesData = safeSalesData
     ? [...safeSalesData].sort((a, b) => {
-        switch (sortBy) {
-          case "totalSales":
-            return (b.totalSales || 0) - (a.totalSales || 0);
-          case "grossProfit":
-            return (b.grossProfit || 0) - (a.grossProfit || 0);
-          case "transactionCount":
-            return (b.transactionCount || 0) - (a.transactionCount || 0);
-          case "averageSale":
-            return (b.averageSale || 0) - (a.averageSale || 0);
-          case "uniqueBranches":
-            return (b.uniqueBranches || 0) - (a.uniqueBranches || 0);
-          default:
-            return 0;
-        }
-      })
+      switch (sortBy) {
+        case "totalSales":
+          return (b.totalSales || 0) - (a.totalSales || 0);
+        case "grossProfit":
+          return (b.grossProfit || 0) - (a.grossProfit || 0);
+        case "transactionCount":
+          return (b.transactionCount || 0) - (a.transactionCount || 0);
+        case "averageSale":
+          return (b.averageSale || 0) - (a.averageSale || 0);
+        case "uniqueBranches":
+          return (b.uniqueBranches || 0) - (a.uniqueBranches || 0);
+        default:
+          return 0;
+      }
+    })
     : [];
 
-  // Show loading state
-  if (isLoading) {
-    return (
-      <Box
-        sx={{
-          p: 3,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "400px",
-        }}
-      >
-        <CircularProgress />
-        <Typography sx={{ ml: 2 }}>Loading sales data...</Typography>
-      </Box>
-    );
-  }
-
-  // Standardize error state
-  if (error) {
-    const errorMsg =
-      error instanceof Error
-        ? error.message
-        : "Error loading sales data.";
-    return <ChartEmptyState isError message={errorMsg} />;
-  }
+  // Prepare sparkline data for the last 12 periods
+  const getLastN = (arr, n) => arr ? arr.slice(-n) : [];
+  const salesSparkline = getLastN(data?.monthlySalesGrowth, 12).map(d => ({ x: d.month || d.date || '', y: d.totalSales || 0 }));
+  const transactionsSparkline = getLastN(data?.monthlySalesGrowth, 12).map(d => ({ x: d.month || d.date || '', y: d.totalTransactions || 0 }));
+  const avgTransactionSparkline = getLastN(data?.monthlySalesGrowth, 12).map(d => ({ x: d.month || d.date || '', y: d.totalTransactions ? d.totalSales / d.totalTransactions : 0 }));
+  const uniqueEmployeesSparkline = getLastN(data?.monthlySalesGrowth, 12).map(d => ({ x: d.month || d.date || '', y: d.uniqueEmployees || 0 }));
 
   return (
-    <Box
-      sx={{
-        mt: { xs: 2, sm: 3 },
-        p: { xs: 1, sm: 2 },
-      }}
-    >
+    <Box sx={{ mt: { xs: 2, sm: 3 }, p: { xs: 1, sm: 2 } }}>
       <PageHeader
         title="Sales Performance"
         subtitle="Employee and salesperson analytics"
@@ -157,46 +146,58 @@ const Sales = () => {
         {/* Removed local Reset and Sort By from here */}
         {/* Summary KPI Cards */}
         <Grid item xs={12} sm={6} md={3}>
-          <KpiCard
-            title="Total Revenue"
-            value={data?.revenueSummary?.totalRevenue || 0}
-            icon={<MoneyIcon />}
-            tooltipText="Total revenue from all sales transactions"
-            isLoading={false}
-            color="primary"
-            metricKey="totalSales"
-          />
+          <DataStateWrapper isLoading={isLoading} error={error} data={safeSalesData} emptyMessage="No sales data available.">
+            <KpiCard
+              title="Total Revenue"
+              value={formatKshAbbreviated(safeRevenueSummary?.totalRevenue ?? 0)}
+              icon={<MoneyIcon />}
+              tooltipText="Total gross revenue for the selected period."
+              isLoading={false}
+              color="primary"
+              metricKey="totalRevenue"
+              sparklineData={salesSparkline}
+            />
+          </DataStateWrapper>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <KpiCard
-            title="Total Transactions"
-            value={formatNumber(data?.revenueSummary?.totalTransactions || 0)}
-            icon={<ReceiptIcon />}
-            tooltipText="Total number of sales transactions"
-            isLoading={false}
-            color="info"
-          />
+          <DataStateWrapper isLoading={isLoading} error={error} data={safeSalesData} emptyMessage="No sales data available.">
+            <KpiCard
+              title="Total Transactions"
+              value={formatNumber(data?.revenueSummary?.totalTransactions || 0)}
+              icon={<ReceiptIcon />}
+              tooltipText="Total number of sales transactions"
+              isLoading={false}
+              color="info"
+              sparklineData={transactionsSparkline}
+            />
+          </DataStateWrapper>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <KpiCard
-            title="Avg Transaction"
-            value={data?.revenueSummary?.averageTransaction || 0}
-            icon={<TrendingUpIcon />}
-            tooltipText="Average transaction value"
-            isLoading={false}
-            color="success"
-            metricKey="avgDealSize"
-          />
+          <DataStateWrapper isLoading={isLoading} error={error} data={safeSalesData} emptyMessage="No sales data available.">
+            <KpiCard
+              title="Avg Transaction"
+              value={data?.revenueSummary?.averageTransaction || 0}
+              icon={<TrendingUpIcon />}
+              tooltipText="Average transaction value"
+              isLoading={false}
+              color="success"
+              metricKey="avgDealSize"
+              sparklineData={avgTransactionSparkline}
+            />
+          </DataStateWrapper>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <KpiCard
-            title="Active Employees"
-            value={formatNumber(data?.revenueSummary?.uniqueEmployees || 0)}
-            icon={<PersonIcon />}
-            tooltipText="Number of active sales employees"
-            isLoading={false}
-            color="warning"
-          />
+          <DataStateWrapper isLoading={isLoading} error={error} data={safeSalesData} emptyMessage="No sales data available.">
+            <KpiCard
+              title="Active Employees"
+              value={formatNumber(data?.revenueSummary?.uniqueEmployees || 0)}
+              icon={<PersonIcon />}
+              tooltipText="Number of active sales employees"
+              isLoading={false}
+              color="warning"
+              sparklineData={uniqueEmployeesSparkline}
+            />
+          </DataStateWrapper>
         </Grid>
 
         {/* Sales Trend Chart */}
@@ -206,14 +207,12 @@ const Sales = () => {
               <Typography variant="h6" gutterBottom>
                 Monthly Sales Trend
               </Typography>
-              {data?.monthlySalesGrowth?.length === 0 ? (
-                <ChartEmptyState message="No sales data available for the trend chart." />
-              ) : (
+              <DataStateWrapper isLoading={isLoading} error={error} data={data?.monthlySalesGrowth} emptyMessage="No sales trend data available.">
                 <MonthlySalesTrendChart
-                  data={data?.monthlySalesGrowth?.map(item => ({ date: item.date, sales: item.totalSales || 0 })) || []}
-                  isLoading={isLoading}
+                  data={data?.monthlySalesGrowth || []}
+                  isLoading={false}
                 />
-              )}
+              </DataStateWrapper>
             </CardContent>
           </Card>
         </Grid>
@@ -395,7 +394,7 @@ const Sales = () => {
         </Grid>
         {/* Salesperson Product Mix Table */}
         <Grid item xs={12}>
-          <SalespersonProductMixTable />
+          <SalespersonProductMixTable rows={data?.salespersonProductMix ?? []} />
         </Grid>
       </Grid>
     </Box>

@@ -1,0 +1,28 @@
+/* Example: Dark mode overrides for react-day-picker */
+.rdp {
+    background: #23293a !important;
+    color: #fff !important;
+    border-radius: 8px;
+  }
+  
+  .rdp-day_selected, .rdp-day_range_start, .rdp-day_range_end {
+    background: #1976d2 !important;
+    color: #fff !important;
+  }
+  
+  .rdp-caption_label, .rdp-head_cell {
+    color: #fff !important;
+  }
+  
+  .rdp-day {
+    color: #fff !important;
+  }
+  
+  .rdp-day_outside {
+    color: #888 !important;
+  }
+  
+  .rdp-footer {
+    color: #ccc !important;
+    background: transparent !important;
+  }

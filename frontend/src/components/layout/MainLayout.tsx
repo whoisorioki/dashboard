@@ -3,8 +3,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   Box,
   Drawer,
-  AppBar,
-  Toolbar,
   List,
   Typography,
   Divider,
@@ -27,8 +25,6 @@ import {
   Menu as MenuIcon,
   Settings as SettingsIcon,
   Person as PersonIcon,
-  DarkMode as DarkModeIcon,
-  LightMode as LightModeIcon,
   Insights as InsightsIcon,
   MonetizationOn as MonetizationOnIcon,
   NotificationImportant as NotificationImportantIcon,
@@ -37,7 +33,7 @@ import { useTheme } from "../../context/ThemeContext";
 import FloatingActionMenu from "../FloatingActionMenu";
 import WelcomeTour from "../WelcomeTour";
 import { DataModeProvider } from "../../context/DataModeContext";
-import ControlBar from "./ControlBar";
+import MergedHeader from "./MergedHeader";
 import { useLocalFilterReset } from "../../context/LocalFilterResetContext";
 
 const drawerWidth = 240;
@@ -54,16 +50,17 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [showTour, setShowTour] = useState(false);
-  const { isDarkMode, toggleTheme } = useTheme();
+  const { isDarkMode } = useTheme();
   const { resetAllLocalFilters } = useLocalFilterReset();
 
   // Check if user has completed the tour
   React.useEffect(() => {
     const tourCompleted = localStorage.getItem("dashboardTourCompleted");
+    // Temporarily disable auto-tour for better UX
+    // Users can manually start the tour from the user menu
     if (!tourCompleted) {
-      // Show tour after a short delay to let the page load
-      const timer = setTimeout(() => setShowTour(true), 2000);
-      return () => clearTimeout(timer);
+      // Mark as completed by default to skip auto-show
+      localStorage.setItem("dashboardTourCompleted", "true");
     }
   }, []);
 
@@ -98,12 +95,12 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   };
 
   const navItems = [
-    { text: "Overview", icon: <DashboardIcon />, path: "/overview" },
-    { text: "Sales", icon: <SalesIcon />, path: "/sales" },
-    { text: "Products", icon: <ProductsIcon />, path: "/products" },
-    { text: "Branches", icon: <RegionsIcon />, path: "/branches" },
+    { text: "Dashboard Overview", icon: <DashboardIcon />, path: "/overview" },
+    { text: "Sales Performance", icon: <SalesIcon />, path: "/sales" },
+    { text: "Product Analytics", icon: <ProductsIcon />, path: "/products" },
+    { text: "Branch Performance", icon: <RegionsIcon />, path: "/branches" },
     {
-      text: "Profitability",
+      text: "Profitability Analysis",
       icon: <MonetizationOnIcon />,
       path: "/profitability",
     },
@@ -241,7 +238,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           <ListItemIcon>
             <DashboardIcon fontSize="small" />
           </ListItemIcon>
-          <Typography variant="body2">Reset Tour</Typography>
+          <Typography variant="body2">Start Tour</Typography>
         </MenuItem>
         <Divider />
         <MenuItem onClick={handleLogout}>
@@ -254,79 +251,44 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   return (
     <DataModeProvider>
       <Box sx={{ display: "flex" }}>
-        <AppBar
-          position="fixed"
+        {/* Mobile Menu Button */}
+        <Box
           sx={{
-            width: { md: `calc(100% - ${drawerWidth}px)` },
-            ml: { md: `${drawerWidth}px` },
-            bgcolor: "background.paper",
-            color: "text.primary",
-            boxShadow: 1,
+            position: "fixed",
+            top: 16,
+            left: 16,
+            zIndex: 1300,
+            display: { xs: "block", md: "none" },
           }}
         >
-          <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
-            <IconButton
-              color="inherit"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { md: "none" } }}
-            >
-              <MenuIcon />
-            </IconButton>
-            {/* Brand Title */}
-            <Typography
-              variant="h6"
-              sx={{
-                fontWeight: "bold",
-                flexGrow: 1,
-                display: { xs: "block", lg: "block" },
-              }}
-            >
-              Sales Analytics
-            </Typography>
-            {/* Theme Toggle */}
-            <IconButton
-              color="inherit"
-              onClick={toggleTheme}
-              sx={{
-                ml: 1,
-                transition: "all 0.3s ease",
-                "&:hover": {
-                  transform: "rotate(180deg)",
-                },
-              }}
-            >
-              {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
-            </IconButton>
-            {/* User/Profile Icon */}
-            <IconButton
-              color="inherit"
-              onClick={handleUserMenuOpen}
-              sx={{ ml: 1 }}
-            >
-              <PersonIcon />
-            </IconButton>
-          </Toolbar>
-        </AppBar>
-        {/* Global Control Bar for filters */}
+          <IconButton
+            color="inherit"
+            onClick={handleDrawerToggle}
+            sx={{
+              bgcolor: "background.paper",
+              boxShadow: 2,
+              "&:hover": {
+                bgcolor: "action.hover",
+              },
+            }}
+          >
+            <MenuIcon />
+          </IconButton>
+        </Box>
+
+        {/* Global Filter Header - Topmost Component */}
         <Box
           sx={{
             width: { md: `calc(100% - ${drawerWidth}px)` },
             ml: { md: `${drawerWidth}px` },
             position: "fixed",
-            top: { xs: 56, sm: 64 },
-            zIndex: 1100,
-            bgcolor: "background.paper",
-            boxShadow: 1,
-            borderBottom: 1,
-            borderColor: "divider",
-            minHeight: 56,
-            display: "flex",
-            alignItems: "center",
+            top: 0,
+            zIndex: 1200,
           }}
         >
-          <ControlBar />
+          <MergedHeader />
         </Box>
+
         <Box
           component="nav"
           sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
@@ -358,10 +320,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                 boxSizing: "border-box",
                 width: drawerWidth,
                 borderRight: (theme) =>
-                  `1px solid ${
-                    theme.palette.mode === "dark"
-                      ? "rgba(255, 255, 255, 0.12)"
-                      : "rgba(0, 0, 0, 0.12)"
+                  `1px solid ${theme.palette.mode === "dark"
+                    ? "rgba(255, 255, 255, 0.12)"
+                    : "rgba(0, 0, 0, 0.12)"
                   }`,
               },
             }}
@@ -370,12 +331,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             {drawer}
           </Drawer>
         </Box>
+
         <Box
           component="main"
           sx={{
             flexGrow: 1,
             minWidth: 0, // Ensure flex item can shrink
-            mt: { xs: "112px", sm: "128px" },
+            mt: { xs: "60px", sm: "70px" }, // Reduced margin to match actual header height
             position: "relative",
           }}
         >

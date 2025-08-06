@@ -5,9 +5,10 @@ from pydantic import BaseModel
 from typing import Optional
 import requests
 from datetime import datetime, timezone
-from backend.services.sales_data import fetch_sales_data
-from backend.core.druid_client import druid_conn
-from backend.utils.response_envelope import envelope
+from services.sales_data import fetch_sales_data
+from core.druid_client import druid_conn
+from utils.response_envelope import envelope
+import logging
 
 router = APIRouter(prefix="/api", tags=["sales"])
 
@@ -216,17 +217,21 @@ async def get_data_range(request: Request):
     - 500: Internal server error
     """
 
-
     def to_iso8601(val):
         if isinstance(val, int) or (isinstance(val, str) and val.isdigit()):
             # Convert milliseconds to seconds
             ts = int(val) / 1000
-            return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat().replace("+00:00", "Z")
+            return (
+                datetime.fromtimestamp(ts, tz=timezone.utc)
+                .isoformat()
+                .replace("+00:00", "Z")
+            )
         if isinstance(val, str) and "T" in val:
             return val  # Already ISO8601
         return str(val)
 
     try:
+        logging.info("Querying Druid for data range...")
         # Query Druid directly for min/max dates
         query = {
             "queryType": "scan",
@@ -242,6 +247,7 @@ async def get_data_range(request: Request):
         url = "http://localhost:8888/druid/v2/"
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, json=query, headers=headers, timeout=30)
+        logging.info(f"Earliest date Druid response: {response.text}")
 
         if response.status_code != 200:
             raise Exception(f"Druid query failed: {response.text}")
@@ -251,6 +257,7 @@ async def get_data_range(request: Request):
         # Get latest date
         query["order"] = "descending"
         response = requests.post(url, json=query, headers=headers, timeout=30)
+        logging.info(f"Latest date Druid response: {response.text}")
 
         if response.status_code != 200:
             raise Exception(f"Druid query failed: {response.text}")
@@ -292,10 +299,14 @@ async def get_data_range(request: Request):
             for segment in count_result:
                 if "events" in segment:
                     total_records += len(segment["events"])
+        logging.info(f"Total records Druid response: {response.text}")
 
         # Convert to ISO8601
         earliest_date = to_iso8601(earliest_date)
         latest_date = to_iso8601(latest_date)
+        logging.info(
+            f"Extracted earliest_date: {earliest_date}, latest_date: {latest_date}, total_records: {total_records}"
+        )
         return envelope(
             [
                 {

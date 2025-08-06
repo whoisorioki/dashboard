@@ -1,7 +1,0 @@
-# Product Performance Query
-query ProductPerformance($startDate: String, $endDate: String, $n: Int, $branch: String, $productLine: String) {
-  productPerformance(startDate: $startDate, endDate: $endDate, n: $n, branch: $branch, productLine: $productLine) {
-    product
-    sales
-  }
-}

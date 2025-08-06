@@ -8,7 +8,7 @@
 
 | Column        | Type     | Description            |
 | ------------- | -------- | ---------------------- |
-| \_\_time      | datetime | Transaction timestamp  |
+| __time        | datetime | Transaction timestamp  |
 | ProductLine   | string   | Product line/category  |
 | ItemGroup     | string   | Product group          |
 | Branch        | string   | Branch/location        |
@@ -29,6 +29,8 @@ See also: [druid_pipeline.md](druid_pipeline.md), [data_patterns.md](data_patter
 
 ## 2. KPI Calculations & Methods
 
+All backend and frontend data fetching is now via GraphQL and Druid SQL, with REST and Recharts deprecated. All contracts are enforced via codegen and mapping docs.
+
 ### 2.1 Monthly Sales Growth
 
 - **Function:** `calculate_monthly_sales_growth(df)`
@@ -36,7 +38,7 @@ See also: [druid_pipeline.md](druid_pipeline.md), [data_patterns.md](data_patter
 - **Calculation:**
   - Group by month (`__time`), sum `grossRevenue` per month.
   - Output: `[ { date: YYYY-MM, sales: number } ]`
-- **Filters:** `start_date`, `end_date`, others optional
+- **Filters:** `startDate`, `endDate`, others optional
 - **Backend Format:** `[ { date: YYYY-MM, sales: number } ]`
 - **Frontend Format:** Same (see [frontend_mapping.md](frontend_mapping.md))
 
@@ -46,10 +48,10 @@ See also: [druid_pipeline.md](druid_pipeline.md), [data_patterns.md](data_patter
 - **Columns Used:** `grossRevenue`
 - **Calculation:**
   - Sum `grossRevenue` for period.
-  - Attainment % = (total_sales / target) \* 100
-  - Output: `{ total_sales: number, attainment_percentage: number }`
-- **Filters:** `start_date`, `end_date`, `target`, others optional
-- **Backend Format:** `{ total_sales: number, attainment_percentage: number }`
+  - Attainment % = (totalSales / target) * 100
+  - Output: `{ totalSales: number, attainmentPercentage: number }`
+- **Filters:** `startDate`, `endDate`, `target`, others optional
+- **Backend Format:** `{ totalSales: number, attainmentPercentage: number }`
 - **Frontend Format:** Same
 
 ### 2.3 Product Performance
@@ -59,7 +61,7 @@ See also: [druid_pipeline.md](druid_pipeline.md), [data_patterns.md](data_patter
 - **Calculation:**
   - Group by `ItemName`, sum `grossRevenue`, sort, take top/bottom N.
   - Output: `[ { product: string, sales: number } ]`
-- **Filters:** `start_date`, `end_date`, `n`, others optional
+- **Filters:** `startDate`, `endDate`, `n`, others optional
 - **Backend Format:** `[ { product: string, sales: number } ]`
 - **Frontend Format:** Same
 
@@ -70,7 +72,7 @@ See also: [druid_pipeline.md](druid_pipeline.md), [data_patterns.md](data_patter
 - **Calculation:**
   - Clean `ProductLine`, group by `Branch` and product, sum `grossRevenue`.
   - Output: `[ { branch: string, product: string, sales: number } ]`
-- **Filters:** `start_date`, `end_date`, others optional
+- **Filters:** `startDate`, `endDate`, others optional
 - **Backend Format:** `[ { branch: string, product: string, sales: number } ]`
 - **Frontend Format:** Same
 
@@ -80,8 +82,8 @@ See also: [druid_pipeline.md](druid_pipeline.md), [data_patterns.md](data_patter
 - **Columns Used:** `Branch`, `grossRevenue`, `SalesPerson`, `ItemName`
 - **Calculation:**
   - Group by `Branch`, aggregate: sum `grossRevenue`, count transactions, mean sale, unique customers/products.
-  - Output: `[ { branch: string, total_sales: number, transaction_count: int, average_sale: number, unique_customers: int, unique_products: int } ]`
-- **Filters:** `start_date`, `end_date`, others optional
+  - Output: `[ { branch: string, totalSales: number, transactionCount: int, averageSale: number, uniqueCustomers: int, uniqueProducts: int } ]`
+- **Filters:** `startDate`, `endDate`, others optional
 - **Backend Format:** `[ { branch: string, ... } ]`
 - **Frontend Format:** See [frontend_mapping.md](frontend_mapping.md)
 
@@ -91,8 +93,8 @@ See also: [druid_pipeline.md](druid_pipeline.md), [data_patterns.md](data_patter
 - **Columns Used:** `Branch`, `grossRevenue`, `__time`
 - **Calculation:**
   - Group by `Branch`, sum `grossRevenue`, get last activity date.
-  - Output: `[ { branch: string, total_sales: number, last_activity: string } ]`
-- **Filters:** `start_date`, `end_date`, others optional
+  - Output: `[ { branch: string, totalSales: number, lastActivity: string } ]`
+- **Filters:** `startDate`, `endDate`, others optional
 - **Backend Format:** `[ { branch: string, ... } ]`
 - **Frontend Format:** Same
 
@@ -102,9 +104,9 @@ See also: [druid_pipeline.md](druid_pipeline.md), [data_patterns.md](data_patter
 - **Columns Used:** `Branch`, `__time`, `grossRevenue`
 - **Calculation:**
   - Group by `Branch` and month, sum `grossRevenue`, calculate % change month-over-month.
-  - Output: `[ { branch: string, month_year: string, monthly_sales: number, growth_pct: number } ]`
-- **Filters:** `start_date`, `end_date`, others optional
-- **Backend Format:** `[ { branch: string, month_year: string, monthly_sales: number, growth_pct: number } ]`
+  - Output: `[ { branch: string, monthYear: string, monthlySales: number, growthPct: number } ]`
+- **Filters:** `startDate`, `endDate`, others optional
+- **Backend Format:** `[ { branch: string, monthYear: string, monthlySales: number, growthPct: number } ]`
 - **Frontend Format:** Same
 
 ### 2.8 Sales Performance
@@ -113,9 +115,9 @@ See also: [druid_pipeline.md](druid_pipeline.md), [data_patterns.md](data_patter
 - **Columns Used:** `SalesPerson`, `grossRevenue`, `Branch`, `ItemName`
 - **Calculation:**
   - Group by `SalesPerson`, aggregate: sum `grossRevenue`, count, mean, unique branches/products.
-  - Output: `[ { sales_person: string, ... } ]`
-- **Filters:** `start_date`, `end_date`, others optional
-- **Backend Format:** `[ { sales_person: string, ... } ]`
+  - Output: `[ { salesPerson: string, ... } ]`
+- **Filters:** `startDate`, `endDate`, others optional
+- **Backend Format:** `[ { salesPerson: string, ... } ]`
 - **Frontend Format:** See [frontend_mapping.md](frontend_mapping.md)
 
 ### 2.9 Product Analytics
@@ -124,9 +126,9 @@ See also: [druid_pipeline.md](druid_pipeline.md), [data_patterns.md](data_patter
 - **Columns Used:** `ItemName`, `ProductLine`, `ItemGroup`, `grossRevenue`, `unitsSold`, `Branch`
 - **Calculation:**
   - Group by `ItemName`, `ProductLine`, `ItemGroup`, aggregate sales, qty, count, unique branches, avg price.
-  - Output: `[ { item_name: string, product_line: string, ... } ]`
-- **Filters:** `start_date`, `end_date`, others optional
-- **Backend Format:** `[ { item_name: string, product_line: string, ... } ]`
+  - Output: `[ { itemName: string, productLine: string, ... } ]`
+- **Filters:** `startDate`, `endDate`, others optional
+- **Backend Format:** `[ { itemName: string, productLine: string, ... } ]`
 - **Frontend Format:** See [frontend_mapping.md](frontend_mapping.md)
 
 ### 2.10 Revenue Summary
@@ -135,8 +137,8 @@ See also: [druid_pipeline.md](druid_pipeline.md), [data_patterns.md](data_patter
 - **Columns Used:** `grossRevenue`, `ItemName`, `Branch`, `SalesPerson`
 - **Calculation:**
   - Sum/aggregate overall revenue, transactions, unique products/branches/employees, avg transaction.
-  - Output: `{ total_revenue, total_transactions, average_transaction, unique_products, unique_branches, unique_employees }`
-- **Filters:** `start_date`, `end_date`, others optional
+  - Output: `{ totalRevenue, totalTransactions, averageTransaction, uniqueProducts, uniqueBranches, uniqueEmployees }`
+- **Filters:** `startDate`, `endDate`, others optional
 - **Backend Format:** `{ ... }`
 - **Frontend Format:** See [frontend_mapping.md](frontend_mapping.md)
 
@@ -144,10 +146,10 @@ See also: [druid_pipeline.md](druid_pipeline.md), [data_patterns.md](data_patter
 
 ## 3. Filters & Result Formats
 
-- **Common Filters:** `start_date`, `end_date`, `branch`, `product_line`, `item_names`, `sales_persons`, `n`, `target`
+- **Common Filters:** `startDate`, `endDate`, `branch`, `productLine`, `itemNames`, `salesPersons`, `n`, `target`
 - **Backend Result Envelope:**
   ```json
-  { "data": { "using_mock_data": false, "result": ... }, "error": null, "metadata": { "requestId": "..." } }
+  { "data": { "usingMockData": false, "result": ... }, "error": null, "metadata": { "requestId": "..." } }
   ```
 - **Frontend Expected Format:**
   - See [frontend_mapping.md](frontend_mapping.md) for TypeScript interfaces and mapping.
@@ -170,3 +172,4 @@ See also: [druid_pipeline.md](druid_pipeline.md), [data_patterns.md](data_patter
 - All filters are optional but default to full available data if not provided.
 - Backend and frontend formats are kept in sync via codegen and mapping docs.
 - For any changes, update this file and cross-referenced docs.
+- All contracts are enforced via codegen and mapping docs. Keep this file in sync with [backend_report.md], [frontend_report.md], and [api.md].

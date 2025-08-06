@@ -1,6 +1,0 @@
-query MarginTrends($startDate: String, $endDate: String, $branch: String, $productLine: String) {
-  marginTrends(startDate: $startDate, endDate: $endDate, branch: $branch, productLine: $productLine) {
-    date
-    marginPct
-  }
-}

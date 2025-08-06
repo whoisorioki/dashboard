@@ -1,6 +1,6 @@
 # Data Loading, Caching & Persistence Implementation Checklist
 
-This checklist operationalizes the hybrid, multi-layered caching and persistence strategy for the Sales Analytics Dashboard, as described in the architectural blueprint. It covers both frontend (React Query + localStorage) and backend (FastAPI + Redis), including cache invalidation, async best practices, and monitoring.
+This checklist operationalizes the hybrid, multi-layered caching and persistence strategy for the Sales Analytics Dashboard, as described in the architectural blueprint. It covers both frontend (React Query + localStorage) and backend (FastAPI + Redis), including cache invalidation, async best practices, and monitoring. All frontend data loading is now via React Query and generated GraphQL hooks, with REST and Recharts deprecated. All contracts are enforced via codegen and mapping docs.
 
 ---
 
@@ -30,9 +30,25 @@ This checklist operationalizes the hybrid, multi-layered caching and persistence
 
   - Expose and handle `fetchStatus === 'paused'` for offline mode
   - Show subtle offline indicators in the UI
+  - **Update all data-fetching hooks to construct their queryKey from the Zustand filterStore, including new itemGroups filter.**
+
+- [ ] **Implement Global Filter State with Zustand**
+
+  - Create `filterStore.ts` using Zustand for global filter state: `{ startDate, endDate, selectedBranches, selectedProductLines, selectedItemGroups }`
+  - Only components using a specific filter value re-render when that value changes
+
+- [ ] **Persist Filter State to localStorage**
+
+  - Persist Zustand filter state to `localStorage` for seamless reloads
+
+- [ ] **Implement Global Filter Bar**
+
+  - Add standardized Global Filter Bar to all primary dashboard pages
+  - Include Date Range Picker, Branch (multi-select), Product Line (multi-select), Item Group (multi-select)
+  - Display active filters as chips/tags with individual removal and a prominent "Reset Filters" button
 
 - [ ] **Implement Cache Invalidation on Data Version Change**
-  - Poll `/api/health/data-version` endpoint every 5 minutes
+  - Poll GraphQL health/data-version query every 5 minutes
   - If `lastIngestionTime` changes, call `queryClient.invalidateQueries()`
   - (Optional) Prepare for future WebSocket-based invalidation
 
@@ -55,8 +71,8 @@ This checklist operationalizes the hybrid, multi-layered caching and persistence
 
 - [ ] **Apply @cache Decorator to Endpoints**
 
-  - Tier 1: Long-lived metadata (e.g., `/branch-list`) — 24h TTL
-  - Tier 2: Core analytics (e.g., `/monthly-sales-growth`) — 1h TTL
+  - Tier 1: Long-lived metadata (e.g., `branchList`) — 24h TTL
+  - Tier 2: Core analytics (e.g., `monthlySalesGrowth`) — 1h TTL
   - Tier 3: Real-time/ad-hoc — no cache
 
 - [ ] **Ensure All Endpoints Are Fully Async**
@@ -70,7 +86,7 @@ This checklist operationalizes the hybrid, multi-layered caching and persistence
   - Poll Druid Overlord API for new ingestion tasks
   - On new ingestion, purge relevant Redis keys (by prefix/pattern)
   - Update `lastIngestionTime` in Redis or memory
-  - Expose `/api/health/data-version` endpoint returning `lastIngestionTime`
+  - Expose GraphQL health/data-version query returning `lastIngestionTime`
 
 ---
 
@@ -113,4 +129,16 @@ This checklist operationalizes the hybrid, multi-layered caching and persistence
 
 ---
 
-**Proceed to implement and test each item in this checklist before moving to full API testing.**
+## 5. Filtering Architecture & Best Practices (2024 Update)
+
+- **Global Filter Bar:** Standardized, appears on all main pages. Contains Date Range, Branch, Product Line, and Item Group filters (all multi-select, searchable).
+- **State Management:** Global filter state managed by Zustand (`filterStore.ts`), not React Context. State shape: `{ startDate, endDate, selectedBranches, selectedProductLines, selectedItemGroups }`.
+- **Data Fetching:** All GraphQL hooks use queryKey derived from filterStore. When a filter changes, a new queryKey triggers React Query to check cache or fetch new data.
+- **Caching:** Cached data is returned instantly for previously used filter combinations. Filter state is persisted to localStorage.
+- **UI/UX:** Active filters shown as chips/tags, with individual removal and a reset button. Local (page-specific) filters do not affect global state.
+- **Field Distinction:** ProductLine = high-level brand/category; ItemGroup = sub-category (e.g., "Parts", "Units"). Both are first-class filters in all relevant queries and components.
+
+---
+
+**Note:**
+- All contracts are enforced via codegen and mapping docs. Keep this file in sync with [backend_report.md], [frontend_report.md], and [api.md].

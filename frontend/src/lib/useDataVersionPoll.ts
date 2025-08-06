@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 import { queryClient } from "./queryClient";
+import { GraphQLClient } from "graphql-request";
+import { HealthStatusQuery, useHealthStatusQuery } from "../queries/healthStatus.generated";
 
 const POLL_INTERVAL = 1000 * 60 * 5; // 5 minutes
-const ENDPOINT = "/api/health/data-version";
 
 const isFirstDayOfMonth = () => {
   const now = new Date();
@@ -11,6 +12,7 @@ const isFirstDayOfMonth = () => {
 
 export function useDataVersionPoll() {
   const lastVersionRef = useRef<string | null>(null);
+  const client = new GraphQLClient(import.meta.env.VITE_API_GRAPHQL_URL || "http://localhost:8000/graphql");
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout | undefined;
@@ -18,10 +20,10 @@ export function useDataVersionPoll() {
 
     async function poll() {
       try {
-        const res = await fetch(ENDPOINT);
-        if (!res.ok) return;
-        const json = await res.json();
-        const version = json?.lastIngestionTime;
+        const data: HealthStatusQuery = await client.request(
+          `query HealthStatus { dataVersion { lastIngestionTime } }`
+        );
+        const version = data?.dataVersion?.lastIngestionTime;
         if (
           version &&
           lastVersionRef.current &&

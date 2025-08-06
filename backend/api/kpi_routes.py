@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, Query, Request, HTTPException
 from typing import Optional
 import polars as pl
 from fastapi_redis_cache import cache
-from backend.services.sales_data import fetch_sales_data
-from backend.services import kpi_service, sales_data
+from services.sales_data import fetch_sales_data
+from services import kpi_service, sales_data
 from fastapi.concurrency import run_in_threadpool
 import logging
-from backend.utils.response_envelope import envelope
+from utils.response_envelope import envelope
 
 router = APIRouter(prefix="/api/kpis", tags=["kpis"])
 
@@ -80,7 +80,9 @@ async def monthly_sales_growth(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    result = await run_in_threadpool(kpi_service.calculate_monthly_sales_growth, df)
+    # Extract end_date from query parameters
+    end_date = request.query_params.get("end_date")
+    result = await run_in_threadpool(kpi_service.calculate_monthly_sales_growth, df, end_date)
     return envelope(result, request)
 
 
@@ -302,7 +304,9 @@ async def branch_growth(
         return envelope(result_df.to_dicts(), request)
     except Exception as e:
         logger.error(f"Error in branch_growth: {e}")
-        raise HTTPException(status_code=500, detail=f"Branch growth calculation failed: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Branch growth calculation failed: {e}"
+        )
 
 
 @router.get("/sales-performance")
@@ -405,6 +409,8 @@ async def revenue_summary(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
+    if df.is_empty():
+        return envelope([], request, warning="No data for the selected filters.")
     result = await run_in_threadpool(kpi_service.calculate_revenue_summary, df)
     return envelope(result, request)
 

@@ -30,7 +30,7 @@ interface WelcomeTourProps {
 
 const tourSteps = [
     {
-        title: 'Welcome to Kenyan Sales Analytics! 🎉',
+        title: 'Welcome to the Sales Analytics Dashboard! 🎉',
         description: 'Get real-time insights into your sales performance across Kenya with our comprehensive analytics platform. All data is in Kenyan Shillings (KES).',
         icon: <DashboardIcon fontSize="large" />,
         color: 'primary'
@@ -90,6 +90,12 @@ const WelcomeTour: React.FC<WelcomeTourProps> = ({ open, onClose }) => {
                     borderRadius: 3,
                     background: `linear-gradient(135deg, ${alpha(theme.palette[stepColor].main, 0.05)} 0%, ${alpha(theme.palette[stepColor].main, 0.02)} 100%)`,
                     border: `1px solid ${alpha(theme.palette[stepColor].main, 0.1)}`,
+                    backdropFilter: 'blur(4px)',
+                }
+            }}
+            BackdropProps={{
+                sx: {
+                    backgroundColor: alpha(theme.palette.background.default, 0.7),
                 }
             }}
         >

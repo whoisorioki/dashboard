@@ -3,47 +3,63 @@ import PageHeader from '../components/PageHeader';
 import { MonetizationOn as MonetizationOnIcon } from '@mui/icons-material';
 import TrendChart from '../components/TrendChart';
 import ProfitabilityByDimensionChart from '../components/ProfitabilityByDimensionChart';
-import { useFilters } from '../context/FilterContext';
-import { useMarginTrendsQuery } from '../queries/marginTrends.generated';
+import { useFilterStore } from "../store/filterStore";
+import { useProfitabilityPageDataQuery } from '../queries/profitabilityPageData.generated';
 import { graphqlClient } from '../lib/graphqlClient';
+import DataStateWrapper from "../components/DataStateWrapper";
+import { format } from "date-fns";
 
 const ProfitabilityAnalysis = () => {
-    const { start_date, end_date, selected_branch, selected_product_line } = useFilters();
+    const filterStore = useFilterStore();
+    const startDate = filterStore.startDate;
+    const endDate = filterStore.endDate;
+    const selectedBranches = filterStore.selectedBranches;
+    const selectedProductLines = filterStore.selectedProductLines;
+    const selectedItemGroups = filterStore.selectedItemGroups;
 
-    const { data, isLoading, error } = useMarginTrendsQuery(graphqlClient, {
-        startDate: start_date || undefined,
-        endDate: end_date || undefined,
-        branch: selected_branch !== 'all' ? selected_branch : undefined,
-        productLine: selected_product_line !== 'all' ? selected_product_line : undefined,
-    });
+    // Convert dates to strings for API calls
+    const start_date = startDate ? format(startDate, 'yyyy-MM-dd') : null;
+    const end_date = endDate ? format(endDate, 'yyyy-MM-dd') : null;
+    const selected_branch = selectedBranches.length === 1 ? selectedBranches[0] : "all";
+    const selected_product_line = selectedProductLines.length === 1 ? selectedProductLines[0] : "all";
+    // Default dimension for initial load
+    const dimension = 'Branch';
+    const { data, isLoading, error } = useProfitabilityPageDataQuery(
+        graphqlClient,
+        {
+            startDate: start_date || undefined,
+            endDate: end_date || undefined,
+            branch: selected_branch !== 'all' ? selected_branch : undefined,
+            productLine: selected_product_line !== 'all' ? selected_product_line : undefined,
+            itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
+            dimension,
+        }
+    );
 
     return (
-        <Box
-            sx={{
-                mt: { xs: 2, sm: 3 },
-                p: { xs: 1, sm: 2 },
-            }}
-        >
+        <Box sx={{ mt: { xs: 2, sm: 3 }, p: { xs: 1, sm: 2 } }}>
             <PageHeader
                 title="Profitability Analysis"
                 subtitle="Explore margins, costs, and profitability drivers"
                 icon={<MonetizationOnIcon />}
             />
-            <Grid container spacing={3}>
+            <Grid container spacing={{ xs: 2, sm: 3 }}>
                 <Grid item xs={12}>
-                    <TrendChart
-                        chartTitle="Margin Trend Analysis"
-                        yAxisLabel="Gross Margin (%)"
-                        dataKey="marginPct"
-                        data={data?.marginTrends || []}
-                        isLoading={isLoading}
-                        error={error}
-                    />
+                    <DataStateWrapper isLoading={isLoading} error={error} data={data?.marginTrends} emptyMessage="No margin trend data available.">
+                        <TrendChart
+                            chartTitle="Margin Trend Analysis"
+                            yAxisLabel="Gross Margin (%)"
+                            dataKey="marginPct"
+                            data={data?.marginTrends || []}
+                            isLoading={false}
+                        />
+                    </DataStateWrapper>
                 </Grid>
                 <Grid item xs={12}>
                     <ProfitabilityByDimensionChart
-                        startDate={start_date}
-                        endDate={end_date}
+                        data={data?.profitabilityByDimension || []}
+                        isLoading={isLoading}
+                        error={error}
                     />
                 </Grid>
             </Grid>

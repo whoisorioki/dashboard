@@ -1,50 +1,289 @@
-# Sales Analytics Dashboard: System Design & Architecture
+# Sales Analytics Dashboard - System Overview
 
-## 1. Introduction & Business Goal
+## 🏗️ System Architecture
 
-This document outlines the system design and architecture of the Sales Analytics Dashboard, a full-stack application engineered to provide real-time, interactive analytics for a Kenyan business.
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                            SALES ANALYTICS DASHBOARD                           │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  ┌─────────────────┐    API Calls     ┌─────────────────┐    Druid SQL       │
+│  │     FRONTEND    │ ◄──────────────► │     BACKEND     │ ◄──────────────►   │
+│  │                 │  (HTTP/JSON)     │                 │   (Analytics)      │
+│  │   React + TS    │                  │    FastAPI      │                    │
+│  │   Material-UI   │                  │    Python       │  ┌───────────────┐ │
+│  │   Vite Dev      │                  │    Polars       │  │ APACHE DRUID  │ │
+│  │   Port: 5174    │                  │    Port: 8000   │  │   Database    │ │
+│  └─────────────────┘                  └─────────────────┘  │  (Analytics)  │ │
+│                                                            │  Port: 8888   │ │
+│                                                            └───────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
 
-**Primary Business Goal:** The primary objective is to transform raw sales data into actionable insights. This enables data-driven decision-making to improve sales performance, enhance profitability, and optimize operational efficiency. The project is divided into two strategic phases.
+## 📊 Component Architecture
 
-### Phase 1 Goal: Maximize Value from Existing Sales Data
+### Frontend Structure (React + TypeScript)
+```
+src/
+├── 🎨 components/           # UI Components
+│   ├── FilterBar.tsx       # Date/Branch/Product Filters
+│   ├── DashboardCards/     # KPI Display Cards
+│   ├── GeographicMaps/     # 4 Map Visualization Types
+│   └── DatePickers/        # Enhanced Date Selection
+│
+├── 🔗 hooks/               # Data Fetching
+│   ├── useApi.ts           # Generic API Hook
+│   ├── useDynamicApi.ts    # Dynamic Endpoint Hook
+│   └── useDataRange.ts     # Date Range Logic
+│
+├── 📡 queries/             # API Contracts
+│   ├── kpiQueries.ts       # KPI Endpoints
+│   └── salesQueries.ts     # Sales Data Endpoints
+│
+├── 🗃️ store/              # State Management
+│   └── filterStore.ts      # Zustand Global State
+│
+└── 📄 pages/               # Route Components
+    └── Dashboard.tsx       # Main Analytics View
+```
 
-The immediate goal is to build a "State of the Business" analysis using the current sales data. This demonstrates analytical capability and establishes a performance baseline that highlights what's missing.
+### Backend Structure (FastAPI + Python)
+```
+backend/
+├── 🚀 main.py              # FastAPI Application Entry
+├── 📡 api/                 # API Routes
+│   ├── routes.py           # Core Endpoints
+│   └── kpi_routes.py       # KPI-Specific Routes
+│
+├── 💼 services/            # Business Logic
+│   ├── sales_data.py       # Mock/Real Data Service
+│   └── kpi_service.py      # KPI Calculations
+│
+├── 🔌 core/               # Infrastructure
+│   └── druid_client.py     # Apache Druid Integration
+│
+├── 📋 schema/             # Data Validation
+│   └── schema.py           # Pandera Schemas
+│
+└── 🛠️ utils/              # Utilities
+    └── response_envelope.py # Standard API Response
+```
 
-**Key Business Questions (Phase 1):** The dashboard must provide clear, data-backed answers to the following:
+## 🔄 Data Flow Architecture
 
-1.  **Salesperson Performance:**
-    -   Who are our most profitable salespeople, ranked by Gross Profit, not just sales volume?
-    -   What is the product mix for each salesperson?
-    -   Who excels at selling high-margin products (i.e., has the highest average profit margin per sale)?
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              DATA FLOW PIPELINE                             │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  📊 CSV Data  ──►  🗄️ Apache Druid  ──►  🐍 Backend Processing  ──►  📱 UI │
+│      Input           (Analytics DB)        (Polars + FastAPI)        (React) │
+│                                                                              │
+│  ┌─────────────┐   ┌─────────────────┐   ┌──────────────────┐   ┌──────────┐ │
+│  │   Raw CSV   │   │   Druid Store   │   │  API Envelope    │   │ Frontend │ │
+│  │   Files     │──►│   - Time Series │──►│  - Data          │──►│ Charts & │ │
+│  │   - Sales   │   │   - Aggregates  │   │  - Error         │   │ Maps     │ │
+│  │   - KPIs    │   │   - Fast Query  │   │  - Metadata      │   │ - Recharts│ │
+│  │   - Geo     │   │   - Rollups     │   │  - Request ID    │   │ - Google  │ │
+│  └─────────────┘   └─────────────────┘   └──────────────────┘   │   Maps   │ │
+│                                                                  └──────────┘ │
+│                                                                              │
+│  📍 Fallback Path: Mock Data Service ──────────────────────────────────────► │
+│      (When Druid Unavailable)                                               │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
 
-2.  **Product & Product Line Profitability:**
-    -   What are our most profitable products and product lines?
-    -   Are sales and marketing efforts aligned with our most profitable offerings?
+## 🎯 Core Components Deep Dive
 
-3.  **Branch Performance:**
-    -   How are different branches performing against each other and over time in terms of sales and profitability?
+### 1. 📊 Dashboard Components
+| Component | Purpose | Data Source | Key Features |
+|-----------|---------|-------------|--------------|
+| `RevenueCard` | Revenue KPIs | `/api/kpi/revenue` | Real-time revenue tracking |
+| `SalesCard` | Sales metrics | `/api/kpi/sales` | Volume & growth trends |
+| `ProfitCard` | Profit analysis | `/api/kpi/profit` | Margin calculations |
+| `GeographicMap` | Location analysis | `/api/geographic-data` | 4 visualization modes |
 
-4.  **Customer Profile:**
-    -   What is the profile of our most valuable customers based on total sales and gross profit? This will help build an initial Ideal Customer Profile (ICP).
+### 2. 🗺️ Geographic Visualization Types
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    GEOGRAPHIC MAP TYPES                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  1️⃣ ENHANCED MAP      │  2️⃣ BASIC CHOROPLETH                   │
+│     - County Aggregate │     - Simple Color Coding             │
+│     - Profit Density   │     - Regional Overview               │
+│                        │                                       │
+│  3️⃣ PRECISE GPS       │  4️⃣ GOOGLE MAPS INTERACTIVE           │
+│     - Real Coordinates │     - Street View Integration         │
+│     - Geocoding API    │     - Satellite/Terrain Views         │
+│                        │                                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 3. 🔧 Enhanced Date Range Picker
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                 ENHANCED DATE PICKER FEATURES                  │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ⚡ Quick Presets     │  📅 Custom Range Selection             │
+│    - This Month       │    - Start/End Date Pickers           │
+│    - Last Month       │    - Visual Calendar Interface        │
+│    - This Year        │    - Date Validation                  │
+│    - 7/30/90 Days     │    - Error Handling                   │
+│                       │                                        │
+│  ✅ Validation        │  📊 Data Range Constraints             │
+│    - Date Order       │    - Min: 2020-01-01                  │
+│    - Future Dates     │    - Max: Current Date                │
+│    - Required Fields  │    - Duration Limits                  │
+│                       │                                        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## 🔗 API Integration Patterns
+
+### Standard API Envelope
+```typescript
+interface ApiResponse<T> {
+  data: T;                    // Actual response data
+  error?: string;             // Error message if any
+  metadata: {
+    requestId: string;        // Unique request identifier
+    timestamp?: string;       // Response timestamp
+    duration?: number;        // Processing time
+  };
+}
+```
+
+### Data Fetching Hooks Pattern
+```typescript
+// Generic API Hook
+const { data, isLoading, error } = useApi<SalesData>('/api/sales');
+
+// Dynamic Endpoint Hook
+const { data } = useDynamicApi<KPIData>((filters) => 
+  `/api/kpi/revenue?startDate=${filters.startDate}&endDate=${filters.endDate}`
+);
+```
+
+## 🔄 State Management Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    ZUSTAND STATE FLOW                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  👤 User Action  ──►  🎛️ FilterBar  ──►  🗃️ filterStore        │
+│                                                                 │
+│  ┌─────────────┐     ┌─────────────┐     ┌──────────────────┐   │
+│  │ Date Change │────►│ Component   │────►│ Global State     │   │
+│  │ Branch Pick │     │ Handler     │     │ - startDate      │   │
+│  │ Product Sel │     │ - Validate  │     │ - endDate        │   │
+│  └─────────────┘     │ - Transform │     │ - selectedBr...  │   │
+│                      └─────────────┘     │ - selectedPr...  │   │
+│                                          └──────────────────┘   │
+│                                                   │               │
+│                                                   ▼               │
+│  📊 Dashboard Components  ◄─────────────────  📡 API Calls       │
+│  - Auto Re-render                           - Filtered Data      │
+│  - Loading States                           - Error Handling     │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## 🏃‍♂️ Development Workflow
+
+### Quick Start Commands
+```powershell
+# 🚀 Start Backend (Port 8000)
+.\start-backend.ps1
+
+# 🎨 Start Frontend (Port 5174)
+.\start-frontend.ps1
+
+# 🐳 Full Stack with Docker
+docker compose up -d
+
+# 🧹 Development Reset
+npm run dev:reset
+```
+
+### Environment Configuration
+| Component | Config File | Key Settings |
+|-----------|-------------|--------------|
+| Frontend | `frontend/.env` | `VITE_API_URL=http://localhost:8000` |
+| Backend | `backend/.env` | `DRUID_HOST=localhost:8888` |
+| Druid | `druid/environment` | Database connection settings |
+
+## 🛠️ Technology Stack
+
+### Frontend Technologies
+- **⚛️ React 18** - Component framework
+- **📘 TypeScript** - Type safety
+- **🎨 Material-UI (MUI)** - Component library
+- **📊 Recharts** - Data visualization
+- **🗺️ Google Maps API** - Geographic mapping
+- **⚡ Vite** - Build tool & dev server
+- **🐻 Zustand** - State management
+
+### Backend Technologies
+- **🐍 FastAPI** - Python web framework
+- **🐻‍❄️ Polars** - DataFrame library
+- **✅ Pandera** - Data validation
+- **🗄️ Apache Druid** - Analytics database
+- **📊 Uvicorn** - ASGI server
+
+### Infrastructure
+- **🐳 Docker** - Containerization
+- **📦 Docker Compose** - Multi-container orchestration
+- **🔍 Logging** - Request tracing & monitoring
+- **🏥 Health Checks** - System status monitoring
+
+## 🔧 Monitoring & Observability
+
+### Health Endpoints
+```
+GET /api/health              # Backend health status
+GET /api/health/druid        # Druid connection status
+GET /api/metrics             # System metrics
+```
+
+### Logging Strategy
+- **Request IDs** - Trace requests across services
+- **Error Logging** - Comprehensive error tracking
+- **Performance Metrics** - Response time monitoring
+- **Debug Mode** - Development debugging
+
+## 📈 Analytics Capabilities
+
+### Real-Time KPIs
+- 💰 Revenue tracking with growth rates
+- 📊 Sales volume and conversion metrics
+- 💹 Profit margins and cost analysis
+- 🗺️ Geographic performance distribution
+- 📅 Time-series trend analysis
+
+### Geographic Analytics
+- **County-level** aggregation for Kenya
+- **Branch-specific** performance tracking
+- **Google Maps** integration for precise locations
+- **Profit distribution** visualization
+- **22+ Branch locations** with exact coordinates
 
 ---
 
-## 2. System Architecture
+## 🚀 Quick Reference
 
-The system follows a classic three-tier architecture, ensuring a clear separation of concerns between presentation, logic, and data storage.
-
-```
-Frontend (React/Vite) ←-- (API Calls) --→ Backend (FastAPI) ←-- (Druid SQL) --→ Database (Apache Druid)
-      :5173                                  :8000                           :8888 (Router)
-```
-
--   **Frontend**: A modern Single-Page Application (SPA) built with React and Vite. It is responsible for the user interface, data visualization, and all user interactions.
--   **Backend**: A high-performance API server built with FastAPI. It serves as an API gateway and business logic layer, processing requests, querying the database, performing complex calculations, and serving structured data to the frontend.
--   **Database**: An Apache Druid cluster, a high-performance, real-time analytics database optimized for fast slice-and-dice queries on large datasets.
+| Need | Command | URL |
+|------|---------|-----|
+| **Start Development** | `.\start-frontend.ps1` | http://localhost:5174 |
+| **API Documentation** | `.\start-backend.ps1` | http://localhost:8000/docs |
+| **Druid Console** | `docker compose up -d` | http://localhost:8888 |
+| **Health Check** | - | http://localhost:8000/api/health |
 
 ---
 
-## 3. Technology Stack
+*This system provides a comprehensive analytics platform for Kenyan businesses with real-time data processing, interactive visualizations, and robust geographic mapping capabilities.*
 
 | Layer       | Technology                                                              |
 |-------------|-------------------------------------------------------------------------|
@@ -63,8 +302,8 @@ The data pipeline is designed for robustness and data quality, from ingestion to
 2.  **Querying**: The FastAPI backend queries Druid using its native JSON-over-HTTP API, wrapped by the `PyDruid` library.
 3.  **Processing**: The backend leverages the **Polars** library for all data manipulation. Polars' lazy evaluation and highly optimized engine provide significant performance benefits for aggregations and KPI calculations.
 4.  **Validation**: **Pandera** is used to define and enforce strict data schemas on the Polars DataFrames fetched from Druid, ensuring data quality and preventing errors before they reach the API layer.
-5.  **Serving**: Processed data is exposed to the frontend via both REST and GraphQL endpoints.
-6.  **Visualization**: The React frontend fetches data using **React Query** for sophisticated caching, state management, and background updates. Data is then rendered in interactive charts and tables using **Apache ECharts**.
+5.  **Serving**: Processed data is exposed to the frontend via both REST and GraphQL endpoints. **All major queries now accept the four main filter arguments: `startDate`, `endDate`, `branch`, and `productLine`.**
+6.  **Visualization**: The React frontend fetches data using **React Query** and **graphql-codegen**-generated hooks for sophisticated caching, state management, and background updates. Data is then rendered in interactive charts and tables using **Apache ECharts**. **All filterable components/pages propagate filters in a type-safe manner.**
 
 ---
 
@@ -80,10 +319,12 @@ The data pipeline is designed for robustness and data quality, from ingestion to
       "metadata": { "requestId": "..." }
     }
     ```
--   **Naming Conventions**: A strict contract is enforced to reduce friction between Python and TypeScript ecosystems:
+-   **Naming Conventions & Argument Consistency**: A strict contract is enforced to reduce friction between Python and TypeScript ecosystems:
     -   **Backend (Python/Polars)**: `snake_case`
     -   **GraphQL Schema & Frontend (TypeScript)**: `camelCase`
     -   The `strawberry-graphql` library handles this case conversion automatically.
+    -   **All major queries and resolvers now accept and propagate the same filter arguments, ensuring end-to-end consistency.**
+-   **Error Handling:** Improved error handling and response envelope standardization for both REST and GraphQL endpoints.
 
 ---
 
@@ -93,6 +334,9 @@ The data pipeline is designed for robustness and data quality, from ingestion to
 -   **Service-Oriented Structure**: Logic is cleanly separated into services (e.g., `kpi_service.py`, `sales_data.py`) for better organization, reusability, and testability.
 -   **Global Error Handling**: FastAPI middleware intercepts all exceptions and formats them into the standard error envelope, ensuring consistent and predictable error responses across the entire API.
 -   **Configuration**: Environment variables (`.env`) are used to manage all configuration, allowing for easy setup across different environments (development, staging, production).
+-   **GraphQL Resolvers:** All resolvers now fetch real data from Druid (no more hardcoded values), and argument names/types are kept in sync with frontend queries.
+-   **Redis Caching:** Redis cache initialization is now conditional based on the environment, preventing local development errors.
+-   **Date Handling:** All date handling uses correct imports and types (`from datetime import date, timezone`), fixing previous runtime errors.
 
 ---
 
@@ -103,7 +347,8 @@ The data pipeline is designed for robustness and data quality, from ingestion to
 -   **State Management**:
     -   **Server State**: **React Query** is the cornerstone of frontend data management. It handles all data fetching, caching, background refetching, and synchronization with the backend API.
     -   **Global UI State**: React Context is used for managing global UI state, such as filters (date range, branch) and user settings.
--   **Data Fetching**: `graphql-request` is used as a lightweight and efficient client for the GraphQL API. It is paired with `graphql-codegen` to automatically generate typed hooks and interfaces from the backend schema, ensuring end-to-end type safety.
+-   **Data Fetching**: `graphql-request` is used as a lightweight and efficient client for the GraphQL API. It is paired with `graphql-codegen` to automatically generate typed hooks and interfaces from the backend schema, ensuring end-to-end type safety. **All analytics pages use a reusable `DataStateWrapper` for unified loading, error, and empty states. Spacing and layout are standardized using Material-UI's `Box` and `Grid`.**
+-   **Filter Propagation:** All filterable components/pages accept and propagate global and local filters in a type-safe manner, matching backend arguments.
 
 ---
 
@@ -112,6 +357,7 @@ The data pipeline is designed for robustness and data quality, from ingestion to
 -   **Dockerization**: The entire stack (frontend, backend, Druid cluster) is fully containerized using Docker and managed with Docker Compose. This guarantees a consistent, isolated, and reproducible environment for both development and production.
 -   **Management Scripts**: `docker-manager.ps1` (Windows) and a `Makefile` (Linux/Mac) provide a simple and unified command-line interface for common tasks like starting, stopping, cleaning, and testing the system.
 -   **Environments**: Separate `docker-compose.dev.yml` and `docker-compose.yml` files define distinct configurations for development (with features like hot-reloading) and production.
+-   **Backend Startup Script:** The PowerShell script for backend startup (`start-backend.ps1`) now reliably creates/activates the virtual environment in the project root, installs dependencies, and ensures `uvicorn` is available.
 
 ---
 

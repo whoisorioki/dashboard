@@ -1,0 +1,33 @@
+query ProfitabilityPageData(
+  $startDate: String!
+  $endDate: String!
+  $branch: String
+  $productLine: String
+  $itemGroups: [String!]
+  $dimension: String!
+) {
+  marginTrends(
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemGroups: $itemGroups
+  ) {
+    date
+    marginPct
+  }
+  profitabilityByDimension(
+    dimension: $dimension
+    startDate: $startDate
+    endDate: $endDate
+    branch: $branch
+    productLine: $productLine
+    itemGroups: $itemGroups
+  ) {
+    branch
+    productLine
+    itemGroup
+    grossProfit
+    grossMargin
+  }
+}

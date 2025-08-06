@@ -1,0 +1,322 @@
+/* Enhanced CSS for react-date-range integration with Material-UI theme */
+
+/* Root container styling */
+.rdrDateRangeWrapper {
+    background: var(--mui-palette-background-paper) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--mui-shadows-8) !important;
+    border: 1px solid var(--mui-palette-divider) !important;
+    font-family: var(--mui-typography-fontFamily) !important;
+    color: var(--mui-palette-text-primary) !important;
+}
+
+/* Calendar container */
+.rdrCalendarWrapper {
+    background: var(--mui-palette-background-paper) !important;
+    border-radius: 8px !important;
+}
+
+/* Month and year display */
+.rdrMonth {
+    background: var(--mui-palette-background-paper) !important;
+    border-radius: 8px !important;
+}
+
+.rdrMonthAndYearWrapper {
+    background: var(--mui-palette-action-hover) !important;
+    border-radius: 6px !important;
+    padding: 8px 12px !important;
+    margin-bottom: 8px !important;
+}
+
+.rdrMonthAndYearPickers select,
+.rdrMonthPicker,
+.rdrYearPicker {
+    background: var(--mui-palette-background-paper) !important;
+    color: var(--mui-palette-text-primary) !important;
+    border: 1px solid var(--mui-palette-divider) !important;
+    border-radius: 4px !important;
+    padding: 4px 8px !important;
+    font-family: var(--mui-typography-fontFamily) !important;
+}
+
+.rdrMonthAndYearPickers select:hover,
+.rdrMonthPicker:hover,
+.rdrYearPicker:hover {
+    border-color: var(--mui-palette-primary-main) !important;
+    background: var(--mui-palette-action-hover) !important;
+}
+
+/* Navigation arrows */
+.rdrPprevButton,
+.rdrNextButton {
+    background: var(--mui-palette-action-hover) !important;
+    border: 1px solid var(--mui-palette-divider) !important;
+    border-radius: 50% !important;
+    width: 32px !important;
+    height: 32px !important;
+    margin: 0 4px !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+.rdrPprevButton:hover,
+.rdrNextButton:hover {
+    background: var(--mui-palette-primary-main) !important;
+    border-color: var(--mui-palette-primary-main) !important;
+    transform: scale(1.05) !important;
+}
+
+.rdrPprevButton i,
+.rdrNextButton i {
+    border-color: var(--mui-palette-text-primary) !important;
+}
+
+.rdrPprevButton:hover i,
+.rdrNextButton:hover i {
+    border-color: white !important;
+}
+
+/* Weekday headers */
+.rdrWeekDays {
+    background: var(--mui-palette-action-hover) !important;
+    border-radius: 6px !important;
+    margin-bottom: 4px !important;
+}
+
+.rdrWeekDay {
+    color: var(--mui-palette-text-secondary) !important;
+    font-weight: 600 !important;
+    font-size: 0.875rem !important;
+    padding: 8px 0 !important;
+}
+
+/* Days styling */
+.rdrDays {
+    background: transparent !important;
+}
+
+.rdrDay {
+    background: transparent !important;
+    color: var(--mui-palette-text-primary) !important;
+    border-radius: 6px !important;
+    transition: all 0.2s ease-in-out !important;
+    font-weight: 500 !important;
+    margin: 1px !important;
+}
+
+.rdrDay:not(.rdrDayPassive):hover {
+    background: var(--mui-palette-action-hover) !important;
+    transform: scale(1.05) !important;
+}
+
+/* Day states */
+.rdrDayToday .rdrDayNumber span {
+    background: var(--mui-palette-secondary-main) !important;
+    color: white !important;
+    border-radius: 50% !important;
+    width: 28px !important;
+    height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-weight: 600 !important;
+}
+
+.rdrDayStartOfMonth .rdrDayNumber span,
+.rdrDayEndOfMonth .rdrDayNumber span {
+    background: var(--mui-palette-primary-main) !important;
+    color: white !important;
+    border-radius: 50% !important;
+    width: 28px !important;
+    height: 28px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-weight: 600 !important;
+}
+
+.rdrDayStartOfWeek,
+.rdrDayEndOfWeek {
+    background: linear-gradient(135deg,
+            var(--mui-palette-primary-main),
+            var(--mui-palette-primary-light)) !important;
+    color: white !important;
+    border-radius: 6px !important;
+}
+
+.rdrDayInRange {
+    background: var(--mui-palette-primary-light) !important;
+    color: var(--mui-palette-primary-contrastText) !important;
+    border-radius: 0 !important;
+}
+
+.rdrDayStartOfRange {
+    background: var(--mui-palette-primary-main) !important;
+    color: white !important;
+    border-radius: 6px 0 0 6px !important;
+}
+
+.rdrDayEndOfRange {
+    background: var(--mui-palette-primary-main) !important;
+    color: white !important;
+    border-radius: 0 6px 6px 0 !important;
+}
+
+.rdrDayStartOfRange.rdrDayEndOfRange {
+    border-radius: 6px !important;
+}
+
+/* Passive (disabled) days */
+.rdrDayPassive {
+    color: var(--mui-palette-text-disabled) !important;
+    background: transparent !important;
+}
+
+.rdrDayDisabled {
+    color: var(--mui-palette-text-disabled) !important;
+    background: var(--mui-palette-action-disabledBackground) !important;
+}
+
+/* Static ranges (presets) */
+.rdrStaticRanges {
+    background: var(--mui-palette-background-paper) !important;
+    border-right: 1px solid var(--mui-palette-divider) !important;
+    border-radius: 8px 0 0 8px !important;
+    padding: 16px !important;
+}
+
+.rdrStaticRange {
+    background: transparent !important;
+    border: 1px solid var(--mui-palette-divider) !important;
+    border-radius: 6px !important;
+    margin-bottom: 8px !important;
+    transition: all 0.2s ease-in-out !important;
+}
+
+.rdrStaticRange:hover {
+    background: var(--mui-palette-action-hover) !important;
+    border-color: var(--mui-palette-primary-main) !important;
+    transform: translateX(2px) !important;
+}
+
+.rdrStaticRangeSelected {
+    background: linear-gradient(135deg,
+            var(--mui-palette-primary-main),
+            var(--mui-palette-primary-light)) !important;
+    border-color: var(--mui-palette-primary-main) !important;
+    color: white !important;
+}
+
+.rdrStaticRangeLabel {
+    color: var(--mui-palette-text-primary) !important;
+    font-weight: 500 !important;
+    font-family: var(--mui-typography-fontFamily) !important;
+}
+
+.rdrStaticRangeSelected .rdrStaticRangeLabel {
+    color: white !important;
+    font-weight: 600 !important;
+}
+
+/* Input ranges */
+.rdrInputRanges {
+    background: var(--mui-palette-background-paper) !important;
+    border-top: 1px solid var(--mui-palette-divider) !important;
+    padding: 16px !important;
+}
+
+.rdrInputRange {
+    background: var(--mui-palette-action-hover) !important;
+    border-radius: 6px !important;
+    padding: 8px !important;
+    margin-bottom: 8px !important;
+}
+
+.rdrInputRangeInput {
+    background: var(--mui-palette-background-paper) !important;
+    border: 1px solid var(--mui-palette-divider) !important;
+    border-radius: 4px !important;
+    color: var(--mui-palette-text-primary) !important;
+    padding: 6px 8px !important;
+    font-family: var(--mui-typography-fontFamily) !important;
+}
+
+.rdrInputRangeInput:focus {
+    border-color: var(--mui-palette-primary-main) !important;
+    outline: none !important;
+    box-shadow: 0 0 0 2px var(--mui-palette-primary-light) !important;
+}
+
+/* Calendar focus states */
+.rdrDateDisplayWrapper {
+    background: var(--mui-palette-action-hover) !important;
+    border-radius: 6px !important;
+    padding: 8px !important;
+    margin-bottom: 8px !important;
+}
+
+.rdrDateDisplay {
+    background: var(--mui-palette-background-paper) !important;
+    border: 1px solid var(--mui-palette-divider) !important;
+    border-radius: 4px !important;
+    color: var(--mui-palette-text-primary) !important;
+}
+
+.rdrDateDisplayItem {
+    color: var(--mui-palette-text-secondary) !important;
+    font-family: var(--mui-typography-fontFamily) !important;
+}
+
+.rdrDateDisplayItemActive {
+    color: var(--mui-palette-primary-main) !important;
+    font-weight: 600 !important;
+}
+
+/* Dark mode specific overrides */
+@media (prefers-color-scheme: dark) {
+    .rdrCalendarWrapper {
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24) !important;
+    }
+
+    .rdrDayToday .rdrDayNumber span {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16) !important;
+    }
+
+    .rdrDayStartOfMonth .rdrDayNumber span,
+    .rdrDayEndOfMonth .rdrDayNumber span {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16) !important;
+    }
+}
+
+/* Animation enhancements */
+.rdrDateRangeWrapper {
+    animation: slideInUp 0.2s ease-out !important;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .rdrDateRangeWrapper {
+        max-width: 100vw !important;
+        margin: 0 8px !important;
+    }
+
+    .rdrStaticRanges {
+        display: none !important;
+    }
+
+    .rdrCalendarWrapper {
+        border-radius: 8px !important;
+    }
+}
