@@ -76,13 +76,18 @@ export default function SimpleDateRangePicker({
             start: newStartDate ? format(newStartDate, 'yyyy-MM-dd') : null,
             end: newEndDate ? format(newEndDate, 'yyyy-MM-dd') : null,
             duration: newStartDate && newEndDate ? differenceInDays(newEndDate, newStartDate) + 1 : 0,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            currentDates: {
+                currentStart: startDate ? format(startDate, 'yyyy-MM-dd') : null,
+                currentEnd: endDate ? format(endDate, 'yyyy-MM-dd') : null
+            }
         });
 
         // Call the parent onChange function
         onChange([newStartDate, newEndDate]);
 
         console.log('📅 onChange called with:', [newStartDate, newEndDate]);
+        console.log('📅 This should trigger dashboard refresh...');
         setIsOpen(false);
     };
 

@@ -11,6 +11,7 @@ declare global {
     interface Window {
         google: any;
         initMap: () => void;
+        initGoogleMapsBranchView: () => void;
     }
 }
 
@@ -37,6 +38,12 @@ const GoogleMapsBranchView: React.FC<GoogleMapsBranchViewProps> = ({
         item.grossProfit !== undefined
     );
 
+    console.log('📊 GoogleMapsBranchView - Data processed:', {
+        totalData: data.length,
+        validData: validData.length,
+        sampleData: validData.slice(0, 3)
+    });
+
     // Google Maps API Key Setup Instructions
     const setupInstructions = {
         step1: "Go to Google Cloud Console (console.cloud.google.com)",
@@ -50,7 +57,11 @@ const GoogleMapsBranchView: React.FC<GoogleMapsBranchViewProps> = ({
 
     // Initialize Google Maps (requires API key)
     const initializeMap = () => {
-        if (!window.google || !mapRef.current) return;
+        console.log('🗺️ GoogleMapsBranchView - Initializing map...');
+        if (!window.google || !mapRef.current) {
+            console.error('❌ GoogleMapsBranchView - Google Maps not available or ref missing');
+            return;
+        }
 
         // Center map on Kenya
         const kenyaCenter = { lat: -1.286389, lng: 36.817223 };
@@ -72,10 +83,18 @@ const GoogleMapsBranchView: React.FC<GoogleMapsBranchViewProps> = ({
             ]
         });
 
+        console.log('✅ GoogleMapsBranchView - Map instance created, adding markers...');
+
+        console.log('✅ GoogleMapsBranchView - Map instance created, adding markers...');
+
         // Add markers for each branch with profit data
         validData.forEach(item => {
+            console.log(`📍 Processing marker for: ${item.branch}`);
             const coordinates = getBranchCoordinates(item.branch!);
             const branchInfo = enhancedBranchMapping[item.branch!];
+
+            console.log(`   Coordinates: ${coordinates}`);
+            console.log(`   Branch info: ${branchInfo ? 'found' : 'missing'}`);
 
             if (coordinates && branchInfo) {
                 const marker = new window.google.maps.Marker({
@@ -113,6 +132,7 @@ const GoogleMapsBranchView: React.FC<GoogleMapsBranchViewProps> = ({
             }
         });
 
+        console.log(`✅ GoogleMapsBranchView - Added ${validData.length} markers to map`);
         setMap(mapInstance);
     };
 
@@ -120,6 +140,8 @@ const GoogleMapsBranchView: React.FC<GoogleMapsBranchViewProps> = ({
     const loadGoogleMapsAPI = () => {
         // Get API key from environment variables
         const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+
+        console.log('🔑 GoogleMapsBranchView - API Key Check:', GOOGLE_MAPS_API_KEY ? 'Found' : 'Missing');
 
         if (!GOOGLE_MAPS_API_KEY) {
             console.error('Google Maps API key not found in environment variables');
@@ -129,25 +151,28 @@ const GoogleMapsBranchView: React.FC<GoogleMapsBranchViewProps> = ({
 
         // Check if Google Maps is already loaded
         if (window.google && window.google.maps) {
+            console.log('✅ GoogleMapsBranchView - Google Maps already loaded');
             setApiKeyRequired(false);
             setMapLoading(false);
             initializeMap();
             return;
         }
 
+        console.log('📡 GoogleMapsBranchView - Loading Google Maps script...');
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initMap`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&callback=initGoogleMapsBranchView`;
         script.async = true;
         script.defer = true;
 
-        window.initMap = () => {
+        window.initGoogleMapsBranchView = () => {
+            console.log('🚀 GoogleMapsBranchView - Google Maps loaded via callback');
             setApiKeyRequired(false);
             setMapLoading(false);
             initializeMap();
         };
 
         script.onerror = () => {
-            console.error('Failed to load Google Maps API');
+            console.error('❌ GoogleMapsBranchView - Failed to load Google Maps API');
             setApiKeyRequired(true);
             setMapLoading(false);
         };
@@ -157,17 +182,27 @@ const GoogleMapsBranchView: React.FC<GoogleMapsBranchViewProps> = ({
 
     useEffect(() => {
         // Auto-load Google Maps when component mounts
+        console.log('🔄 GoogleMapsBranchView - Component mounted, checking API key...');
         const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
         if (GOOGLE_MAPS_API_KEY) {
+            console.log('🚀 GoogleMapsBranchView - API key found, loading Google Maps...');
             loadGoogleMapsAPI();
         } else {
+            console.error('❌ GoogleMapsBranchView - No API key found');
             setApiKeyRequired(true);
             setMapLoading(false);
         }
     }, []);
 
     useEffect(() => {
+        console.log('🔄 GoogleMapsBranchView - Data or API status changed:', {
+            dataLength: data.length,
+            apiKeyRequired,
+            hasGoogleMaps: !!(window.google && window.google.maps)
+        });
+
         if (data.length > 0 && !apiKeyRequired && window.google) {
+            console.log('🚀 GoogleMapsBranchView - Conditions met, initializing map...');
             initializeMap();
         }
     }, [data, apiKeyRequired]);

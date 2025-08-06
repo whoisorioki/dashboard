@@ -99,6 +99,19 @@ const KpiCard: React.FC<KpiCardProps> = ({
   const calculatedTrend = calculateTrendDirection();
   const effectiveTrend = sparklineData && sparklineData.length > 1 ? calculatedTrend : trend;
 
+  // Debug sparkline data
+  useEffect(() => {
+    if (sparklineData) {
+      console.log(`✨ KpiCard [${title}] Sparkline:`, {
+        hasData: !!sparklineData,
+        length: sparklineData.length,
+        firstPoint: sparklineData[0],
+        lastPoint: sparklineData[sparklineData.length - 1],
+        trend: effectiveTrend
+      });
+    }
+  }, [sparklineData, title, effectiveTrend]);
+
   if (isLoading) {
     return <KpiCardSkeleton />;
   }
@@ -426,9 +439,38 @@ const KpiCard: React.FC<KpiCardProps> = ({
                   motionConfig="wobbly"
                 />
               </Box>
+            ) : sparklineData && sparklineData.length === 1 ? (
+              // Single data point - show as a small indicator
+              <Box sx={{
+                height: 40,
+                mt: 1.5,
+                mb: 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Box sx={{
+                  width: 4,
+                  height: 4,
+                  backgroundColor: getSparklineColor(),
+                  borderRadius: '50%'
+                }} />
+              </Box>
             ) : (
               // Maintain consistent height even without sparkline
-              <Box sx={{ height: 40, mt: 1.5, mb: 0.5 }} />
+              <Box sx={{
+                height: 40,
+                mt: 1.5,
+                mb: 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: 0.3
+              }}>
+                <Typography variant="caption" color="text.disabled">
+                  No trend data
+                </Typography>
+              </Box>
             )}
           </>
         )}

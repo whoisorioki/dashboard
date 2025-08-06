@@ -105,16 +105,18 @@ const FilterBar: React.FC<FilterBarProps> = ({
     console.log('🔄 FilterBar - Received date change:', {
       start: start ? start.toISOString().split('T')[0] : null,
       end: end ? end.toISOString().split('T')[0] : null,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      previousDates: {
+        startDate: startDate ? startDate.toISOString().split('T')[0] : null,
+        endDate: endDate ? endDate.toISOString().split('T')[0] : null
+      }
     });
 
     setStartDate(start);
     setEndDate(end);
 
-    console.log('🔄 FilterBar - Updated filter store');
-  };
-
-  return (
+    console.log('🔄 FilterBar - Updated filter store, should trigger dashboard refresh');
+  }; return (
     <Paper
       elevation={1}
       sx={{

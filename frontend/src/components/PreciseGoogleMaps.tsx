@@ -8,6 +8,7 @@ declare global {
     interface Window {
         google: any;
         initMap: () => void;
+        initPreciseGoogleMaps: () => void;
     }
 }
 
@@ -76,6 +77,12 @@ const PreciseGoogleMaps: React.FC<PreciseGoogleMapsProps> = ({
         branch: item.branch!,
         grossProfit: item.grossProfit!
     }));
+
+    console.log('📊 PreciseGoogleMaps - Data processed:', {
+        totalData: data.length,
+        validData: validData.length,
+        sampleData: validData.slice(0, 3)
+    });
 
     // Geocode all branch addresses to get exact coordinates
     const geocodeAllBranches = async () => {
@@ -216,7 +223,11 @@ const PreciseGoogleMaps: React.FC<PreciseGoogleMapsProps> = ({
 
     // Initialize Google Maps
     const initializeMap = () => {
-        if (!window.google || !mapRef.current) return;
+        console.log('🗺️ PreciseGoogleMaps - Initializing map...');
+        if (!window.google || !mapRef.current) {
+            console.error('❌ PreciseGoogleMaps - Google Maps not available or ref missing');
+            return;
+        }
 
         const kenyaCenter = { lat: -1.286389, lng: 36.817223 };
 
@@ -250,6 +261,8 @@ const PreciseGoogleMaps: React.FC<PreciseGoogleMapsProps> = ({
     const loadGoogleMapsAPI = () => {
         const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
+        console.log('🔑 PreciseGoogleMaps - API Key Check:', GOOGLE_MAPS_API_KEY ? 'Found' : 'Missing');
+
         if (!GOOGLE_MAPS_API_KEY) {
             console.error('Google Maps API key not found');
             setApiKeyRequired(true);
@@ -258,23 +271,26 @@ const PreciseGoogleMaps: React.FC<PreciseGoogleMapsProps> = ({
         }
 
         if (window.google && window.google.maps) {
+            console.log('✅ PreciseGoogleMaps - Google Maps already loaded');
             setApiKeyRequired(false);
             initializeMap();
             return;
         }
 
+        console.log('📡 PreciseGoogleMaps - Loading Google Maps script...');
         const script = document.createElement('script');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry,places&callback=initMap`;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=geometry,places&callback=initPreciseGoogleMaps`;
         script.async = true;
         script.defer = true;
 
-        window.initMap = () => {
+        window.initPreciseGoogleMaps = () => {
+            console.log('🚀 PreciseGoogleMaps - Google Maps loaded via callback');
             setApiKeyRequired(false);
             initializeMap();
         };
 
         script.onerror = () => {
-            console.error('Failed to load Google Maps API');
+            console.error('❌ PreciseGoogleMaps - Failed to load Google Maps API');
             setApiKeyRequired(true);
             setMapLoading(false);
         };
@@ -284,12 +300,21 @@ const PreciseGoogleMaps: React.FC<PreciseGoogleMapsProps> = ({
 
     // Auto-load when component mounts
     useEffect(() => {
+        console.log('🔄 PreciseGoogleMaps - Component mounted, loading API...');
         loadGoogleMapsAPI();
     }, []);
 
     // Geocode when map and data are ready
     useEffect(() => {
+        console.log('🔄 PreciseGoogleMaps - Dependencies changed:', {
+            hasMap: !!map,
+            hasGeocoder: !!geocoder,
+            validDataLength: validData.length,
+            geocodeResultsLength: geocodeResults.length
+        });
+
         if (map && geocoder && validData.length > 0 && geocodeResults.length === 0) {
+            console.log('🚀 PreciseGoogleMaps - Starting geocoding process...');
             geocodeAllBranches();
         }
     }, [map, geocoder, validData]);
