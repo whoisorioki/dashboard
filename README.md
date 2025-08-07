@@ -266,13 +266,13 @@ docker compose up -d
 
 - **UI Library:** Material-UI (MUI) v5
 
-- **Charts:** Recharts for data visualization
+- **Charts:** Apache ECharts (primary) and Nivo for data visualization
 
 - **State Management:** React Context + Custom Hooks + React Query
 
 - **Build Tool:** Vite for fast development
 
-- **Styling:** Emotion (CSS-in-JS)
+- **Styling:** Material-UI theming with Emotion support
 
 - **API Tools:**
 

@@ -1,4 +1,4 @@
-Hoimport strawberry
+import strawberry
 import logging
 import math
 import polars as pl

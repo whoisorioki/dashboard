@@ -10,6 +10,7 @@ import requests
 import json
 import logging
 import time
+from schema.sales_analytics_schema import validate_sales_data
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -147,7 +148,15 @@ async def fetch_sales_data(
     logger.info(
         f"Raw data retrieved from Druid: {raw_sales_df.shape[0]} rows, {raw_sales_df.shape[1]} columns"
     )
-    return raw_sales_df
+
+    # Validate data using Pandera schema
+    try:
+        validated_df = validate_sales_data(raw_sales_df)
+        logger.info("Data validation successful")
+        return validated_df
+    except ValueError as e:
+        logger.warning(f"Data validation failed: {e}. Returning raw data.")
+        return raw_sales_df
 
 
 async def fetch_raw_sales_data(

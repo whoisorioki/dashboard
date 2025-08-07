@@ -702,7 +702,7 @@ async def returns_analysis(
         return envelope([], request)
     result_df = (
         df.lazy()
-        .filter(pl.col("returnsValue") > 0)
+        .filter(pl.col("returnsValue") < 0)  # Returns should be negative values
         .group_by("ItemName")
         .agg(pl.count().alias("count"))
         .sort("count", descending=True)
