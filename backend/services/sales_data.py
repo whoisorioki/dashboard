@@ -2,7 +2,7 @@ import os
 import polars as pl
 import asyncio
 from datetime import datetime, timedelta
-from core.druid_client import druid_conn, DRUID_DATASOURCE
+from backend.core.druid_client import druid_conn, DRUID_DATASOURCE, DataAvailabilityStatus
 from starlette.concurrency import run_in_threadpool
 from typing import Optional, List, Dict, Any
 from fastapi import HTTPException
@@ -10,11 +10,21 @@ import requests
 import json
 import logging
 import time
-from schema.sales_analytics_schema import validate_sales_data
+from backend.services.mock_data_service import mock_data_fetcher
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+def _get_validate_sales_data():
+    """Lazy import to avoid circular dependency."""
+    try:
+        from backend.schema.sales_analytics_schema import validate_sales_data
+        return validate_sales_data
+    except ImportError:
+        logger.warning("Could not import validate_sales_data due to circular dependency. Skipping validation.")
+        return None
 
 
 async def fetch_sales_data(
@@ -24,10 +34,11 @@ async def fetch_sales_data(
     sales_persons: Optional[List[str]] = None,
     branch_names: Optional[List[str]] = None,
     item_groups: Optional[List[str]] = None,
-) -> pl.DataFrame:
-    """Asynchronously fetches sales data from Druid and returns it as a Polars DataFrame.
+) -> pl.LazyFrame:
+    """Asynchronously fetches sales data from Druid and returns it as a Polars LazyFrame.
 
-    Raises HTTPException if Druid is unavailable or returns no data. Supports filtering by item names, sales persons, branch names, and item groups.
+    If real data is unavailable, automatically falls back to mock data based on configuration.
+    Supports filtering by item names, sales persons, branch names, and item groups.
 
     Args:
         start_date (str): Start date (YYYY-MM-DD).
@@ -38,15 +49,57 @@ async def fetch_sales_data(
         item_groups (List[str], optional): List of item groups to filter by.
 
     Returns:
-        pl.DataFrame: Polars DataFrame with sales data.
+        pl.LazyFrame: Polars LazyFrame with sales data (real or mock).
 
     Raises:
-        HTTPException: If Druid is unavailable or returns no data.
+        HTTPException: If no data is available and fallback is disabled.
 
     Example:
         >>> fetch_sales_data('2024-01-01', '2024-01-31', item_groups=['Parts'])
     """
+    
+    # Check data availability status
+    data_status = druid_conn.check_data_availability()
+    
+    # If forced mock data or fallback is needed, use mock data
+    if data_status in [DataAvailabilityStatus.FORCED_MOCK_DATA, DataAvailabilityStatus.MOCK_DATA_FALLBACK]:
+        logger.info(f"Using mock data (status: {data_status})")
+        return mock_data_fetcher.fetch_mock_data(
+            start_date=start_date,
+            end_date=end_date,
+            item_names=item_names,
+            sales_persons=sales_persons,
+            branch_names=branch_names,
+            item_groups=item_groups
+        )
+    
+    # If no data available and fallback is disabled, raise exception
+    if data_status == DataAvailabilityStatus.NO_DATA_AVAILABLE:
+        logger.error("No data available and fallback is disabled")
+        raise HTTPException(status_code=503, detail="Data source unavailable and fallback disabled")
+    
+    # Proceed with real data fetching
+    logger.info("Fetching real data from Druid")
+    return await _fetch_real_data(
+        start_date=start_date,
+        end_date=end_date,
+        item_names=item_names,
+        sales_persons=sales_persons,
+        branch_names=branch_names,
+        item_groups=item_groups
+    )
 
+
+async def _fetch_real_data(
+    start_date: str,
+    end_date: str,
+    item_names: Optional[List[str]] = None,
+    sales_persons: Optional[List[str]] = None,
+    branch_names: Optional[List[str]] = None,
+    item_groups: Optional[List[str]] = None,
+) -> pl.LazyFrame:
+    """Internal function to fetch real data from Druid"""
+    
     def _build_filter() -> Optional[Dict[str, Any]]:
         filters = []
         filters.append(
@@ -107,12 +160,11 @@ async def fetch_sales_data(
                 query["filter"] = druid_filter
             url = "http://localhost:8888/druid/v2/"
             headers = {"Content-Type": "application/json"}
-            print(f"Sending Druid query to {url}:")
-            print(query)
+            logger.info(f"Sending Druid query to {url}")
             start_time = time.time()
             response = requests.post(url, json=query, headers=headers, timeout=30)
             elapsed = time.time() - start_time
-            print(f"Time Elapsed: {elapsed:.2f}s")
+            logger.info(f"Time Elapsed: {elapsed:.2f}s")
             if response.status_code != 200:
                 raise Exception(
                     f"Druid query failed with status {response.status_code}: {response.text}"
@@ -137,25 +189,32 @@ async def fetch_sales_data(
 
     sales_data_dicts = await run_in_threadpool(_query_druid)
     if not sales_data_dicts:
-        # Return empty DataFrame instead of raising exception
+        # Return empty LazyFrame instead of raising exception
         # This is a normal state when filters don't match any data
         logger.info(
             f"No sales data found for filters: start_date={start_date}, end_date={end_date}, branch_names={branch_names}, item_groups={item_groups}"
         )
-        return pl.DataFrame()
+        return pl.LazyFrame()
 
-    raw_sales_df = pl.from_dicts(sales_data_dicts)
+    raw_sales_df = pl.LazyFrame(sales_data_dicts)
     logger.info(
-        f"Raw data retrieved from Druid: {raw_sales_df.shape[0]} rows, {raw_sales_df.shape[1]} columns"
+        f"Raw data retrieved from Druid: {len(sales_data_dicts)} rows, {len(sales_data_dicts[0]) if sales_data_dicts else 0} columns"
     )
 
     # Validate data using Pandera schema
-    try:
-        validated_df = validate_sales_data(raw_sales_df)
-        logger.info("Data validation successful")
-        return validated_df
-    except ValueError as e:
-        logger.warning(f"Data validation failed: {e}. Returning raw data.")
+    validate_func = _get_validate_sales_data()
+    if validate_func:
+        try:
+            # Convert LazyFrame to DataFrame for validation, then back to LazyFrame
+            raw_df = raw_sales_df.collect()
+            validated_df = validate_func(raw_df)
+            logger.info("Data validation successful")
+            # Convert validated DataFrame back to LazyFrame
+            return pl.LazyFrame(validated_df)
+        except ValueError as e:
+            logger.warning(f"Data validation failed: {e}. Returning raw data.")
+            return raw_sales_df
+    else:
         return raw_sales_df
 
 
@@ -298,20 +357,45 @@ async def fetch_raw_sales_data(
         )
 
     # Construct raw Polars DataFrame from the list of dictionaries
-    raw_sales_df = pl.from_dicts(sales_data_dicts)
+    raw_sales_df = pl.LazyFrame(sales_data_dicts)
 
     logger.info(
-        f"Raw data retrieved from Druid: {raw_sales_df.shape[0]} rows, {raw_sales_df.shape[1]} columns"
+        f"Raw data retrieved from Druid: {len(sales_data_dicts)} rows, {len(sales_data_dicts[0]) if sales_data_dicts else 0} columns"
     )
 
-    return raw_sales_df
+    return raw_sales_df.collect()
 
 
 def get_data_range_from_druid() -> dict:
     """
     Queries Druid for the min and max __time values and total record count.
+    Falls back to mock data if real data is unavailable.
     Returns a dict: { 'earliest_date': str, 'latest_date': str, 'total_records': int }
     """
+    # Check data availability status
+    data_status = druid_conn.check_data_availability()
+    
+    # If forced mock data or fallback is needed, use mock data
+    if data_status in [DataAvailabilityStatus.FORCED_MOCK_DATA, DataAvailabilityStatus.MOCK_DATA_FALLBACK]:
+        logger.info(f"Using mock data range (status: {data_status})")
+        return mock_data_fetcher.get_mock_data_range()
+    
+    # If no data available and fallback is disabled, return empty range
+    if data_status == DataAvailabilityStatus.NO_DATA_AVAILABLE:
+        logger.error("No data available and fallback is disabled")
+        return {
+            "earliest_date": "2024-01-01T00:00:00.000Z",
+            "latest_date": "2024-12-31T00:00:00.000Z",
+            "total_records": 0
+        }
+    
+    # Proceed with real data querying
+    logger.info("Fetching real data range from Druid")
+    return _get_real_data_range()
+
+
+def _get_real_data_range() -> dict:
+    """Internal function to fetch real data range from Druid"""
     import requests
     from datetime import datetime
 
@@ -396,17 +480,19 @@ def get_employee_quotas(start_date: str, end_date: str) -> pl.DataFrame:
 
     async def _get():
         df = await fetch_sales_data(start_date, end_date)
+        # Collect the LazyFrame to check if it's empty and get column information
+        df_collected = df.collect()
         if (
-            df.is_empty()
-            or "SalesPerson" not in df.columns
-            or "grossRevenue" not in df.columns
+            df_collected.is_empty()
+            or "SalesPerson" not in df_collected.columns
+            or "grossRevenue" not in df_collected.columns
         ):
             return pl.DataFrame({"SalesPerson": [], "quota": []})
-        # Calculate total sales per employee
+        # Calculate total sales per employee using lazy evaluation
         sales_per_employee = (
-            df.lazy()
+            df
             .group_by("SalesPerson")
-            .agg([pl.sum("grossRevenue").alias("total_sales")])
+            .agg([(pl.sum("grossRevenue") + pl.sum("returnsValue")).alias("total_sales")])
             .collect()
         )
         if sales_per_employee.is_empty():

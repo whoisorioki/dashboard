@@ -12,7 +12,7 @@ import {
   TableBody,
   CircularProgress,
 } from "@mui/material";
-import { useCustomerValueQuery } from "../queries/customerValue.generated";
+import { useDashboardData } from "../queries/dashboardData.generated";
 import { graphqlClient } from "../lib/graphqlClient";
 import { formatKshAbbreviated } from "../lib/numberFormat";
 import { useFilters } from "../context/FilterContext";
@@ -25,7 +25,7 @@ const CustomerValueTable: React.FC = () => {
     branch: selected_branch !== "all" ? selected_branch : undefined,
     productLine: selected_product_line !== "all" ? selected_product_line : undefined,
   }), [start_date, end_date, selected_branch, selected_product_line]);
-  const { data, isLoading, error } = useCustomerValueQuery(
+  const { data, isLoading, error } = useDashboardData(
     graphqlClient,
     {
       startDate: start_date,
@@ -37,8 +37,8 @@ const CustomerValueTable: React.FC = () => {
       queryKey: queryKeys.customerValue(filters),
     }
   );
-  const customers = Array.isArray(data?.customerValue)
-    ? [...data.customerValue]
+  const customers = Array.isArray((data as any)?.dashboardData?.topCustomers)
+    ? [...(data as any).dashboardData.topCustomers]
     : [];
   // Sort by grossProfit descending
   const sorted = customers.sort((a, b) => b.grossProfit - a.grossProfit);

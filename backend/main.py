@@ -2,12 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
-from api.routes import router
-from api.kpi_routes import router as kpi_router
-from core.druid_client import lifespan, druid_conn
-from schema import schema
+from backend.api.routes import router
+from backend.api.kpi_routes import router as kpi_router
+from backend.core.druid_client import lifespan, druid_conn
+from backend.schema import schema
 import strawberry.fastapi
-from schema import Query
+from backend.schema import Query
 import strawberry
 from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
@@ -98,3 +98,14 @@ app.include_router(graphql_app, prefix="/graphql")
 async def health_check():
     """Root health check endpoint."""
     return {"status": "ok"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "backend.main:app",
+        host=API_HOST,
+        port=API_PORT,
+        reload=DEBUG,
+        log_level="info"
+    )

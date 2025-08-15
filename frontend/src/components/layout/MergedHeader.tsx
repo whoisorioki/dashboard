@@ -17,7 +17,7 @@ import { DarkMode, LightMode, AccountCircle } from '@mui/icons-material';
 import DateRangePicker from '../DateRangePicker';
 import { useFilterStore } from '../../store/filterStore';
 import { useTheme } from '../../context/ThemeContext';
-import { useDashboardDataQuery } from '../../queries/dashboardData.generated';
+import { useDashboardData } from '../../queries/dashboardData.generated';
 import { format } from 'date-fns';
 import { graphqlClient } from '../../lib/graphqlClient';
 
@@ -57,7 +57,7 @@ export default function MergedHeader() {
     const startDateStr = startDate ? format(startDate, 'yyyy-MM-dd') : '2024-12-01';
     const endDateStr = endDate ? format(endDate, 'yyyy-MM-dd') : '2024-12-31';
 
-    const { data: dashboardDataResult } = useDashboardDataQuery(
+    const { data: dashboardDataResult } = useDashboardData(
         graphqlClient,
         {
             startDate: startDateStr,
@@ -67,7 +67,7 @@ export default function MergedHeader() {
             staleTime: 5 * 60 * 1000, // 5 minutes
         }
     );
-    const dashboardData = dashboardDataResult?.dashboardData;
+    const dashboardData = dashboardDataResult;
 
     // Extract dynamic filter options
     const availableBranches = React.useMemo(() => {

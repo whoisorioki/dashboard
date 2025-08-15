@@ -36,7 +36,7 @@ import PageHeader from "../components/PageHeader";
 import KpiCard from "../components/KpiCard";
 import BranchProductHeatmap from "../components/BranchProductHeatmap";
 import { useFilterStore } from "../store/filterStore";
-import { useBranchesPageDataQuery } from "../queries/branchesPageData.generated";
+import { useDashboardData } from "../queries/dashboardData.generated";
 import { graphqlClient } from "../lib/graphqlClient";
 import ChartEmptyState from "../components/states/ChartEmptyState";
 import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
@@ -71,7 +71,7 @@ const Branches = () => {
     setSortBy("sales");
   };
 
-  const { data, error, isLoading } = useBranchesPageDataQuery(
+  const { data, error, isLoading } = useDashboardData(
     graphqlClient,
     {
       startDate: start_date,
@@ -85,9 +85,9 @@ const Branches = () => {
     }
   );
   const safeBranchPerformanceData =
-    data?.branchPerformance || [];
+    (data as any)?.branchPerformance || [];
 
-  const safeBranchGrowthData = data?.branchGrowth || [];
+  const safeBranchGrowthData = (data as any)?.branchGrowth || [];
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat("en-US").format(value);
@@ -141,10 +141,10 @@ const Branches = () => {
 
   const averageGrowth =
     latestGrowthData && Object.values(latestGrowthData).length > 0
-      ? Object.values(latestGrowthData).reduce(
-        (sum, item) => sum + (item.growthPct || 0),
+      ? (Object.values(latestGrowthData).reduce(
+        (sum, item: any) => sum + (item.growthPct || 0),
         0
-      ) / Object.values(latestGrowthData).length
+      ) as number) / Object.values(latestGrowthData).length
       : 0;
 
   // Sort branches based on selected criteria

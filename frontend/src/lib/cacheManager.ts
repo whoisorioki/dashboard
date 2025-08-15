@@ -1,6 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "./queryKeys";
-import { FilterState } from "../context/FilterContext";
+import type { FilterState } from "../context/FilterContext";
 
 export class CacheManager {
   constructor(private queryClient: QueryClient) {}
@@ -62,5 +62,7 @@ export class CacheManager {
     });
   }
 }
+
+import { queryClient } from "./queryClient";
 
 export const cacheManager = new CacheManager(queryClient);

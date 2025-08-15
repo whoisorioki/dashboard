@@ -14,6 +14,14 @@ export type Scalars = {
   Float: { input: number; output: number; }
 };
 
+export type AlertsPageData = {
+  __typename?: 'AlertsPageData';
+  dataVersion: DataVersion;
+  druidDatasources: DruidDatasources;
+  druidHealth: DruidHealth;
+  systemHealth: SystemHealth;
+};
+
 export type BranchGrowth = {
   __typename?: 'BranchGrowth';
   branch: Scalars['String']['output'];
@@ -48,6 +56,8 @@ export type DashboardData = {
   __typename?: 'DashboardData';
   branchList: Array<BranchListEntry>;
   branchProductHeatmap: Array<BranchProductHeatmap>;
+  /** Current data availability status */
+  dataAvailabilityStatus: DataAvailabilityStatus;
   marginTrends: Array<MarginTrendEntry>;
   monthlySalesGrowth: Array<MonthlySalesGrowth>;
   productAnalytics: Array<ProductAnalytics>;
@@ -57,6 +67,20 @@ export type DashboardData = {
   revenueSummary: RevenueSummary;
   targetAttainment: TargetAttainment;
   topCustomers: Array<TopCustomerEntry>;
+};
+
+export type DataAvailabilityStatus = {
+  __typename?: 'DataAvailabilityStatus';
+  /** Whether Druid is connected */
+  druidConnected: Scalars['Boolean']['output'];
+  /** Whether fallback mode is active */
+  isFallback: Scalars['Boolean']['output'];
+  /** Whether mock data is being used */
+  isMockData: Scalars['Boolean']['output'];
+  /** Human-readable status message */
+  message: Scalars['String']['output'];
+  /** Current data availability status */
+  status: Scalars['String']['output'];
 };
 
 export type DataRange = {
@@ -116,6 +140,15 @@ export type ProductPerformance = {
   sales?: Maybe<Scalars['Float']['output']>;
 };
 
+export type ProductsPageData = {
+  __typename?: 'ProductsPageData';
+  branchProductHeatmap: Array<BranchProductHeatmap>;
+  monthlySalesGrowth: Array<MonthlySalesGrowth>;
+  productAnalytics: Array<ProductAnalytics>;
+  revenueSummary: RevenueSummary;
+  topCustomers: Array<TopCustomerEntry>;
+};
+
 export type ProfitabilityByDimension = {
   __typename?: 'ProfitabilityByDimension';
   branch?: Maybe<Scalars['String']['output']>;
@@ -125,8 +158,17 @@ export type ProfitabilityByDimension = {
   productLine?: Maybe<Scalars['String']['output']>;
 };
 
+export type ProfitabilityPageData = {
+  __typename?: 'ProfitabilityPageData';
+  marginTrends: Array<MarginTrendEntry>;
+  productAnalytics: Array<ProductAnalytics>;
+  profitabilityByDimension: Array<ProfitabilityByDimension>;
+  revenueSummary: RevenueSummary;
+};
+
 export type Query = {
   __typename?: 'Query';
+  alertsPageData: AlertsPageData;
   branchGrowth: Array<BranchGrowth>;
   branchPerformance: Array<BranchPerformance>;
   branchProductHeatmap: Array<BranchProductHeatmap>;
@@ -138,9 +180,12 @@ export type Query = {
   marginTrends: Array<MarginTrendEntry>;
   monthlySalesGrowth: Array<MonthlySalesGrowth>;
   productAnalytics: Array<ProductAnalytics>;
+  productsPageData: ProductsPageData;
   profitabilityByDimension: Array<ProfitabilityByDimension>;
+  profitabilityPageData: ProfitabilityPageData;
   returnsAnalysis: Array<ReturnsAnalysisEntry>;
   revenueSummary: RevenueSummary;
+  salesPageData: SalesPageData;
   salesPerformance: Array<SalesPerformance>;
   salespersonProductMix: Array<SalespersonProductMixEntry>;
   systemHealth: SystemHealth;
@@ -212,9 +257,28 @@ export type QueryProductAnalyticsArgs = {
 };
 
 
+export type QueryProductsPageDataArgs = {
+  branch?: InputMaybe<Scalars['String']['input']>;
+  endDate?: InputMaybe<Scalars['String']['input']>;
+  itemGroups?: InputMaybe<Array<Scalars['String']['input']>>;
+  productLine?: InputMaybe<Scalars['String']['input']>;
+  startDate?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type QueryProfitabilityByDimensionArgs = {
   branch?: InputMaybe<Scalars['String']['input']>;
   dimension: Scalars['String']['input'];
+  endDate?: InputMaybe<Scalars['String']['input']>;
+  itemGroups?: InputMaybe<Array<Scalars['String']['input']>>;
+  productLine?: InputMaybe<Scalars['String']['input']>;
+  startDate?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryProfitabilityPageDataArgs = {
+  branch?: InputMaybe<Scalars['String']['input']>;
+  dimension?: Scalars['String']['input'];
   endDate?: InputMaybe<Scalars['String']['input']>;
   itemGroups?: InputMaybe<Array<Scalars['String']['input']>>;
   productLine?: InputMaybe<Scalars['String']['input']>;
@@ -232,6 +296,15 @@ export type QueryReturnsAnalysisArgs = {
 
 
 export type QueryRevenueSummaryArgs = {
+  branch?: InputMaybe<Scalars['String']['input']>;
+  endDate?: InputMaybe<Scalars['String']['input']>;
+  itemGroups?: InputMaybe<Array<Scalars['String']['input']>>;
+  productLine?: InputMaybe<Scalars['String']['input']>;
+  startDate?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QuerySalesPageDataArgs = {
   branch?: InputMaybe<Scalars['String']['input']>;
   endDate?: InputMaybe<Scalars['String']['input']>;
   itemGroups?: InputMaybe<Array<Scalars['String']['input']>>;
@@ -275,21 +348,26 @@ export type ReturnsAnalysisEntry = {
 export type RevenueSummary = {
   __typename?: 'RevenueSummary';
   averageTransaction?: Maybe<Scalars['Float']['output']>;
-  changePercent?: Maybe<Scalars['Float']['output']>;
   grossProfit?: Maybe<Scalars['Float']['output']>;
-  grossProfitChangePercent?: Maybe<Scalars['Float']['output']>;
   lineItemCount?: Maybe<Scalars['Int']['output']>;
   netSales?: Maybe<Scalars['Float']['output']>;
   netUnitsSold?: Maybe<Scalars['Float']['output']>;
-  previousPeriodGrossProfit?: Maybe<Scalars['Float']['output']>;
-  previousPeriodSales?: Maybe<Scalars['Float']['output']>;
   returnsValue?: Maybe<Scalars['Float']['output']>;
   totalRevenue?: Maybe<Scalars['Float']['output']>;
-  totalSales?: Maybe<Scalars['Float']['output']>;
   totalTransactions: Scalars['Int']['output'];
   uniqueBranches: Scalars['Int']['output'];
   uniqueEmployees: Scalars['Int']['output'];
   uniqueProducts: Scalars['Int']['output'];
+};
+
+export type SalesPageData = {
+  __typename?: 'SalesPageData';
+  monthlySalesGrowth: Array<MonthlySalesGrowth>;
+  returnsAnalysis: Array<ReturnsAnalysisEntry>;
+  revenueSummary: RevenueSummary;
+  salesPerformance: Array<SalesPerformance>;
+  salespersonProductMix: Array<SalespersonProductMixEntry>;
+  topCustomers: Array<TopCustomerEntry>;
 };
 
 export type SalesPerformance = {
@@ -329,76 +407,3 @@ export type TopCustomerEntry = {
   grossProfit?: Maybe<Scalars['Float']['output']>;
   salesAmount?: Maybe<Scalars['Float']['output']>;
 };
-
-export type AlertsPageDataQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type AlertsPageDataQuery = { __typename?: 'Query', systemHealth: { __typename?: 'SystemHealth', status: string }, druidHealth: { __typename?: 'DruidHealth', druidStatus: string, isAvailable: boolean }, druidDatasources: { __typename?: 'DruidDatasources', datasources: Array<string>, count: number } };
-
-export type BranchesPageDataQueryVariables = Exact<{
-  startDate: Scalars['String']['input'];
-  endDate: Scalars['String']['input'];
-  branch?: InputMaybe<Scalars['String']['input']>;
-  productLine?: InputMaybe<Scalars['String']['input']>;
-  itemGroups?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
-}>;
-
-
-export type BranchesPageDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, branchPerformance: Array<{ __typename?: 'BranchPerformance', branch: string, totalSales?: number | null, transactionCount: number, averageSale?: number | null, uniqueCustomers: number, uniqueProducts: number }>, branchGrowth: Array<{ __typename?: 'BranchGrowth', branch: string, monthYear: string, monthlySales?: number | null, growthPct?: number | null }>, branchProductHeatmap: Array<{ __typename?: 'BranchProductHeatmap', branch: string, product: string, sales?: number | null }> };
-
-export type DashboardDataQueryVariables = Exact<{
-  startDate: Scalars['String']['input'];
-  endDate: Scalars['String']['input'];
-  branch?: InputMaybe<Scalars['String']['input']>;
-  productLine?: InputMaybe<Scalars['String']['input']>;
-  itemGroups?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
-  target?: InputMaybe<Scalars['Float']['input']>;
-}>;
-
-
-export type DashboardDataQuery = { __typename?: 'Query', dashboardData: { __typename?: 'DashboardData', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, monthlySalesGrowth: Array<{ __typename?: 'MonthlySalesGrowth', date: string, totalSales?: number | null, grossProfit?: number | null }>, targetAttainment: { __typename?: 'TargetAttainment', attainmentPercentage?: number | null, totalSales?: number | null, target?: number | null }, productPerformance: Array<{ __typename?: 'ProductPerformance', product: string, sales?: number | null }>, branchProductHeatmap: Array<{ __typename?: 'BranchProductHeatmap', branch: string, product: string, sales?: number | null }>, topCustomers: Array<{ __typename?: 'TopCustomerEntry', cardName: string, salesAmount?: number | null, grossProfit?: number | null }>, marginTrends: Array<{ __typename?: 'MarginTrendEntry', date: string, marginPct?: number | null }>, returnsAnalysis: Array<{ __typename?: 'ReturnsAnalysisEntry', reason: string, count: number }>, profitabilityByDimension: Array<{ __typename?: 'ProfitabilityByDimension', branch?: string | null, grossProfit?: number | null, grossMargin?: number | null }>, branchList: Array<{ __typename?: 'BranchListEntry', branch: string }>, productAnalytics: Array<{ __typename?: 'ProductAnalytics', itemName: string, productLine: string, itemGroup: string, totalSales?: number | null, grossProfit?: number | null, margin?: number | null, totalQty?: number | null, transactionCount: number, uniqueBranches: number, averagePrice?: number | null }> } };
-
-export type DataRangeQueryVariables = Exact<{ [key: string]: never; }>;
-
-
-export type DataRangeQuery = { __typename?: 'Query', dataRange: { __typename?: 'DataRange', earliestDate: string, latestDate: string, totalRecords: number } };
-
-export type RevenueSummaryFieldsFragment = { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null };
-
-export type TopCustomerFieldsFragment = { __typename?: 'TopCustomerEntry', cardName: string, salesAmount?: number | null, grossProfit?: number | null };
-
-export type MonthlySalesGrowthFieldsFragment = { __typename?: 'MonthlySalesGrowth', date: string, totalSales?: number | null, grossProfit?: number | null };
-
-export type ProductsPageDataQueryVariables = Exact<{
-  startDate: Scalars['String']['input'];
-  endDate: Scalars['String']['input'];
-  branch?: InputMaybe<Scalars['String']['input']>;
-  productLine?: InputMaybe<Scalars['String']['input']>;
-  itemGroups?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
-}>;
-
-
-export type ProductsPageDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, productAnalytics: Array<{ __typename?: 'ProductAnalytics', itemName: string, productLine: string, itemGroup: string, totalSales?: number | null, grossProfit?: number | null, margin?: number | null, totalQty?: number | null, transactionCount: number, uniqueBranches: number, averagePrice?: number | null }>, topCustomers: Array<{ __typename?: 'TopCustomerEntry', cardName: string, salesAmount?: number | null, grossProfit?: number | null }>, returnsAnalysis: Array<{ __typename?: 'ReturnsAnalysisEntry', reason: string, count: number }>, salespersonProductMix: Array<{ __typename?: 'SalespersonProductMixEntry', salesperson: string, productLine: string, avgProfitMargin?: number | null }> };
-
-export type ProfitabilityPageDataQueryVariables = Exact<{
-  startDate: Scalars['String']['input'];
-  endDate: Scalars['String']['input'];
-  branch?: InputMaybe<Scalars['String']['input']>;
-  productLine?: InputMaybe<Scalars['String']['input']>;
-  itemGroups?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
-  dimension: Scalars['String']['input'];
-}>;
-
-
-export type ProfitabilityPageDataQuery = { __typename?: 'Query', marginTrends: Array<{ __typename?: 'MarginTrendEntry', date: string, marginPct?: number | null }>, profitabilityByDimension: Array<{ __typename?: 'ProfitabilityByDimension', branch?: string | null, productLine?: string | null, itemGroup?: string | null, grossProfit?: number | null, grossMargin?: number | null }> };
-
-export type SalesPageDataQueryVariables = Exact<{
-  startDate: Scalars['String']['input'];
-  endDate: Scalars['String']['input'];
-  branch?: InputMaybe<Scalars['String']['input']>;
-  productLine?: InputMaybe<Scalars['String']['input']>;
-  itemGroups?: InputMaybe<Array<Scalars['String']['input']> | Scalars['String']['input']>;
-}>;
-
-
-export type SalesPageDataQuery = { __typename?: 'Query', revenueSummary: { __typename?: 'RevenueSummary', totalRevenue?: number | null, netSales?: number | null, grossProfit?: number | null, lineItemCount?: number | null, returnsValue?: number | null, totalTransactions: number, averageTransaction?: number | null, uniqueProducts: number, uniqueBranches: number, uniqueEmployees: number, netUnitsSold?: number | null }, monthlySalesGrowth: Array<{ __typename?: 'MonthlySalesGrowth', date: string, totalSales?: number | null, grossProfit?: number | null }>, salesPerformance: Array<{ __typename?: 'SalesPerformance', salesPerson: string, totalSales?: number | null, grossProfit?: number | null, transactionCount: number, averageSale?: number | null, uniqueBranches: number, uniqueProducts: number, avgMargin?: number | null }>, salespersonProductMix: Array<{ __typename?: 'SalespersonProductMixEntry', salesperson: string, productLine: string, avgProfitMargin?: number | null }> };

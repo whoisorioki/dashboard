@@ -35,7 +35,7 @@ import { format } from "date-fns";
 import PageHeader from "../components/PageHeader";
 import KpiCard from "../components/KpiCard";
 import MonthlySalesTrendChart from "../components/MonthlySalesTrendChart";
-import { useSalesPageDataQuery } from "../queries/salesPageData.generated";
+import { useDashboardData } from "../queries/dashboardData.generated";
 import { graphqlClient } from "../lib/graphqlClient";
 import { useFilterStore } from "../store/filterStore";
 import { queryKeys } from "../lib/queryKeys";
@@ -70,7 +70,7 @@ const Sales = () => {
     setSortBy("totalSales");
   };
 
-  const { data, error, isLoading } = useSalesPageDataQuery(
+  const { data, error, isLoading } = useDashboardData(
     graphqlClient,
     {
       startDate: start_date,
@@ -84,7 +84,7 @@ const Sales = () => {
     }
   );
 
-  const safeSalesData = data?.salesPerformance || [];
+  const safeSalesData = (data as any)?.salesPerformance || [];
   const safeRevenueSummary = data?.revenueSummary;
 
   const formatNumber = (value: number) => {
@@ -394,7 +394,7 @@ const Sales = () => {
         </Grid>
         {/* Salesperson Product Mix Table */}
         <Grid item xs={12}>
-          <SalespersonProductMixTable rows={data?.salespersonProductMix ?? []} />
+          <SalespersonProductMixTable rows={(data as any)?.salespersonProductMix ?? []} />
         </Grid>
       </Grid>
     </Box>

@@ -12,14 +12,14 @@ import {
 import { HelpOutline as HelpOutlineIcon } from "@mui/icons-material";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
 import ChartEmptyState from "./states/ChartEmptyState";
-import { ProductPerformanceQuery } from "../queries/productPerformance.generated";
+import { useDashboardData } from "../queries/dashboardData.generated";
 import ChartCard from "./ChartCard";
 import ReactECharts from "echarts-for-react";
 import { formatKshAbbreviated } from "../lib/numberFormat";
 import ExpandableCard from "./ExpandableCard";
 
 interface ProductPerformanceChartProps {
-  data: ProductPerformanceQuery["productPerformance"] | undefined;
+  data: any[] | undefined;
   isLoading: boolean;
 }
 

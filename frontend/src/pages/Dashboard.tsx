@@ -1,10 +1,15 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Box,
   Grid,
-  TextField,
-  Button,
   Typography,
+  Button,
+  Alert,
+  AlertTitle,
+  Chip,
+  Stack,
+  useTheme,
+  TextField,
   Card,
   CardContent,
   CircularProgress,
@@ -13,39 +18,48 @@ import {
   TableRow,
   TableCell,
   TableBody,
-} from "@mui/material";
+} from '@mui/material';
 import {
-  TrendingUp as TrendingUpIcon,
   AttachMoney as AttachMoneyIcon,
+  TrendingUp as TrendingUpIcon,
   ReceiptLong as ReceiptLongIcon,
   Flag as TargetIcon,
+  Warning as WarningIcon,
+  Info as InfoIcon,
+  CheckCircle as CheckCircleIcon,
+  Error as ErrorIcon,
+  Flag as FlagIcon,
   Dashboard as DashboardIcon,
-} from "@mui/icons-material";
-import { format } from "date-fns";
-import { differenceInCalendarDays, subDays, parseISO } from "date-fns";
-import PageHeader from "../components/PageHeader";
-import KpiCard from "../components/KpiCard";
-import MonthlySalesTrendChart from "../components/MonthlySalesTrendChart";
-import GeographicProfitabilityMap from "../components/GeographicProfitabilityMap";
-import EnhancedGeographicMap from "../components/EnhancedGeographicMap";
-import GoogleMapsBranchView from "../components/GoogleMapsBranchView";
-import PreciseGoogleMaps from "../components/PreciseGoogleMaps";
-import SimpleGoogleMaps from "../components/SimpleGoogleMaps";
-import BranchProductHeatmap from "../components/BranchProductHeatmap";
-import EnhancedTopCustomersTable from "../components/EnhancedTopCustomersTable";
-import ChartEmptyState from "../components/states/ChartEmptyState";
-import DataStateWrapper from "../components/DataStateWrapper";
-import { useDashboardDataQuery } from "../queries/dashboardData.generated";
-import { queryKeys } from "../lib/queryKeys";
-import { useMemo } from "react";
-import { useDataRange } from "../hooks/useDataRange";
+} from '@mui/icons-material';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { format, differenceInCalendarDays, subDays, parseISO } from 'date-fns';
 
-import { useNavigate } from "react-router-dom";
-import { graphqlClient } from "../lib/graphqlClient";
-import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
-import FilterBar from "../components/FilterBar";
-import { useFilterStore, FilterStore } from "../store/filterStore";
-import Alert from '@mui/material/Alert';
+import { useFilterStore } from '../store/filterStore';
+import { useDashboardData } from '../queries/dashboardData.generated';
+import { graphqlClient } from '../lib/graphqlClient';
+import { useDataRange } from '../hooks/useDataRange';
+import { formatKshAbbreviated, formatPercentage } from '../lib/numberFormat';
+import { METRIC_NAMES, KPI_TITLES, TOOLTIP_DESCRIPTIONS } from '../constants/metricNames';
+
+import KpiCard from '../components/KpiCard';
+import MonthlySalesTrendChart from '../components/MonthlySalesTrendChart';
+import EnhancedGeographicMap from '../components/EnhancedGeographicMap';
+import GeographicProfitabilityMap from '../components/GeographicProfitabilityMap';
+import PreciseGoogleMaps from '../components/PreciseGoogleMaps';
+import SimpleGoogleMaps from '../components/SimpleGoogleMaps';
+import GoogleMapsBranchView from '../components/GoogleMapsBranchView';
+import BranchProductHeatmap from '../components/BranchProductHeatmap';
+import ProductPerformanceTable from '../components/ProductPerformanceTable';
+import TopCustomerAnalysis from '../components/TopCustomerAnalysis';
+import EnhancedTopCustomersTable from '../components/EnhancedTopCustomersTable';
+import ReturnsAnalysis from '../components/ReturnsAnalysis';
+import ProfitabilityByDimensionChart from '../components/ProfitabilityByDimensionChart';
+import PageHeader from '../components/PageHeader';
+import ChartEmptyState from '../components/states/ChartEmptyState';
+import DataStateWrapper from '../components/DataStateWrapper';
+import FilterBar from '../components/FilterBar';
+import MockDataBanner from '../components/MockDataBanner';
 
 // Type guards for API responses
 // Remove legacy type guards; use generated types directly
@@ -55,7 +69,7 @@ const Dashboard = () => {
   const [mapView, setMapView] = useState<'choropleth' | 'enhanced' | 'google' | 'precise' | 'simple'>('simple');
 
   // Zustand global filter state
-  const filterStore: FilterStore = useFilterStore();
+  const filterStore = useFilterStore();
   const startDate = filterStore.startDate;
   const endDate = filterStore.endDate;
   const selectedBranches = filterStore.selectedBranches;
@@ -135,14 +149,14 @@ const Dashboard = () => {
 
   console.log('🚀 Dashboard Query Params:', queryParams);
 
-  const { data: dashboardDataResult, isLoading: loadingDashboard, error: dashboardError } = useDashboardDataQuery(
+  const { data: dashboardDataResult, isLoading: loadingDashboard, error: dashboardError } = useDashboardData(
     graphqlClient,
     queryParams,
     {
       queryKey: ['dashboardData', queryParams], // Use params as query key
     }
   );
-  const dashboardData = dashboardDataResult?.dashboardData;
+  const dashboardData = dashboardDataResult;
 
   // Effect: update dateRangeHasData based on dashboardData
   useEffect(() => {
@@ -163,7 +177,7 @@ const Dashboard = () => {
     }
   }, [dashboardError]);
 
-  const { data: prevDashboardDataResult, isLoading: loadingPrevDashboard } = useDashboardDataQuery(
+  const { data: prevDashboardDataResult, isLoading: loadingPrevDashboard } = useDashboardData(
     graphqlClient,
     {
       startDate: prevStartStr,
@@ -177,7 +191,7 @@ const Dashboard = () => {
       queryKey: ["dashboardData", prevFilters],
     }
   );
-  const prevDashboardData = prevDashboardDataResult?.dashboardData;
+  const prevDashboardData = prevDashboardDataResult;
 
   // Extract options for filter bar (fallback to static if no data)
   const branchOptions = useMemo(() => {
@@ -320,16 +334,36 @@ const Dashboard = () => {
   // Add a warning message if no data is returned
   const noDataWarning = (dashboardData as any)?.warning || (Array.isArray(safeMonthlySalesGrowth) && safeMonthlySalesGrowth.length === 0);
 
-  // Show warning if no data for selected date range
-  const showNoDataWarning = !dashboardData; // Changed to check if dashboardData is available
+  // Enhanced data availability logic
+  const dataAvailabilityStatus = dashboardData?.dataAvailabilityStatus;
+  const isUsingMockData = dataAvailabilityStatus?.isMockData || false;
+  const isFallbackMode = dataAvailabilityStatus?.isFallback || false;
+  const hasNoData = !dashboardData || Object.keys(dashboardData).length === 0 || totalSales === 0;
+
+  // Show mock data banner when using mock data
+  const showMockDataBanner = isUsingMockData;
+
+  // Show no data warning when there's no data and not using mock data
+  const showNoDataWarning = hasNoData && !isUsingMockData;
 
   return (
     <Box sx={{ mt: { xs: 2, sm: 3 }, p: { xs: 1, sm: 2 } }}>
+      {/* Mock Data Banner - shows when using mock data */}
+      {showMockDataBanner && (
+        <MockDataBanner
+          isVisible={true}
+          dataStatus={dataAvailabilityStatus?.status || 'MOCK_DATA'}
+          message="🎭 Mock Data Mode - This dashboard is displaying mock data for development purposes. All metrics and charts show realistic sample data."
+        />
+      )}
+
+      {/* No Data Warning - shows when no data available and not using mock data */}
       {showNoDataWarning && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           No data found for the selected date range. Please adjust your filters.
         </Alert>
       )}
+
       <PageHeader
         title="Sales Analytics Dashboard"
         subtitle="Real-time insights and performance metrics"
@@ -359,49 +393,49 @@ const Dashboard = () => {
       <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
-            title="Total Sales"
+            title={KPI_TITLES[METRIC_NAMES.TOTAL_SALES]}
             value={totalSales}
             icon={<AttachMoneyIcon />}
-            tooltipText="Total sales revenue for the selected period."
+            tooltipText={TOOLTIP_DESCRIPTIONS[METRIC_NAMES.TOTAL_SALES]}
             isLoading={loadingDashboard}
             color="primary"
-            metricKey="totalSales"
+            metricKey={METRIC_NAMES.TOTAL_SALES}
             sparklineData={salesSparkline}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
-            title="Gross Profit"
+            title={KPI_TITLES[METRIC_NAMES.GROSS_PROFIT]}
             value={grossProfit}
             icon={<TrendingUpIcon />}
-            tooltipText="Gross profit for the selected period."
+            tooltipText={TOOLTIP_DESCRIPTIONS[METRIC_NAMES.GROSS_PROFIT]}
             isLoading={loadingDashboard}
             color="success"
-            metricKey="grossProfit"
+            metricKey={METRIC_NAMES.GROSS_PROFIT}
             sparklineData={grossProfitSparkline}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
-            title="Average Profit per Transaction"
+            title={KPI_TITLES[METRIC_NAMES.AVERAGE_TRANSACTION]}
             value={avgProfitPerTransaction}
             icon={<ReceiptLongIcon />}
-            tooltipText="Average gross profit earned per transaction."
+            tooltipText={TOOLTIP_DESCRIPTIONS[METRIC_NAMES.AVERAGE_TRANSACTION]}
             isLoading={loadingDashboard}
             color="info"
-            metricKey="avgProfitPerTransaction"
+            metricKey={METRIC_NAMES.AVERAGE_TRANSACTION}
             sparklineData={avgProfitPerTransactionSparkline}
           />
         </Grid>
         <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
-            title="Gross Profit Margin %"
+            title={KPI_TITLES[METRIC_NAMES.GROSS_PROFIT_MARGIN]}
             value={formatPercentage(grossProfitMargin)}
             icon={<TargetIcon />}
-            tooltipText="Gross profit margin percentage for the selected period."
+            tooltipText={TOOLTIP_DESCRIPTIONS[METRIC_NAMES.GROSS_PROFIT_MARGIN]}
             isLoading={loadingDashboard}
             color="warning"
-            metricKey="grossProfitMargin"
+            metricKey={METRIC_NAMES.GROSS_PROFIT_MARGIN}
             sparklineData={grossProfitMarginSparkline}
           />
         </Grid>

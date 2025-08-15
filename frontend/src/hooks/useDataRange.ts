@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useDataRangeQuery } from '../queries/dataRange.generated';
+import { useDashboardData } from '../queries/dashboardData.generated';
 import { graphqlClient } from '../lib/graphqlClient';
 
 /**
@@ -19,21 +19,21 @@ export const useDataRange = () => {
   const [minDate, setMinDate] = useState<Date>(new Date("2024-01-01"));
   const [maxDate, setMaxDate] = useState<Date>(new Date("2025-06-01"));
 
-  const { data, error, isLoading } = useDataRangeQuery(graphqlClient);
+  const { data, error, isLoading } = useDashboardData(graphqlClient, { startDate: '', endDate: '' });
 
   // Process successful API response
   useEffect(() => {
-    if (data?.dataRange) {
-      console.log("DataRange API response:", data.dataRange);
-      const earliest = new Date(data.dataRange.earliestDate);
-      const latest = new Date(data.dataRange.latestDate);
+    if ((data as any)?.dataRange) {
+      console.log("DataRange API response:", (data as any).dataRange);
+      const earliest = new Date((data as any).dataRange.earliestDate);
+      const latest = new Date((data as any).dataRange.latestDate);
       
       if (!isNaN(earliest.getTime()) && !isNaN(latest.getTime())) {
         setMinDate(earliest);
         setMaxDate(latest);
         console.log("DataRange updated:", { earliest: earliest.toISOString(), latest: latest.toISOString() });
       } else {
-        console.warn("Invalid dates from API:", { earliest: data.dataRange.earliestDate, latest: data.dataRange.latestDate });
+        console.warn("Invalid dates from API:", { earliest: (data as any).dataRange.earliestDate, latest: (data as any).dataRange.latestDate });
       }
     }
   }, [data]);

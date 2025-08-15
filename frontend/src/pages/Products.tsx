@@ -36,7 +36,7 @@ import PageHeader from "../components/PageHeader";
 import KpiCard from "../components/KpiCard";
 import ProductPerformanceChart from "../components/ProductPerformanceChart";
 import { useFilterStore } from "../store/filterStore";
-import { useProductsPageDataQuery } from "../queries/productsPageData.generated";
+import { useDashboardData } from "../queries/dashboardData.generated";
 import { graphqlClient } from "../lib/graphqlClient";
 import ChartEmptyState from "../components/states/ChartEmptyState";
 import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
@@ -71,7 +71,7 @@ const Products = () => {
     setSortBy("totalSales");
   };
 
-  const { data, error, isLoading } = useProductsPageDataQuery(
+  const { data, error, isLoading } = useDashboardData(
     graphqlClient,
     {
       startDate: start_date,
@@ -139,7 +139,7 @@ const Products = () => {
 
   // Get unique categories for filters
   const uniqueCategories = [
-    ...new Set(safeProductData.map((p) => p.itemGroup) || []),
+    ...new Set((safeProductData || []).map((p) => p.itemGroup).filter(Boolean)),
   ];
 
   // Prepare placeholder sparkline data for the last 12 periods (flat line)

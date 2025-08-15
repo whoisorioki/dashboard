@@ -74,4 +74,29 @@ export const queryKeys = {
     'dataRange',
     filters,
   ] as const,
+  
+  // Page-level queries
+  dashboard: (filters: any) => [
+    'dashboard',
+    filters,
+  ] as const,
+  salesPage: (filters: any) => [
+    'salesPage',
+    filters,
+  ] as const,
+  productsPage: (filters: any) => [
+    'productsPage',
+    filters,
+  ] as const,
+  branchesPage: (filters: any) => [
+    'branchesPage',
+    filters,
+  ] as const,
+  profitabilityPage: (filters: any) => [
+    'profitabilityPage',
+    filters,
+  ] as const,
+  
+  // All queries
+  all: ['all'] as const,
 }; 

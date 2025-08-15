@@ -17,6 +17,7 @@ import { ResponsiveLine } from '@nivo/line';
 import { useNivoTheme } from '../hooks/useNivoTheme';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import { isMonetaryMetric, isPercentageMetric, isCountMetric } from '../constants/metricNames';
 
 // Animation for the card hover effect
 const floatAnimation = keyframes`
@@ -162,6 +163,20 @@ const KpiCard: React.FC<KpiCardProps> = ({
     return theme.palette.text.secondary;
   };
 
+  // Format value based on metric type
+  const formatValue = (val: string | number, metricKey?: string): string => {
+    if (metricKey) {
+      if (isMonetaryMetric(metricKey)) {
+        return formatKshAbbreviated(Number(val));
+      } else if (isPercentageMetric(metricKey)) {
+        return typeof val === 'number' ? `${val.toFixed(1)}%` : val.toString();
+      } else if (isCountMetric(metricKey)) {
+        return typeof val === 'number' ? val.toLocaleString() : val.toString();
+      }
+    }
+    return val.toString();
+  };
+
   return (
     <Card
       ref={cardRef}
@@ -221,58 +236,49 @@ const KpiCard: React.FC<KpiCardProps> = ({
       onMouseLeave={() => setHovered(false)}
     >
       {/* Help tooltip in top right corner */}
-      <Tooltip title={tooltipText} arrow>
-        <IconButton
-          size="small"
-          sx={{
-            position: "absolute",
-            top: 8,
-            right: editableTarget ? 40 : 8,
-            zIndex: 1,
-            color: alpha(colorPalette.main, 0.6),
-            "&:hover": {
-              color: colorPalette.main,
-              backgroundColor: alpha(colorPalette.main, 0.1),
+      <Box
+        sx={{
+          position: "absolute",
+          top: 8,
+          right: 8,
+          zIndex: 1,
+        }}
+      >
+        <Tooltip
+          title={tooltipText}
+          placement="top"
+          arrow
+          PopperProps={{
+            sx: {
+              "& .MuiTooltip-tooltip": {
+                backgroundColor: theme.palette.grey[900],
+                color: theme.palette.common.white,
+                fontSize: "0.75rem",
+                padding: "8px 12px",
+                maxWidth: 300,
+                boxShadow: theme.shadows[4],
+              },
+              "& .MuiTooltip-arrow": {
+                color: theme.palette.grey[900],
+              },
             },
           }}
-          aria-label={`Help: ${title}`}
         >
-          <HelpOutlineIcon fontSize="small" />
-        </IconButton>
-      </Tooltip>
-      {/* Inline edit icon for Target Attainment */}
-      {editableTarget && !editing && (
-        <Tooltip title="Edit sales target" arrow>
           <IconButton
             size="small"
             sx={{
-              position: "absolute",
-              top: 8,
-              right: 8,
-              zIndex: 1,
               color: alpha(colorPalette.main, 0.6),
-            }}
-            aria-label="Edit sales target"
-            onClick={(e) => {
-              e.stopPropagation();
-              setEditing(true);
+              "&:hover": {
+                color: colorPalette.main,
+                backgroundColor: alpha(colorPalette.main, 0.08),
+              },
             }}
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              aria-hidden="true"
-            >
-              <path
-                d="M3 17.25V21h3.75l11.06-11.06-3.75-3.75L3 17.25zM20.71 7.04a1.003 1.003 0 0 0 0-1.42l-2.34-2.34a1.003 1.003 0 0 0-1.42 0l-1.83 1.83 3.75 3.75 1.84-1.82z"
-                fill="currentColor"
-              />
-            </svg>
+            <HelpOutlineIcon fontSize="small" />
           </IconButton>
         </Tooltip>
-      )}
+      </Box>
+
       <CardContent sx={{ p: 3 }}>
         <Box
           sx={{
@@ -333,61 +339,87 @@ const KpiCard: React.FC<KpiCardProps> = ({
           </Box>
         </Box>
         {/* Inline editing for Target Attainment */}
-        {editableTarget && editing ? (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-            <input
-              type="number"
-              value={editValue ?? ""}
-              onChange={(e) => setEditValue(e.target.value)}
-              aria-label="Edit sales target"
-              style={{
-                fontSize: "1.5rem",
-                fontWeight: 700,
-                width: 100,
-                marginRight: 8,
-                borderRadius: 4,
-                border: `1px solid ${colorPalette.main}`,
-                padding: "4px 8px",
-              }}
-            />
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditing(false);
-                if (onTargetEdit) onTargetEdit(editValue ?? 0);
-              }}
-              style={{
-                background: colorPalette.main,
-                color: "#fff",
-                border: "none",
-                borderRadius: 4,
-                padding: "4px 12px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-              aria-label="Save sales target"
-            >
-              Save
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setEditing(false);
-                setEditValue(targetValue);
-              }}
-              style={{
-                background: "transparent",
-                color: colorPalette.main,
-                border: `1px solid ${colorPalette.main}`,
-                borderRadius: 4,
-                padding: "4px 12px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-              aria-label="Cancel edit"
-            >
-              Cancel
-            </button>
+        {editableTarget ? (
+          <Box>
+            {editing ? (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <input
+                  type="number"
+                  value={editValue}
+                  onChange={(e) => setEditValue(Number(e.target.value))}
+                  style={{
+                    border: "none",
+                    outline: "none",
+                    fontSize: "2rem",
+                    fontWeight: 700,
+                    color: theme.palette.text.primary,
+                    backgroundColor: "transparent",
+                    width: "100%",
+                  }}
+                  autoFocus
+                />
+                <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+                  <button
+                    onClick={() => {
+                      if (onTargetEdit && editValue !== undefined) {
+                        onTargetEdit(editValue);
+                      }
+                      setEditing(false);
+                    }}
+                    style={{
+                      background: colorPalette.main,
+                      color: "white",
+                      border: "none",
+                      padding: "4px 8px",
+                      borderRadius: "4px",
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                    aria-label="Save edit"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditValue(targetValue);
+                      setEditing(false);
+                    }}
+                    style={{
+                      background: "transparent",
+                      color: theme.palette.text.secondary,
+                      border: "1px solid",
+                      borderColor: theme.palette.divider,
+                      padding: "4px 8px",
+                      borderRadius: "4px",
+                      fontSize: "0.75rem",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                    aria-label="Cancel edit"
+                  >
+                    Cancel
+                  </button>
+                </Box>
+              </Box>
+            ) : (
+              <>
+                <Typography
+                  variant="h3"
+                  sx={{
+                    fontWeight: 700,
+                    color: theme.palette.text.primary,
+                    fontSize: { xs: "1.75rem", sm: "2.125rem" },
+                    lineHeight: 1.2,
+                    cursor: "pointer",
+                  }}
+                  onClick={() => setEditing(true)}
+                  aria-label={`Value: ${value} (click to edit)`}
+                >
+                  {formatValue(value, metricKey)}
+                </Typography>
+              </>
+            )}
           </Box>
         ) : (
           <>
@@ -401,9 +433,7 @@ const KpiCard: React.FC<KpiCardProps> = ({
               }}
               aria-label={`Value: ${value}`}
             >
-              {metricKey && ["sales", "totalSales", "grossProfit", "avgDealSize", "averageDealSize", "target", "targetValue"].includes(metricKey)
-                ? formatKshAbbreviated(Number(value))
-                : value}
+              {formatValue(value, metricKey)}
             </Typography>
             {/* Sparkline below main value */}
             {sparklineData && sparklineData.length > 1 ? (

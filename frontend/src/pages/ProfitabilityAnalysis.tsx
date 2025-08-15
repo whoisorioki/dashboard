@@ -4,7 +4,7 @@ import { MonetizationOn as MonetizationOnIcon } from '@mui/icons-material';
 import TrendChart from '../components/TrendChart';
 import ProfitabilityByDimensionChart from '../components/ProfitabilityByDimensionChart';
 import { useFilterStore } from "../store/filterStore";
-import { useProfitabilityPageDataQuery } from '../queries/profitabilityPageData.generated';
+import { useDashboardData } from '../queries/dashboardData.generated';
 import { graphqlClient } from '../lib/graphqlClient';
 import DataStateWrapper from "../components/DataStateWrapper";
 import { format } from "date-fns";
@@ -24,7 +24,7 @@ const ProfitabilityAnalysis = () => {
     const selected_product_line = selectedProductLines.length === 1 ? selectedProductLines[0] : "all";
     // Default dimension for initial load
     const dimension = 'Branch';
-    const { data, isLoading, error } = useProfitabilityPageDataQuery(
+    const { data, isLoading, error } = useDashboardData(
         graphqlClient,
         {
             startDate: start_date || undefined,
@@ -32,7 +32,7 @@ const ProfitabilityAnalysis = () => {
             branch: selected_branch !== 'all' ? selected_branch : undefined,
             productLine: selected_product_line !== 'all' ? selected_product_line : undefined,
             itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
-            dimension,
+            // dimension parameter not available in consolidated query
         }
     );
 

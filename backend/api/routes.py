@@ -5,9 +5,9 @@ from pydantic import BaseModel
 from typing import Optional
 import requests
 from datetime import datetime, timezone
-from services.sales_data import fetch_sales_data
-from core.druid_client import druid_conn
-from utils.response_envelope import envelope
+from backend.services.sales_data import fetch_sales_data
+from backend.core.druid_client import druid_conn
+from backend.utils.response_envelope import envelope
 import logging
 
 router = APIRouter(prefix="/api", tags=["sales"])
@@ -189,7 +189,9 @@ async def get_sales(
         branch_names=branch_names_list,
     )
 
-    return envelope(df.to_dicts(), request)
+    # Collect the LazyFrame to DataFrame before converting to dicts
+    df_collected = df.collect()
+    return envelope(df_collected.to_dicts(), request)
 
 
 @router.get("/data-range")

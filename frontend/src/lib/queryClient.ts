@@ -1,6 +1,7 @@
 import { QueryClient, QueryCache, MutationCache } from '@tanstack/react-query';
 import { persistQueryClient } from "@tanstack/react-query-persist-client";
-import { createSyncStoragePersister, SyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+// Removed SyncStoragePersister type import as it's not exported
 
 const TWENTY_FOUR_HOURS = 1000 * 60 * 60 * 24;
 
@@ -41,7 +42,7 @@ export const queryClient = new QueryClient({
  * A persister for react-query that uses localStorage.
  * It is only defined in the browser environment to ensure SSR compatibility.
  */
-export const localStoragePersister: SyncStoragePersister | undefined =
+export const localStoragePersister: any = // Using any type since SyncStoragePersister is not exported
   typeof window !== "undefined"
     ? createSyncStoragePersister({
         storage: window.localStorage,

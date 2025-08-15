@@ -7,7 +7,21 @@ generates:
   src/types/graphql.ts:
     plugins:
       - typescript
-      - typescript-operations
+    config:
+      useTypeImports: false
+      skipTypename: false
+      preResolveTypes: true
+      namingConvention:
+        typeNames: change-case#pascalCase
+        enumValues: change-case#upperCase
+        transformUnderscore: true
+      scalars:
+        DateTime: string
+        Date: string
+        Currency: number
+      avoidOptionals:
+        field: false
+        inputValue: false
   src/queries/:
     preset: near-operation-file
     presetConfig:
@@ -16,21 +30,23 @@ generates:
     plugins:
       - typescript-operations
       - typescript-react-query
-config:
-  useTypeImports: false
-  fetcher: graphql-request
-  namingConvention:
-    typeNames: change-case#pascalCase # Ensures types/interfaces are PascalCase (e.g., MonthlySalesGrowthEntry)
-    enumValues: change-case#upperCase # Ensures enums are UPPER_CASE
-    transformUnderscore: true # Converts snake_case to camelCase in field names
-  scalars:
-    DateTime: string
-    Date: string
-    Currency: number # All currency values are numbers (see mapping)
-  avoidOptionals:
-    field: false
-    inputValue: false
-  skipTypename: false # Keep __typename for union/discriminated types
-  preResolveTypes: true # Ensures all types are fully resolved
-  reactQueryVersion: 5
-  useQueryObjectSyntax: true
+    config:
+      # Fix for graphql-request issues
+      fetcher: graphql-request
+      useQueryObjectSyntax: true
+      reactQueryVersion: 5
+      useTypeImports: false
+      skipTypename: false
+      preResolveTypes: true
+      # Avoid duplicate types
+      dedupeOperationSuffix: true
+      omitOperationSuffix: true
+      # Fix import issues
+      importOperationTypesFrom: Types
+      importTypes: true
+      # Custom fetcher to avoid import issues
+      fetcherImport: |
+        import { GraphQLClient } from 'graphql-request';
+        import type { RequestInit } from 'graphql-request';
+      # Use any for RequestInit to avoid import issues
+      requestInitType: any

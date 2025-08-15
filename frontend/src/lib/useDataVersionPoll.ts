@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { queryClient } from "./queryClient";
 import { GraphQLClient } from "graphql-request";
-import { HealthStatusQuery, useHealthStatusQuery } from "../queries/healthStatus.generated";
+// Removed health status query as it doesn't exist in backend schema
 
 const POLL_INTERVAL = 1000 * 60 * 5; // 5 minutes
 
@@ -20,7 +20,7 @@ export function useDataVersionPoll() {
 
     async function poll() {
       try {
-        const data: HealthStatusQuery = await client.request(
+                 const data: any = await client.request(
           `query HealthStatus { dataVersion { lastIngestionTime } }`
         );
         const version = data?.dataVersion?.lastIngestionTime;

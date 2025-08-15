@@ -12,7 +12,7 @@ import {
   TableBody,
 } from "@mui/material";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
-import { useProductsPageDataQuery } from "../queries/productsPageData.generated";
+import { useDashboardData } from "../queries/dashboardData.generated";
 import { graphqlClient } from "../lib/graphqlClient";
 import ChartEmptyState from "./states/ChartEmptyState";
 import { formatKshAbbreviated } from "../lib/numberFormat";
@@ -39,7 +39,7 @@ const TopCustomerAnalysis: React.FC = () => {
     productLine: selected_product_line !== "all" ? selected_product_line : undefined,
     itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
   }), [start_date, end_date, selected_branch, selected_product_line, selectedItemGroups]);
-  const { data, error, isLoading, refetch } = useProductsPageDataQuery(
+  const { data, error, isLoading, refetch } = useDashboardData(
     graphqlClient,
     {
       startDate: start_date ?? undefined,
