@@ -41,11 +41,13 @@ Frontend (React) → Backend (FastAPI) → S3 → Druid → PostgreSQL (metadata
 ### **Data Flow:**
 
 1. **File Upload Flow** ✅ WORKING
+
    ```
    User → Frontend (5173) → Backend (8000) → S3 Storage → PostgreSQL (metadata)
    ```
 
 2. **Data Processing Flow** ⚠️ NEEDS FIX
+
    ```
    S3 File → Backend Validation → Druid Ingestion Spec → Druid Overlord → Task Status
    ```
@@ -58,23 +60,27 @@ Frontend (React) → Backend (FastAPI) → S3 → Druid → PostgreSQL (metadata
 ## 📊 **Performance Metrics**
 
 ### **Current Performance:**
+
 - **File Upload**: ~10s for 1MB CSV
 - **Validation**: ~0.064s (excellent)
 - **S3 Upload**: ~9.762s (network dependent)
 - **Druid Spec Generation**: ~0.000s (instant)
 
 ### **Bottlenecks Identified:**
+
 1. **S3 Download**: Primary bottleneck (network dependent)
 2. **Druid Ingestion**: Configuration issue (not performance)
 
 ## ⚠️ **Current Issues**
 
 ### **1. Druid S3 Configuration** 🔧 HIGH PRIORITY
+
 - **Issue**: Tasks submitted but failing due to S3 configuration
 - **Impact**: Data not reaching Druid for analytics
 - **Status**: Needs configuration fix
 
 ### **2. Frontend Dependencies** 🔧 MEDIUM PRIORITY
+
 - **Issue**: Some chart libraries need manual installation
 - **Impact**: Limited visualization capabilities
 - **Status**: Missing npm dependencies
@@ -82,6 +88,7 @@ Frontend (React) → Backend (FastAPI) → S3 → Druid → PostgreSQL (metadata
 ## 🎯 **Key Achievements**
 
 ### **1. Working Pipeline**
+
 - ✅ **File Upload**: 100% working
 - ✅ **Data Validation**: 100% working
 - ✅ **Task Tracking**: 100% working
@@ -89,11 +96,13 @@ Frontend (React) → Backend (FastAPI) → S3 → Druid → PostgreSQL (metadata
 - ✅ **PostgreSQL**: 100% working
 
 ### **2. Performance**
+
 - ✅ **Validation**: Polars provides excellent performance
 - ✅ **Database Operations**: PostgreSQL and Druid are fast
 - ✅ **File Processing**: Efficient multi-format support
 
 ### **3. User Experience**
+
 - ✅ **Simple Interface**: Easy file upload
 - ✅ **Real-time Updates**: Task status tracking
 - ✅ **Error Handling**: Clear error messages
@@ -102,6 +111,7 @@ Frontend (React) → Backend (FastAPI) → S3 → Druid → PostgreSQL (metadata
 ## 🔧 **Technical Implementation**
 
 ### **File Structure:**
+
 ```
 dashboard/
 ├── frontend/          # React dashboard
@@ -114,6 +124,7 @@ dashboard/
 ```
 
 ### **Key Technologies:**
+
 - **Frontend**: React 18 + TypeScript + Material-UI
 - **Backend**: FastAPI + Python 3.12 + Polars
 - **Database**: PostgreSQL (metadata) + Apache Druid (analytics)
@@ -123,7 +134,9 @@ dashboard/
 ## 🚀 **Next Steps**
 
 ### **Immediate (High Priority):**
+
 1. **Fix Druid S3 Configuration**
+
    - Review `druid/environment` settings
    - Verify S3 bucket permissions
    - Test ingestion with working S3 config
@@ -134,7 +147,9 @@ dashboard/
    - Check dashboard visualizations
 
 ### **Short Term (Medium Priority):**
+
 3. **Frontend Dependencies**
+
    - Install missing chart libraries
    - Verify all visualizations work
 
@@ -143,6 +158,7 @@ dashboard/
    - Implement caching where appropriate
 
 ### **Long Term (Low Priority):**
+
 5. **GraphQL Implementation** (Optional)
    - Replace REST with GraphQL
    - Implement type-safe queries
@@ -150,6 +166,7 @@ dashboard/
 ## 📈 **Success Metrics**
 
 ### **Current Achievement:**
+
 - ✅ **Core Pipeline**: 90% complete
 - ✅ **File Upload**: 100% working
 - ✅ **Data Validation**: 100% working
@@ -158,6 +175,7 @@ dashboard/
 - ✅ **Dashboard**: 80% working (missing dependencies)
 
 ### **Target Achievement:**
+
 - 🎯 **Complete Pipeline**: 100% working
 - 🎯 **Data Visualization**: 100% working
 - 🎯 **Production Ready**: 100% ready
@@ -165,17 +183,20 @@ dashboard/
 ## 📝 **Lessons Learned**
 
 ### **1. Architecture Decisions**
+
 - ✅ **REST API**: Simple and effective for current needs
 - ✅ **Docker Compose**: Excellent for development and testing
 - ✅ **Polars**: Superior performance for data processing
 - ⚠️ **Druid S3**: Configuration complexity requires careful setup
 
 ### **2. Development Process**
+
 - ✅ **Modular Design**: Easy to debug and maintain
 - ✅ **Comprehensive Logging**: Essential for troubleshooting
 - ✅ **Clean Documentation**: Critical for team collaboration
 
 ### **3. Performance Insights**
+
 - ✅ **Validation**: Polars provides excellent performance
 - ⚠️ **Network Operations**: S3 operations are network-bound
 - ✅ **Database Operations**: PostgreSQL and Druid are fast
