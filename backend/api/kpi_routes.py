@@ -2,12 +2,12 @@ from fastapi import APIRouter, Depends, Query, Request, HTTPException
 from typing import Optional
 import polars as pl
 from fastapi_redis_cache import cache
-from backend.services.sales_data import fetch_sales_data
-from backend.services import kpi_service, sales_data
+from services.sales_data import fetch_sales_data
+from services import kpi_service, sales_data
 from fastapi.concurrency import run_in_threadpool
 import logging
-from backend.utils.response_envelope import envelope
-from backend.utils.lazyframe_utils import is_lazyframe_empty
+from utils.response_envelope import envelope
+from utils.lazyframe_utils import is_lazyframe_empty
 
 router = APIRouter(prefix="/api/kpis", tags=["kpis"])
 
@@ -88,7 +88,7 @@ async def monthly_sales_growth(
         start_date = ""
     if end_date is None:
         end_date = ""
-    result = await run_in_threadpool(kpi_service.calculate_monthly_sales_growth, start_date, end_date)
+    result = await kpi_service.calculate_monthly_sales_growth(start_date, end_date)
     return envelope(result, request)
 
 
@@ -125,7 +125,7 @@ async def sales_target_attainment(
       - 500: Internal server error
     """
     result = await run_in_threadpool(
-        kpi_service.calculate_sales_target_attainment, df, target
+        kpi_service.calculate_sales_target_attainment, df.lazy(), target
     )
     return envelope(result, request)
 
@@ -162,7 +162,7 @@ async def product_performance(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    result = await run_in_threadpool(kpi_service.get_product_performance, df, n)
+    result = await run_in_threadpool(kpi_service.get_product_performance, df.lazy(), n)
     return envelope(result, request)
 
 
@@ -511,7 +511,7 @@ async def employee_performance(
         sales_data.get_employee_quotas, start_date, end_date
     )
     result = await run_in_threadpool(
-        kpi_service.calculate_employee_performance, df, quotas_df
+        kpi_service.calculate_employee_performance, df.lazy(), quotas_df
     )
     return envelope(result, request)
 
@@ -606,7 +606,7 @@ async def margin_trends(
     """
     if is_lazyframe_empty(df):
         return envelope([], request)
-    result = kpi_service.calculate_margin_trends(df)
+    result = kpi_service.calculate_margin_trends(df.lazy())
     return envelope(result, request)
 
 

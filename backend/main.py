@@ -1,16 +1,18 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import UploadFile, File
 import os
 from dotenv import load_dotenv
-from backend.api.routes import router
-from backend.api.kpi_routes import router as kpi_router
-from backend.core.druid_client import lifespan, druid_conn
-from backend.schema import schema
+from api.routes import router
+from api.kpi_routes import router as kpi_router
+from api.ingestion.routes import router as ingestion_router
+from core.druid_client import lifespan, druid_conn
+from schema import schema
 import strawberry.fastapi
-from backend.schema import Query
+from schema import Query
 import strawberry
-from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
+from strawberry.file_uploads import Upload
 from fastapi import Request, Response
 from fastapi_redis_cache import FastApiRedisCache
 
@@ -57,6 +59,10 @@ app = FastAPI(
             "name": "health",
             "description": "System health checks and connectivity monitoring",
         },
+        {
+            "name": "ingestion",
+            "description": "Data ingestion and file upload endpoints",
+        },
     ],
 )
 
@@ -89,9 +95,17 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(kpi_router)
 
-# Add the Strawberry GraphQL router
-graphql_app = strawberry.fastapi.GraphQLRouter(schema)
-app.include_router(graphql_app, prefix="/graphql")
+# Include the ingestion router with a prefix and tags for organization
+app.include_router(ingestion_router, prefix="/api/ingest", tags=["ingestion"])
+
+# Add the Strawberry GraphQL router with file upload support
+graphql_app = strawberry.fastapi.GraphQLRouter(
+    schema,
+    path="/graphql",
+    graphiql=True,
+    allow_queries_via_get=True,
+)
+app.include_router(graphql_app)
 
 
 @app.get("/")

@@ -25,12 +25,14 @@ catch {
     exit 1
 }
 
-# Navigate to the project root
-Set-Location $currentDir
+# Navigate to the backend directory
+Set-Location (Join-Path $currentDir "backend")
 
-# Add the current directory to PYTHONPATH to allow relative imports
-$env:PYTHONPATH = $currentDir
+# Add the backend directory to PYTHONPATH to allow relative imports
+$env:PYTHONPATH = (Join-Path $currentDir "backend")
     
 # Start the backend server
 Write-Host "Starting backend server at http://localhost:8000..." -ForegroundColor Green
-& "$venvPath\Scripts\python.exe" -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+Write-Host "GraphQL endpoint: http://localhost:8000/graphql" -ForegroundColor Cyan
+Write-Host "API documentation: http://localhost:8000/docs" -ForegroundColor Cyan
+& "$venvPath\Scripts\python.exe" -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload

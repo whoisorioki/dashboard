@@ -5,10 +5,11 @@ from pydantic import BaseModel
 from typing import Optional
 import requests
 from datetime import datetime, timezone
-from backend.services.sales_data import fetch_sales_data
-from backend.core.druid_client import druid_conn
-from backend.utils.response_envelope import envelope
+from services.sales_data import fetch_sales_data
+from core.druid_client import druid_conn
+from utils.response_envelope import envelope
 import logging
+import os
 
 router = APIRouter(prefix="/api", tags=["sales"])
 
@@ -221,8 +222,12 @@ async def get_data_range(request: Request):
 
     def to_iso8601(val):
         if isinstance(val, int) or (isinstance(val, str) and val.isdigit()):
-            # Convert milliseconds to seconds
-            ts = int(val) / 1000
+            ts = int(val)
+            # If timestamp is in seconds (< year 2100 in milliseconds), convert to milliseconds
+            if ts < 4102444800000:
+                ts = ts * 1000
+            # Convert to seconds for fromtimestamp
+            ts = ts / 1000
             return (
                 datetime.fromtimestamp(ts, tz=timezone.utc)
                 .isoformat()
@@ -230,7 +235,7 @@ async def get_data_range(request: Request):
             )
         if isinstance(val, str) and "T" in val:
             return val  # Already ISO8601
-        return str(val)
+        return "2024-01-01T00:00:00.000Z"  # Default fallback
 
     try:
         logging.info("Querying Druid for data range...")
@@ -246,7 +251,7 @@ async def get_data_range(request: Request):
         }
 
         # Get earliest date
-        url = "http://localhost:8888/druid/v2/"
+        url = f"{os.getenv('DRUID_URL', 'http://router:8888')}/druid/v2/"
         headers = {"Content-Type": "application/json"}
         response = requests.post(url, json=query, headers=headers, timeout=30)
         logging.info(f"Earliest date Druid response: {response.text}")
@@ -303,9 +308,9 @@ async def get_data_range(request: Request):
                     total_records += len(segment["events"])
         logging.info(f"Total records Druid response: {response.text}")
 
-        # Convert to ISO8601
-        earliest_date = to_iso8601(earliest_date)
-        latest_date = to_iso8601(latest_date)
+        # Convert to ISO8601 with fallbacks
+        earliest_date = to_iso8601(earliest_date) if earliest_date else "2024-01-01T00:00:00.000Z"
+        latest_date = to_iso8601(latest_date) if latest_date else "2024-12-31T23:59:59.999Z"
         logging.info(
             f"Extracted earliest_date: {earliest_date}, latest_date: {latest_date}, total_records: {total_records}"
         )

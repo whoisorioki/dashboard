@@ -5,9 +5,10 @@ import logging
 import requests
 from datetime import datetime
 import asyncio
-from backend.services.sales_data import fetch_sales_data, get_data_range_from_druid
-from backend.services.mock_data_service import mock_data_fetcher
-from backend.services.metric_standards import (
+from services.sales_data import fetch_sales_data
+from core.druid_client import get_data_range_from_druid
+from services.mock_data_service import mock_data_fetcher
+from services.metric_standards import (
     RevenueMetrics,
     ProfitMetrics,
     MarginMetrics,
@@ -15,10 +16,10 @@ from backend.services.metric_standards import (
     TimeBasedAggregations,
     ErrorHandling
 )
-from backend.utils.lazyframe_utils import is_lazyframe_empty
+from utils.lazyframe_utils import is_lazyframe_empty
 
-# Flag to control mock data usage (can be set via environment variable)
-USE_MOCK_DATA = True  # Set to False to use real data when available
+# Import mock data configuration
+from config.mock_data_config import USE_MOCK_DATA
 
 
 def _ensure_time_is_datetime(df: pl.LazyFrame) -> pl.LazyFrame:
@@ -48,8 +49,13 @@ def _ensure_time_is_datetime(df: pl.LazyFrame) -> pl.LazyFrame:
         if dtype == pl.Datetime:
             return df
         elif dtype == pl.Int64 or dtype == pl.UInt64:
-            # Assume ms since epoch, convert to us for Polars Datetime
-            return df.with_columns((pl.col("__time") * 1000).cast(pl.Datetime))
+            # Druid returns timestamps in milliseconds, Polars expects microseconds
+            # Check if it's already in microseconds (values > 1e15) or milliseconds
+            sample_value = sample_df["__time"].item()
+            if sample_value > 1e15:  # Already in microseconds
+                return df.with_columns(pl.col("__time").cast(pl.Datetime))
+            else:  # In milliseconds, convert to microseconds
+                return df.with_columns((pl.col("__time") * 1000).cast(pl.Datetime))
         else:
             # Try string parsing as before
             for fmt in [

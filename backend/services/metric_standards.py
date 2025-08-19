@@ -12,7 +12,7 @@ This module provides standardized classes for:
 import polars as pl
 import logging
 from typing import List, Dict, Any, Optional, Union, Tuple
-from backend.utils.lazyframe_utils import is_lazyframe_empty
+from utils.lazyframe_utils import is_lazyframe_empty
 
 
 class RevenueMetrics:
@@ -307,11 +307,21 @@ class OptimizedAggregations:
                 "unique_employees": int(row["unique_employees"]) if row["unique_employees"] is not None else 0,
             }
             
-            # Validate results
+            # Validate results - allow negative values for returns_value
             for key, value in result.items():
-                if not isinstance(value, (int, float)) or (isinstance(value, float) and (value < 0 or value > 1e12)):
+                if not isinstance(value, (int, float)):
                     logging.warning(f"Invalid {key} result: {value}")
                     result[key] = 0.0 if isinstance(value, float) else 0
+                elif isinstance(value, float):
+                    # Allow negative values for returns_value, but validate other metrics
+                    if key == "returns_value":
+                        if value > 1e12 or value < -1e12:  # Allow negative but limit magnitude
+                            logging.warning(f"Invalid {key} result: {value}")
+                            result[key] = 0.0
+                    else:
+                        if value < 0 or value > 1e12:
+                            logging.warning(f"Invalid {key} result: {value}")
+                            result[key] = 0.0
                     
             return result
         except Exception as e:

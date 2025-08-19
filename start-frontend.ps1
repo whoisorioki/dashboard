@@ -17,6 +17,10 @@ if (-not (Test-Path "node_modules")) {
 Write-Host "Making sure all dependencies are installed..." -ForegroundColor Yellow
 npm install
 
+# Generate GraphQL types
+Write-Host "Generating GraphQL types..." -ForegroundColor Yellow
+npm run codegen
+
 # Use direct command to run vite
 Write-Host "Starting frontend server at http://localhost:5173..." -ForegroundColor Green
 & "C:\Program Files\nodejs\node.exe" "./node_modules/vite/bin/vite.js"

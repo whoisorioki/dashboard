@@ -10,10 +10,11 @@
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "types:supabase": "npx supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > src/types/supabase.ts",
-    "types:graphql": "graphql-codegen --config codegen.yml",
-    "codegen": "graphql-codegen --config codegen.yml"
+    "types:graphql": "graphql-codegen --config codegen.ts",
+    "codegen": "graphql-codegen --config codegen.ts"
   },
   "dependencies": {
+    "@apollo/client": "^3.13.9",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^5.17.1",
@@ -44,6 +45,7 @@
     "react-date-range": "^2.0.1",
     "react-day-picker": "^9.8.1",
     "react-dom": "^18.3.1",
+    "react-dropzone": "^14.3.8",
     "react-router-dom": "^6.22.3",
     "react-window": "^1.8.11",
     "recharts": "^2.15.4",

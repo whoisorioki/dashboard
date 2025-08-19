@@ -138,6 +138,55 @@ query DashboardData($startDate: String!, $endDate: String!) {
 5. **Metric Calculation**: Calculate metrics using standardized classes
 6. **Response**: Return formatted data through GraphQL
 
+## 📤 **Data Ingestion API**
+
+### **GraphQL Schema for Ingestion**
+
+```graphql
+scalar Upload
+
+type IngestionTaskStatus {
+  taskId: ID!
+  status: String!
+  message: String
+  createdAt: String
+  updatedAt: String
+  datasourceName: String
+  originalFilename: String
+  fileSize: Int
+  rowCount: Int
+  druidTaskId: String
+  startedAt: String
+  completedAt: String
+  errorMessage: String
+  validationErrors: JSON
+}
+
+type IngestionTaskList {
+  tasks: [IngestionTaskStatus!]!
+  totalCount: Int!
+  hasNextPage: Boolean!
+}
+
+type Mutation {
+  uploadSalesData(file: Upload!, dataSourceName: String!): IngestionTaskStatus
+}
+
+type Query {
+  getIngestionTaskStatus(taskId: ID!): IngestionTaskStatus
+  listIngestionTasks(limit: Int, offset: Int): IngestionTaskList
+}
+```
+
+### **File Upload Flow**
+
+1. **File Upload**: Frontend sends file via GraphQL mutation
+2. **Task Creation**: Backend creates task record in PostgreSQL
+3. **File Processing**: Background task validates and processes file
+4. **Druid Ingestion**: File submitted to Druid for ingestion
+5. **Status Monitoring**: Real-time status updates via polling
+6. **Completion**: Task marked complete with results
+
 ## 📱 **Frontend Integration**
 
 ### **Apollo Client Setup**
@@ -173,6 +222,9 @@ const { data, loading, error } = useQuery(DASHBOARD_QUERY, {
 - [x] Query resolvers
 - [x] Error handling patterns
 - [x] Response formats
+- [x] Data ingestion GraphQL schema (Upload scalar, IngestionTaskStatus types)
+- [x] File upload mutations and status queries
+- [x] Apollo Client configuration for file uploads
 
 ### **🔄 In Progress**
 
@@ -185,6 +237,7 @@ const { data, loading, error } = useQuery(DASHBOARD_QUERY, {
 - [ ] Unit tests for resolvers
 - [ ] Integration tests
 - [ ] Performance benchmarking
+- [ ] End-to-end testing of data ingestion workflow
 
 ---
 

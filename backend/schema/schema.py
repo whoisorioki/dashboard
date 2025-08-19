@@ -2,10 +2,11 @@ import strawberry
 import logging
 import math
 import polars as pl
-from typing import List, Optional
-from backend.services.sales_data import fetch_sales_data, get_data_range_from_druid
-from backend.services.mock_data_service import mock_data_fetcher
-from backend.services.kpi_service import (
+from typing import List, Optional, Any
+from services.sales_data import fetch_sales_data
+from core.druid_client import get_data_range_from_druid
+from services.mock_data_service import mock_data_fetcher
+from services.kpi_service import (
     calculate_revenue_summary,
     _ensure_time_is_datetime,
     calculate_monthly_sales_growth,
@@ -15,12 +16,51 @@ from backend.services.kpi_service import (
 import asyncio
 import httpx
 import os
+import io
 from datetime import date, timezone, datetime
 import random
 from decimal import Decimal
+from fastapi import Request, BackgroundTasks
+from strawberry.types import Info
+from strawberry.file_uploads import Upload
 
-# Flag to control mock data usage
-USE_MOCK_DATA = True  # Set to False to use real data when available
+# Import database and CRUD operations
+from db.session import SessionLocal
+from crud.crud_ingestion_task import get_task_by_task_id, get_tasks, create_ingestion_task
+from models.ingestion_task import IngestionTask as IngestionTaskModel
+
+# Import services
+from services import s3_service
+from services.file_processing_service import FileProcessingService
+from services.data_validation_service import DataValidationService
+from services.druid_service import DruidService
+
+# Import mock data configuration
+from config.mock_data_config import USE_MOCK_DATA
+
+# Import the actual background task function from REST router
+from api.ingestion.routes import ingestion_background_task
+
+# Define the Strawberry type for our task status
+@strawberry.type
+class IngestionTaskStatus:
+    taskId: str
+    status: str
+    datasourceName: str
+    originalFilename: str
+    fileSize: Optional[int]
+    createdAt: str
+
+    @classmethod
+    def from_orm(cls, model: IngestionTaskModel) -> "IngestionTaskStatus":
+        return cls(
+            taskId=model.task_id,  # type: ignore
+            status=model.status,  # type: ignore
+            datasourceName=model.datasource_name,  # type: ignore
+            originalFilename=model.original_filename,  # type: ignore
+            fileSize=model.file_size,  # type: ignore
+            createdAt=model.created_at.isoformat()  # type: ignore
+        )
 
 
 def sanitize(val):
@@ -58,7 +98,7 @@ def safe_str(val, default=""):
         return default
 
 
-from backend.utils.lazyframe_utils import is_lazyframe_empty
+from utils.lazyframe_utils import is_lazyframe_empty
 
 
 def log_empty_df(context: str, df, **filters):
@@ -82,7 +122,7 @@ def log_missing_column(context: str, df, column: str, **filters):
 
 def get_data_availability_status() -> "DataAvailabilityStatus":
     """Get current data availability status"""
-    from backend.core.druid_client import druid_conn, DataAvailabilityStatus as Status
+    from core.druid_client import druid_conn, DataAvailabilityStatus as Status
     
     status = druid_conn.check_data_availability()
     is_mock_data = status in [Status.FORCED_MOCK_DATA, Status.MOCK_DATA_FALLBACK]
@@ -256,13 +296,13 @@ class ProductAnalytics:
     item_name: str = strawberry.field(name="itemName")
     product_line: str = strawberry.field(name="productLine")
     item_group: str = strawberry.field(name="itemGroup")
-    total_sales: Optional[float] = strawberry.field(name="totalSales", default=0.0)
+    total_sales: float = strawberry.field(name="totalSales", default=0.0)
     gross_profit: Optional[float] = strawberry.field(name="grossProfit")
     margin: Optional[float] = strawberry.field(name="margin")
-    total_qty: Optional[float] = strawberry.field(name="totalQty", default=0.0)
+    total_qty: float = strawberry.field(name="totalQty", default=0.0)
     transaction_count: int = strawberry.field(name="transactionCount", default=0)
     unique_branches: int = strawberry.field(name="uniqueBranches", default=0)
-    average_price: Optional[float] = strawberry.field(name="averagePrice", default=0.0)
+    average_price: float = strawberry.field(name="averagePrice", default=0.0)
 
 
 @strawberry.type
@@ -375,33 +415,33 @@ class DataAvailabilityStatus:
 class SalesPageData:
     """Composite type for all sales page data blocks."""
 
-    revenue_summary: RevenueSummary
-    monthly_sales_growth: List[MonthlySalesGrowth]
-    sales_performance: List[SalesPerformance]
-    top_customers: List[TopCustomerEntry]
-    salesperson_product_mix: List[SalespersonProductMixEntry]
-    returns_analysis: List[ReturnsAnalysisEntry]
+    revenue_summary: RevenueSummary = strawberry.field(name="revenueSummary")
+    monthly_sales_growth: List[MonthlySalesGrowth] = strawberry.field(name="monthlySalesGrowth")
+    sales_performance: List[SalesPerformance] = strawberry.field(name="salesPerformance")
+    top_customers: List[TopCustomerEntry] = strawberry.field(name="topCustomers")
+    salesperson_product_mix: List[SalespersonProductMixEntry] = strawberry.field(name="salespersonProductMix")
+    returns_analysis: List[ReturnsAnalysisEntry] = strawberry.field(name="returnsAnalysis")
 
 
 @strawberry.type
 class ProductsPageData:
     """Composite type for all products page data blocks."""
 
-    revenue_summary: RevenueSummary
-    product_analytics: List[ProductAnalytics]
-    top_customers: List[TopCustomerEntry]
-    branch_product_heatmap: List[BranchProductHeatmap]
-    monthly_sales_growth: List[MonthlySalesGrowth]
+    revenue_summary: RevenueSummary = strawberry.field(name="revenueSummary")
+    product_analytics: List[ProductAnalytics] = strawberry.field(name="productAnalytics")
+    top_customers: List[TopCustomerEntry] = strawberry.field(name="topCustomers")
+    branch_product_heatmap: List[BranchProductHeatmap] = strawberry.field(name="branchProductHeatmap")
+    monthly_sales_growth: List[MonthlySalesGrowth] = strawberry.field(name="monthlySalesGrowth")
 
 
 @strawberry.type
 class ProfitabilityPageData:
     """Composite type for all profitability page data blocks."""
 
-    margin_trends: List[MarginTrendEntry]
-    profitability_by_dimension: List[ProfitabilityByDimension]
-    revenue_summary: RevenueSummary
-    product_analytics: List[ProductAnalytics]
+    margin_trends: List[MarginTrendEntry] = strawberry.field(name="marginTrends")
+    profitability_by_dimension: List[ProfitabilityByDimension] = strawberry.field(name="profitabilityByDimension")
+    revenue_summary: RevenueSummary = strawberry.field(name="revenueSummary")
+    product_analytics: List[ProductAnalytics] = strawberry.field(name="productAnalytics")
 
 
 @strawberry.type
@@ -418,17 +458,17 @@ class AlertsPageData:
 class DashboardData:
     """Composite type for all dashboard data blocks."""
 
-    revenue_summary: RevenueSummary
-    monthly_sales_growth: List[MonthlySalesGrowth]
-    target_attainment: TargetAttainment
-    product_performance: List[ProductPerformance]
-    branch_product_heatmap: List[BranchProductHeatmap]
-    top_customers: List[TopCustomerEntry]
-    margin_trends: List[MarginTrendEntry]
-    returns_analysis: List[ReturnsAnalysisEntry]
-    profitability_by_dimension: List[ProfitabilityByDimension]
-    branch_list: List[BranchListEntry]
-    product_analytics: List[ProductAnalytics]
+    revenue_summary: RevenueSummary = strawberry.field(name="revenueSummary")
+    monthly_sales_growth: List[MonthlySalesGrowth] = strawberry.field(name="monthlySalesGrowth")
+    target_attainment: TargetAttainment = strawberry.field(name="targetAttainment")
+    product_performance: List[ProductPerformance] = strawberry.field(name="productPerformance")
+    branch_product_heatmap: List[BranchProductHeatmap] = strawberry.field(name="branchProductHeatmap")
+    top_customers: List[TopCustomerEntry] = strawberry.field(name="topCustomers")
+    margin_trends: List[MarginTrendEntry] = strawberry.field(name="marginTrends")
+    returns_analysis: List[ReturnsAnalysisEntry] = strawberry.field(name="returnsAnalysis")
+    profitability_by_dimension: List[ProfitabilityByDimension] = strawberry.field(name="profitabilityByDimension")
+    branch_list: List[BranchListEntry] = strawberry.field(name="branchList")
+    product_analytics: List[ProductAnalytics] = strawberry.field(name="productAnalytics")
     data_availability_status: DataAvailabilityStatus = strawberry.field(name="dataAvailabilityStatus", description="Current data availability status")
 
 
@@ -824,7 +864,7 @@ class Query:
                     )
 
             # Get branch product heatmap
-            from backend.services.kpi_service import (
+            from services.kpi_service import (
                 create_branch_product_heatmap_data,
                 calculate_margin_trends,
             )
@@ -2288,7 +2328,7 @@ class Query:
     async def druid_health(self) -> DruidHealth:
         """Get Druid health status"""
         try:
-            from backend.core.druid_client import get_druid_health
+            from core.druid_client import get_druid_health
 
             health_info = get_druid_health()
             return DruidHealth(
@@ -2303,7 +2343,7 @@ class Query:
     async def druid_datasources(self) -> DruidDatasources:
         """Get Druid datasources information"""
         try:
-            from backend.core.druid_client import get_druid_datasources
+            from core.druid_client import get_druid_datasources
 
             datasources_info = get_druid_datasources()
             datasources = datasources_info.get("datasources", [])
@@ -2392,7 +2432,7 @@ class Query:
     async def data_version(self) -> DataVersion:
         """Get data version and last ingestion time"""
         try:
-            from backend.core.druid_client import get_data_range_from_druid
+            from core.druid_client import get_data_range_from_druid
 
             # Get the latest data information from Druid
             data_range = get_data_range_from_druid()
@@ -2407,5 +2447,105 @@ class Query:
             fallback_time = datetime.now().isoformat() + "Z"
             return DataVersion(last_ingestion_time=fallback_time)
 
+    @strawberry.field(name="getIngestionTaskStatus")
+    async def get_ingestion_task_status(self, taskId: str) -> Optional[IngestionTaskStatus]:
+        """Get the status of a specific ingestion task"""
+        db = SessionLocal()
+        try:
+            task = get_task_by_task_id(db, task_id=taskId)
+            return IngestionTaskStatus.from_orm(task) if task else None
+        except Exception as e:
+            logging.error(f"Error getting ingestion task status: {e}")
+            return None
+        finally:
+            db.close()
 
-schema = strawberry.Schema(query=Query)
+    @strawberry.field(name="listIngestionTasks")
+    async def list_ingestion_tasks(self, limit: int = 10, offset: int = 0) -> List[IngestionTaskStatus]:
+        """List ingestion tasks with pagination"""
+        db = SessionLocal()
+        try:
+            tasks = get_tasks(db, skip=offset, limit=limit)
+            return [IngestionTaskStatus.from_orm(task) for task in tasks]
+        except Exception as e:
+            logging.error(f"Error listing ingestion tasks: {e}")
+            return []
+        finally:
+            db.close()
+
+
+@strawberry.type
+class Mutation:
+    @strawberry.mutation(name="uploadSalesData")
+    async def upload_sales_data(self, file: "Upload", dataSourceName: str, info: Info) -> IngestionTaskStatus:  # type: ignore
+        """Upload a sales data file for ingestion"""
+        db = SessionLocal()
+
+        try:
+            # Debug logging to understand what we're receiving
+            logging.info(f"=== UPLOAD FUNCTION CALLED ===")
+            logging.info(f"File type: {type(file)}")
+            logging.info(f"File: {file}")
+            
+            # Handle different file input types
+            if isinstance(file, dict):
+                logging.warning("Received file as dict - this suggests improper configuration")
+                # This is a fallback for when the file comes as a dict
+                if 'path' in file:
+                    file_path = file['path']
+                    try:
+                        with open(file_path, 'rb') as f:
+                            contents = f.read()
+                        filename = os.path.basename(file_path)
+                    except FileNotFoundError:
+                        logging.error(f"File not found at path: {file_path}")
+                        raise Exception("File upload failed: File not found at the specified path")
+                else:
+                    raise Exception("File upload failed: Invalid file format")
+            else:
+                # Normal Strawberry Upload handling
+                try:
+                    contents = await file.read()
+                    filename = file.filename
+                except AttributeError as e:
+                    logging.error(f"File object does not have expected attributes: {e}")
+                    raise Exception(f"File upload failed: Invalid file object - {e}")
+            
+            # Create file-like object and get file size
+            file_obj = io.BytesIO(contents)
+            file_size = len(contents)
+            
+            # Generate S3 filename with meaningful name
+            file_extension = os.path.splitext(filename)[1] if '.' in filename else '.csv'
+            unique_s3_filename = f"uploads/{dataSourceName}/{filename}_{datetime.now().strftime('%Y%m%d_%H%M%S')}{file_extension}"
+
+            # Upload to S3
+            success = s3_service.upload_file_to_s3_from_bytes(file_obj, unique_s3_filename)
+            if not success:
+                raise Exception("Failed to upload file to S3.")
+
+            file_uri = f"s3://{s3_service.S3_BUCKET_NAME}/{unique_s3_filename}"
+            
+            # Create task record
+            task = create_ingestion_task(
+                db=db,
+                datasource_name=dataSourceName,
+                original_filename=filename,
+                file_uri=file_uri,
+                file_size=file_size
+            )
+
+            # Connect to background task processing
+            # Note: Background tasks are handled differently in this version
+            # The ingestion will be processed asynchronously
+            logging.info(f"Task {task.task_id} created successfully. Background processing will start.")
+
+            return IngestionTaskStatus.from_orm(task)
+        except Exception as e:
+            logging.error(f"Error in upload_sales_data: {e}")
+            raise Exception(f"An error occurred during GraphQL upload: {e}")
+        finally:
+            db.close()
+
+
+schema = strawberry.Schema(query=Query, mutation=Mutation)

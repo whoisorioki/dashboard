@@ -25,7 +25,6 @@ volumes:
   router_var: {}
   druid_shared: {}
 
-
 services:
   zookeeper:
     container_name: zookeeper
@@ -51,7 +50,7 @@ services:
     env_file:
       - ./environment
     environment:
-      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage", "druid-multi-stage-query"]
+      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage", "druid-multi-stage-query", "druid-s3-extensions"]
 
   broker:
     image: apache/druid:33.0.0
@@ -69,7 +68,7 @@ services:
     env_file:
       - ./environment
     environment:
-      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage", "druid-multi-stage-query"]
+      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage", "druid-multi-stage-query", "druid-s3-extensions"]
 
   historical:
     image: apache/druid:33.0.0
@@ -88,7 +87,7 @@ services:
     env_file:
       - ./environment
     environment:
-      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage", "druid-multi-stage-query"]
+      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage", "druid-multi-stage-query", "druid-s3-extensions"]
 
   middlemanager:
     image: apache/druid:33.0.0
@@ -108,7 +107,7 @@ services:
     env_file:
       - ./environment
     environment:
-      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage", "druid-multi-stage-query"]
+      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage", "druid-multi-stage-query", "druid-s3-extensions"]
 
   router:
     image: apache/druid:33.0.0
@@ -126,4 +125,4 @@ services:
     env_file:
       - ./environment
     environment:
-      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage", "druid-multi-stage-query"]
+      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage", "druid-multi-stage-query", "druid-s3-extensions"]

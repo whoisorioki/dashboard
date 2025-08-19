@@ -1,254 +1,231 @@
-version: '3.8'
+version: "3.8"
+
+volumes:
+  metadata_data: {}
+  middle_var: {}
+  historical_var: {}
+  broker_var: {}
+  coordinator_var: {}
+  router_var: {}
+  druid_shared: {}
+  postgres_data: {}
 
 services:
-  # Backend service
+  # --- PostgreSQL Database (Operational DB) ---
+  postgres:
+    image: postgres:15
+    container_name: sales_analytics_db
+    environment:
+      POSTGRES_DB: sales_analytics
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Enter@321
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Druid Services ---
+  zookeeper:
+    container_name: zookeeper
+    image: zookeeper:3.5.10
+    ports:
+      - "2181:2181"
+    environment:
+      - ZOO_MY_ID=1
+
+  coordinator:
+    image: apache/druid:33.0.0
+    container_name: coordinator
+    volumes:
+      - druid_shared:/opt/shared
+      - coordinator_var:/opt/druid/var
+      - ./druid/_common/common.runtime.properties:/opt/druid/conf/druid/_common/common.runtime.properties:ro
+    depends_on:
+      - zookeeper
+    ports:
+      - "8081:8081"
+    command:
+      - coordinator
+    environment:
+      - druid_zk_service_host=zookeeper
+      - druid_extensions_loadList=["postgresql-metadata-storage", "druid-s3-extensions", "druid-multi-stage-query", "druid-datasketches"]
+      - druid_metadata_storage_type=postgresql
+      - druid_metadata_storage_connector_connectURI=jdbc:postgresql://postgres:5432/sales_analytics
+      - druid_metadata_storage_connector_user=postgres
+      - druid_metadata_storage_connector_password=Enter@321
+      - druid_storage_type=local
+      - druid_storage_storageDirectory=/opt/druid/var/segments
+      - druid_indexer_logs_type=file
+      - druid_indexer_logs_directory=/opt/druid/var/logs
+      - druid_s3_disableAcl=true
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=AKIA5V23GCAIKMC65WWQ
+      - AWS_SECRET_ACCESS_KEY=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
+
+  broker:
+    image: apache/druid:33.0.0
+    container_name: broker
+    volumes:
+      - broker_var:/opt/druid/var
+      - ./druid/_common/common.runtime.properties:/opt/druid/conf/druid/_common/common.runtime.properties:ro
+    depends_on:
+      - zookeeper
+      - coordinator
+    ports:
+      - "8082:8082"
+    command:
+      - broker
+    environment:
+      - druid_zk_service_host=zookeeper
+      - druid_extensions_loadList=["postgresql-metadata-storage", "druid-s3-extensions", "druid-multi-stage-query", "druid-datasketches"]
+      - druid_metadata_storage_type=postgresql
+      - druid_metadata_storage_connector_connectURI=jdbc:postgresql://postgres:5432/sales_analytics
+      - druid_metadata_storage_connector_user=postgres
+      - druid_metadata_storage_connector_password=Enter@321
+      - druid_storage_type=local
+      - druid_storage_storageDirectory=/opt/druid/var/segments
+      - druid_indexer_logs_type=file
+      - druid_indexer_logs_directory=/opt/druid/var/logs
+      - druid_s3_disableAcl=true
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=AKIA5V23GCAIKMC65WWQ
+      - AWS_SECRET_ACCESS_KEY=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
+
+  historical:
+    image: apache/druid:33.0.0
+    container_name: historical
+    volumes:
+      - druid_shared:/opt/shared
+      - historical_var:/opt/druid/var
+      - ./druid/_common/common.runtime.properties:/opt/druid/conf/druid/_common/common.runtime.properties:ro
+    depends_on:
+      - zookeeper
+      - coordinator
+    ports:
+      - "8083:8083"
+    command:
+      - historical
+    environment:
+      - druid_zk_service_host=zookeeper
+      - druid_extensions_loadList=["postgresql-metadata-storage", "druid-s3-extensions", "druid-multi-stage-query", "druid-datasketches"]
+      - druid_metadata_storage_type=postgresql
+      - druid_metadata_storage_connector_connectURI=jdbc:postgresql://postgres:5432/sales_analytics
+      - druid_metadata_storage_connector_user=postgres
+      - druid_metadata_storage_connector_password=Enter@321
+      - druid_storage_type=local
+      - druid_storage_storageDirectory=/opt/druid/var/segments
+      - druid_indexer_logs_type=file
+      - druid_indexer_logs_directory=/opt/druid/var/logs
+      - druid_s3_disableAcl=true
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=AKIA5V23GCAIKMC65WWQ
+      - AWS_SECRET_ACCESS_KEY=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
+
+
+  middlemanager:
+    image: apache/druid:33.0.0
+    container_name: middlemanager
+    volumes:
+      - druid_shared:/opt/shared
+      - middle_var:/opt/druid/var
+      - ./druid/_common/common.runtime.properties:/opt/druid/conf/druid/_common/common.runtime.properties:ro
+    depends_on:
+      - zookeeper
+      - coordinator
+    ports:
+      - "8091:8091"
+      - "8100-8105:8100-8105"
+    command:
+      - middleManager
+    environment:
+      - druid_zk_service_host=zookeeper
+      - druid_extensions_loadList=["postgresql-metadata-storage", "druid-s3-extensions", "druid-multi-stage-query", "druid-datasketches"]
+      - druid_metadata_storage_type=postgresql
+      - druid_metadata_storage_connector_connectURI=jdbc:postgresql://postgres:5432/sales_analytics
+      - druid_metadata_storage_connector_user=postgres
+      - druid_metadata_storage_connector_password=Enter@321
+      - druid_storage_type=local
+      - druid_storage_storageDirectory=/opt/druid/var/segments
+      - druid_indexer_logs_type=file
+      - druid_indexer_logs_directory=/opt/druid/var/logs
+      - druid_s3_disableAcl=true
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=AKIA5V23GCAIKMC65WWQ
+      - AWS_SECRET_ACCESS_KEY=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
+
+  router:
+    image: apache/druid:33.0.0
+    container_name: router
+    volumes:
+      - router_var:/opt/druid/var
+      - ./druid/_common/common.runtime.properties:/opt/druid/conf/druid/_common/common.runtime.properties:ro
+    depends_on:
+      - zookeeper
+      - coordinator
+    ports:
+      - "8888:8888"
+    command:
+      - router
+    environment:
+      - druid_zk_service_host=zookeeper
+      - druid_extensions_loadList=["postgresql-metadata-storage", "druid-s3-extensions", "druid-multi-stage-query", "druid-datasketches"]
+      - druid_metadata_storage_type=postgresql
+      - druid_metadata_storage_connector_connectURI=jdbc:postgresql://postgres:5432/sales_analytics
+      - druid_metadata_storage_connector_user=postgres
+      - druid_metadata_storage_connector_password=Enter@321
+      - druid_storage_type=local
+      - druid_storage_storageDirectory=/opt/druid/var/segments
+      - druid_indexer_logs_type=file
+      - druid_indexer_logs_directory=/opt/druid/var/logs
+      - druid_s3_disableAcl=true
+      - AWS_REGION=us-east-1
+      - AWS_ACCESS_KEY_ID=AKIA5V23GCAIKMC65WWQ
+      - AWS_SECRET_ACCESS_KEY=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
+
+
+  # --- Backend API (FastAPI) ---
   backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
-    container_name: dashboard-backend
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sales_analytics_backend
     ports:
       - "8000:8000"
-    environment:
-      - DRUID_BROKER_HOST=druid-broker
-      - DRUID_BROKER_PORT=8888
-      - DRUID_DATASOURCE=sales_data
-      - PYTHONPATH=/app
+    env_file:
+      - ./docker.env
     depends_on:
-      - druid-broker
+      postgres:
+        condition: service_healthy
+      router:
+        condition: service_started
     volumes:
-      - ./backend:/app/backend
-      - ./logs:/app/logs
-    restart: unless-stopped
+      - ./backend:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     healthcheck:
-      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
-  # Frontend service
+  # --- Frontend (React) ---
   frontend:
     build:
-      context: .
-      dockerfile: frontend/Dockerfile
-    container_name: dashboard-frontend
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: sales_analytics_frontend
     ports:
-      - "3000:80"
+      - "3000:3000"
+    env_file:
+      - ./docker.env
     depends_on:
       - backend
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Druid Coordinator
-  druid-coordinator:
-    image: apache/druid:0.23.0
-    container_name: druid-coordinator
-    ports:
-      - "8081:8081"
-    environment:
-      - DRUID_XMX=1g
-      - DRUID_XMS=1g
-      - DRUID_MAXNEWSIZE=250m
-      - DRUID_NEWSIZE=250m
-      - druid_extensions_directory=/opt/druid/extensions
-      - druid_extensions_hadoopDependenciesDir=/opt/hadoop-dependencies
-      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage"]
-      - druid_zk_service_host=zookeeper
-      - druid_metadata_storage_host=postgres
-      - druid_metadata_storage_type=postgresql
-      - druid_metadata_storage_connector_connectURI=jdbc:postgresql://postgres:5432/druid
-      - druid_metadata_storage_connector_user=druid
-      - druid_metadata_storage_connector_password=druid
-      - druid_coordinator_balancer_strategy=cachingCost
-      - druid_indexer_runner_javaOptsArray=["-server", "-Xmx1g", "-Xms1g", "-XX:MaxDirectMemorySize=3g", "-Duser.timezone=UTC", "-Dfile.encoding=UTF-8", "-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager"]
-      - druid_indexer_fork_property_druid_processing_buffer_sizeBytes=268435456
     volumes:
-      - druid_coordinator_var:/opt/druid/var
-    depends_on:
-      - zookeeper
-      - postgres
-    command: coordinator
-    restart: unless-stopped
-
-  # Druid Broker
-  druid-broker:
-    image: apache/druid:0.23.0
-    container_name: druid-broker
-    environment:
-      - DRUID_XMX=1g
-      - DRUID_XMS=1g
-      - DRUID_MAXNEWSIZE=250m
-      - DRUID_NEWSIZE=250m
-      - druid_extensions_directory=/opt/druid/extensions
-      - druid_extensions_hadoopDependenciesDir=/opt/hadoop-dependencies
-      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage"]
-      - druid_zk_service_host=zookeeper
-      - druid_metadata_storage_host=postgres
-      - druid_metadata_storage_type=postgresql
-      - druid_metadata_storage_connector_connectURI=jdbc:postgresql://postgres:5432/druid
-      - druid_metadata_storage_connector_user=druid
-      - druid_metadata_storage_connector_password=druid
-      - druid_broker_http_numConnections=5
-      - druid_server_http_numThreads=40
-      - druid_processing_buffer_sizeBytes=268435456
-      - druid_processing_numMergeBuffers=6
-      - druid_processing_numThreads=2
-      - druid_sql_enable=true
-    volumes:
-      - druid_broker_var:/opt/druid/var
-    depends_on:
-      - zookeeper
-      - postgres
-    command: broker
-    restart: unless-stopped
-
-  # Druid Historical
-  druid-historical:
-    image: apache/druid:0.23.0
-    container_name: druid-historical
-    ports:
-      - "8083:8083"
-    environment:
-      - DRUID_XMX=1g
-      - DRUID_XMS=1g
-      - DRUID_MAXNEWSIZE=250m
-      - DRUID_NEWSIZE=250m
-      - druid_extensions_directory=/opt/druid/extensions
-      - druid_extensions_hadoopDependenciesDir=/opt/hadoop-dependencies
-      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage"]
-      - druid_zk_service_host=zookeeper
-      - druid_metadata_storage_host=postgres
-      - druid_metadata_storage_type=postgresql
-      - druid_metadata_storage_connector_connectURI=jdbc:postgresql://postgres:5432/druid
-      - druid_metadata_storage_connector_user=druid
-      - druid_metadata_storage_connector_password=druid
-      - druid_server_http_numThreads=40
-      - druid_processing_buffer_sizeBytes=268435456
-      - druid_processing_numMergeBuffers=6
-      - druid_processing_numThreads=2
-      - druid_segmentCache_locations=[{"path":"/opt/druid/var/druid/segment-cache","maxSize":10000000000}]
-      - druid_server_maxSize=10000000000
-    volumes:
-      - druid_historical_var:/opt/druid/var
-    depends_on:
-      - zookeeper
-      - postgres
-    command: historical
-    restart: unless-stopped
-
-  # Druid MiddleManager
-  druid-middlemanager:
-    image: apache/druid:0.23.0
-    container_name: druid-middlemanager
-    ports:
-      - "8091:8091"
-    environment:
-      - DRUID_XMX=1g
-      - DRUID_XMS=1g
-      - DRUID_MAXNEWSIZE=250m
-      - DRUID_NEWSIZE=250m
-      - druid_extensions_directory=/opt/druid/extensions
-      - druid_extensions_hadoopDependenciesDir=/opt/hadoop-dependencies
-      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage"]
-      - druid_zk_service_host=zookeeper
-      - druid_metadata_storage_host=postgres
-      - druid_metadata_storage_type=postgresql
-      - druid_metadata_storage_connector_connectURI=jdbc:postgresql://postgres:5432/druid
-      - druid_metadata_storage_connector_user=druid
-      - druid_metadata_storage_connector_password=druid
-      - druid_worker_capacity=4
-      - druid_indexer_runner_javaOptsArray=["-server", "-Xmx1g", "-Xms1g", "-XX:MaxDirectMemorySize=3g", "-Duser.timezone=UTC", "-Dfile.encoding=UTF-8", "-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager"]
-      - druid_indexer_task_baseTaskDir=/opt/druid/var/druid/task
-    volumes:
-      - druid_middlemanager_var:/opt/druid/var
-    depends_on:
-      - zookeeper
-      - postgres
-    command: middleManager
-    restart: unless-stopped
-
-  # Druid Router
-  druid-router:
-    image: apache/druid:0.23.0
-    container_name: druid-router
-    ports:
-      - "8889:8888"
-    environment:
-      - DRUID_XMX=1g
-      - DRUID_XMS=1g
-      - DRUID_MAXNEWSIZE=250m
-      - DRUID_NEWSIZE=250m
-      - druid_extensions_directory=/opt/druid/extensions
-      - druid_extensions_hadoopDependenciesDir=/opt/hadoop-dependencies
-      - druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage"]
-      - druid_zk_service_host=zookeeper
-      - druid_metadata_storage_host=postgres
-      - druid_metadata_storage_type=postgresql
-      - druid_metadata_storage_connector_connectURI=jdbc:postgresql://postgres:5432/druid
-      - druid_metadata_storage_connector_user=druid
-      - druid_metadata_storage_connector_password=druid
-      - druid_router_http_numConnections=50
-      - druid_server_http_numThreads=40
-      - druid_router_http_numMaxThreads=100
-      - druid_router_http_compression=true
-      - druid_router_tierToBrokerMap={"_default_tier":"druid-broker:8888"}
-      - druid_router_defaultBrokerServiceName=druid/broker
-      - druid_router_coordinatorServiceName=druid/coordinator
-      - druid_router_managementProxy_enabled=true
-    volumes:
-      - druid_router_var:/opt/druid/var
-    depends_on:
-      - zookeeper
-      - postgres
-      - druid-broker
-      - druid-coordinator
-    command: router
-    restart: unless-stopped
-
-  # Zookeeper for Druid
-  zookeeper:
-    image: zookeeper:3.8
-    container_name: zookeeper
-    ports:
-      - "2181:2181"
-    environment:
-      - ZOO_MY_ID=1
-      - ZOO_SERVERS=server.1=zookeeper:2888:3888;2181
-    volumes:
-      - zookeeper_data:/data
-      - zookeeper_datalog:/datalog
-    restart: unless-stopped
-
-  # PostgreSQL for Druid metadata
-  postgres:
-    image: postgres:13
-    container_name: postgres
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_DB=druid
-      - POSTGRES_USER=druid
-      - POSTGRES_PASSWORD=druid
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
-    restart: unless-stopped
-
-volumes:
-  druid_coordinator_var:
-  druid_broker_var:
-  druid_historical_var:
-  druid_middlemanager_var:
-  druid_router_var:
-  zookeeper_data:
-  zookeeper_datalog:
-  postgres_data:
-
-networks:
-  default:
-    name: dashboard-network
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev

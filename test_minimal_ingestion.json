@@ -1,0 +1,85 @@
+{
+    "type": "index_parallel",
+    "spec": {
+        "dataSchema": {
+            "dataSource": "test_minimal",
+            "timestampSpec": {
+                "column": "__time",
+                "format": "iso"
+            },
+            "dimensionsSpec": {
+                "dimensions": [
+                    "Branch",
+                    "ProductLine",
+                    "SalesPerson",
+                    "ItemGroup",
+                    "AcctName",
+                    "ItemName",
+                    "CardName"
+                ]
+            },
+            "metricsSpec": [
+                {
+                    "name": "count",
+                    "type": "count"
+                },
+                {
+                    "name": "grossRevenue",
+                    "type": "doubleSum",
+                    "fieldName": "grossRevenue"
+                },
+                {
+                    "name": "returnsValue",
+                    "type": "doubleSum",
+                    "fieldName": "returnsValue"
+                },
+                {
+                    "name": "unitsSold",
+                    "type": "doubleSum",
+                    "fieldName": "unitsSold"
+                },
+                {
+                    "name": "unitsReturned",
+                    "type": "doubleSum",
+                    "fieldName": "unitsReturned"
+                },
+                {
+                    "name": "totalCost",
+                    "type": "doubleSum",
+                    "fieldName": "totalCost"
+                },
+                {
+                    "name": "lineItemCount",
+                    "type": "longSum",
+                    "fieldName": "lineItemCount"
+                }
+            ],
+            "granularitySpec": {
+                "type": "uniform",
+                "segmentGranularity": "DAY",
+                "queryGranularity": "HOUR",
+                "rollup": true
+            }
+        },
+        "ioConfig": {
+            "type": "index_parallel",
+            "inputSource": {
+                "type": "s3",
+                "uris": [
+                    "s3://sales-analytics-01/uploads/test_s3_fix/test_sales_data_20250819_104743.csv"
+                ]
+            },
+            "inputFormat": {
+                "type": "csv",
+                "findColumnsFromHeader": true
+            },
+            "appendToExisting": false
+        },
+        "tuningConfig": {
+            "type": "index_parallel",
+            "partitionsSpec": {
+                "type": "dynamic"
+            }
+        }
+    }
+}

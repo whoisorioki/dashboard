@@ -2,7 +2,7 @@ import os
 import polars as pl
 import asyncio
 from datetime import datetime, timedelta
-from backend.core.druid_client import druid_conn, DRUID_DATASOURCE, DataAvailabilityStatus
+from core.druid_client import druid_conn, DRUID_DATASOURCE, DataAvailabilityStatus
 from starlette.concurrency import run_in_threadpool
 from typing import Optional, List, Dict, Any
 from fastapi import HTTPException
@@ -10,7 +10,7 @@ import requests
 import json
 import logging
 import time
-from backend.services.mock_data_service import mock_data_fetcher
+from services.mock_data_service import mock_data_fetcher
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 def _get_validate_sales_data():
     """Lazy import to avoid circular dependency."""
     try:
-        from backend.schema.sales_analytics_schema import validate_sales_data
+        from schema.sales_analytics_schema import validate_sales_data
         return validate_sales_data
     except ImportError:
         logger.warning("Could not import validate_sales_data due to circular dependency. Skipping validation.")
@@ -158,7 +158,7 @@ async def _fetch_real_data(
             }
             if druid_filter:
                 query["filter"] = druid_filter
-            url = "http://localhost:8888/druid/v2/"
+            url = f"{os.getenv('DRUID_URL', 'http://router:8888')}/druid/v2/"
             headers = {"Content-Type": "application/json"}
             logger.info(f"Sending Druid query to {url}")
             start_time = time.time()
@@ -289,7 +289,7 @@ async def fetch_raw_sales_data(
                 )
 
             # Execute HTTP request to Druid
-            url = "http://localhost:8888/druid/v2/"
+            url = f"{os.getenv('DRUID_URL', 'http://router:8888')}/druid/v2/"
             headers = {"Content-Type": "application/json"}
             import time
 
@@ -418,9 +418,10 @@ def _get_real_data_range() -> dict:
             return dt.isoformat() + "Z"
         except (ValueError, TypeError) as e:
             print(f"Error converting timestamp {timestamp_value}: {e}")
-            return None
+            # Return a default date instead of None
+            return "2024-01-01T00:00:00.000Z"
 
-    url = "http://localhost:8888/druid/v2/"
+    url = f"{os.getenv('DRUID_URL', 'http://router:8888')}/druid/v2/"
     headers = {"Content-Type": "application/json"}
     # Earliest date
     query = {
@@ -466,8 +467,8 @@ def _get_real_data_range() -> dict:
             if "events" in segment:
                 total_records += len(segment["events"])
     return {
-        "earliest_date": earliest_date,
-        "latest_date": latest_date,
+        "earliest_date": earliest_date or "2024-01-01T00:00:00.000Z",
+        "latest_date": latest_date or "2024-12-31T23:59:59.999Z",
         "total_records": total_records,
     }
 

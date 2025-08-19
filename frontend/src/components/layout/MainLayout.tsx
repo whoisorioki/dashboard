@@ -28,6 +28,7 @@ import {
   Insights as InsightsIcon,
   MonetizationOn as MonetizationOnIcon,
   NotificationImportant as NotificationImportantIcon,
+  CloudUpload as DataIngestionIcon,
 } from "@mui/icons-material";
 import { useTheme } from "../../context/ThemeContext";
 import FloatingActionMenu from "../FloatingActionMenu";
@@ -103,6 +104,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
       text: "Profitability Analysis",
       icon: <MonetizationOnIcon />,
       path: "/profitability",
+    },
+    {
+      text: "Data Ingestion",
+      icon: <DataIngestionIcon />,
+      path: "/data-ingestion",
     },
     {
       text: "Alerts & Diagnostics",

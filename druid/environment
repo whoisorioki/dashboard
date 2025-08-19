@@ -17,36 +17,30 @@
 # under the License.
 #
 
-# --- Logging Configuration ---
-druid_emitter_logging_logLevel=debug
+# --- AWS Credentials for S3 ---
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=AKIA5V23GCAIKMC65WWQ
+AWS_SECRET_ACCESS_KEY=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
 
-# --- Druid Extensions ---
-# druid_extensions_loadList=["druid-histogram", "druid-datasketches", "druid-lookups-cached-global", "postgresql-metadata-storage", "druid-multi-stage-query"]
+# --- Druid Extensions (including S3) ---
+druid_extensions_loadList=["postgresql-metadata-storage", "druid-s3-extensions", "druid-multi-stage-query", "druid-datasketches"]
 
 # --- Zookeeper Configuration ---
 druid_zk_service_host=zookeeper
 
 # --- METADATA STORAGE CONFIGURATION ---
 druid_metadata_storage_type=postgresql
-druid_metadata_storage_connector_connectURI=jdbc:postgresql://192.168.1.30:5432/druid_metadata
-druid_metadata_storage_connector_user=druid_meta_user
-druid_metadata_storage_connector_password=druid
+druid_metadata_storage_connector_connectURI=jdbc:postgresql://postgres:5432/sales_analytics
+druid_metadata_storage_connector_user=postgres
+druid_metadata_storage_connector_password=Enter@321
 
-# --- Indexer and Segment/Log Storage Configuration ---
-druid_indexer_runner_javaOptsArray=["-Xms512m","-Xmx512m","-XX:MaxDirectMemorySize=2g","-Duser.timezone=UTC","-Dfile.encoding=UTF-8","-Djava.io.tmpdir=/opt/druid/var/tmp","-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager","-XX:+ExitOnOutOfMemoryError","-XX:+HeapDumpOnOutOfMemoryError","-XX:HeapDumpPath=/opt/druid/var/tmp"]
-druid_indexer_fork_property_druid_processing_buffer_sizeBytes=100MiB
-
+# --- Local Storage Configuration ---
 druid_storage_type=local
-druid_storage_storageDirectory=/opt/shared/segments
+druid_storage_storageDirectory=/opt/druid/var/segments
+
+# --- Indexing service logs (stored locally) ---
 druid_indexer_logs_type=file
-druid_indexer_logs_directory=/opt/shared/indexing-logs
+druid_indexer_logs_directory=/opt/druid/var/logs
 
-# --- Processing Configuration ---
-druid_processing_numThreads=2
-druid_processing_numMergeBuffers=2
-
-# --- Single Node Configuration --- 
-DRUID_SINGLE_NODE_CONF=micro-quickstart
-
-# --- Log4j Configuration ---
-DRUID_LOG4J=<?xml version="1.0" encoding="UTF-8"?><Configuration status="WARN"><Appenders><Console name="Console" target="SYSTEM_OUT"><PatternLayout pattern="%d{ISO8601} %p [%t] %c - %m%n"/></Console></Appenders><Loggers><Root level="info"><AppenderRef ref="Console"/></Root><Logger name="org.apache.druid.jetty.RequestLog" additivity="false" level="DEBUG"><AppenderRef ref="Console"/></Logger></Loggers></Configuration>
+# --- S3-specific configurations ---
+druid_s3_disableAcl=true

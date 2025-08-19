@@ -1,3 +1,4 @@
+import React from "react";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -8,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Sales from "./pages/Sales";
 import Products from "./pages/Products";
 import Branches from "./pages/Branches";
+import DataIngestion from "./pages/DataIngestion";
 import MainLayout from "./components/layout/MainLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { graphqlClient } from "./lib/graphqlClient";
@@ -108,6 +110,14 @@ function App() {
                             element={
                               <ErrorBoundary>
                                 <AlertsDiagnostics />
+                              </ErrorBoundary>
+                            }
+                          />
+                          <Route
+                            path="/data-ingestion"
+                            element={
+                              <ErrorBoundary>
+                                <DataIngestion />
                               </ErrorBoundary>
                             }
                           />

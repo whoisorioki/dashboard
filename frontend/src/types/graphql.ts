@@ -122,14 +122,14 @@ export type MonthlySalesGrowth = {
 
 export type ProductAnalytics = {
   __typename?: 'ProductAnalytics';
-  averagePrice?: Maybe<Scalars['Float']['output']>;
+  averagePrice: Scalars['Float']['output'];
   grossProfit?: Maybe<Scalars['Float']['output']>;
   itemGroup: Scalars['String']['output'];
   itemName: Scalars['String']['output'];
   margin?: Maybe<Scalars['Float']['output']>;
   productLine: Scalars['String']['output'];
-  totalQty?: Maybe<Scalars['Float']['output']>;
-  totalSales?: Maybe<Scalars['Float']['output']>;
+  totalQty: Scalars['Float']['output'];
+  totalSales: Scalars['Float']['output'];
   transactionCount: Scalars['Int']['output'];
   uniqueBranches: Scalars['Int']['output'];
 };
