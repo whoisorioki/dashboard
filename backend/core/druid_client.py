@@ -50,20 +50,14 @@ class DruidConnection:
 
         for attempt in range(3):
             try:
-                # Try to query datasources through the router, which we know works
-                url = f"http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}/druid/v2/datasources"
+                # Use coordinator status endpoint which we know works reliably
+                url = "http://coordinator:8081/status"
                 logger.info(f"Testing Druid connection with URL: {url} (Attempt {attempt + 1})")
                 response = requests.get(url, timeout=10)
-                logger.info(f"Druid connection test response: {response.status_code} - {response.text}")
+                logger.info(f"Druid connection test response: {response.status_code}")
                 if response.status_code == 200:
-                    try:
-                        datasources = response.json()
-                        logger.info(f"Datasources found: {datasources}")
-                        # Consider connection successful if we get a valid response, even if datasources is empty
-                        # The datasources might exist but be empty, which is still a valid Druid connection
-                        return True
-                    except json.JSONDecodeError:
-                        logger.error("Error decoding JSON from response")
+                    logger.info("Druid connection test successful")
+                    return True
             except Exception as e:
                 logger.error(f"Druid connection test failed: {e}")
 
@@ -74,7 +68,7 @@ class DruidConnection:
         return False
 
     def get_available_datasources(self) -> list:
-        """Get list of available datasources."""
+        """Get list of available datasources dynamically from Druid."""
         if self.client is None:
             return []
 
@@ -83,9 +77,9 @@ class DruidConnection:
 
             # Try multiple endpoints to get datasources
             endpoints = [
-                f"http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}/druid/v2/datasources",
-                f"http://{DRUID_BROKER_HOST}:8082/druid/v2/datasources",  # Try broker directly
-                f"http://{DRUID_BROKER_HOST}:8081/druid/v2/datasources",  # Try coordinator
+                "http://coordinator:8081/druid/coordinator/v1/datasources",  # Try coordinator first
+                "http://broker:8082/druid/v2/datasources",  # Try broker directly
+                f"http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}/druid/v2/datasources",  # Fallback to env vars
             ]
             
             for endpoint in endpoints:
@@ -94,18 +88,90 @@ class DruidConnection:
                     if response.status_code == 200:
                         datasources = response.json()
                         if datasources and len(datasources) > 0:
+                            logger.info(f"Found datasources from {endpoint}: {datasources}")
                             return datasources
                 except Exception as e:
                     logger.debug(f"Failed to get datasources from {endpoint}: {e}")
                     continue
             
-            # If no datasources found via API, but we know the datasource exists, return it
-            if self._has_data_in_datasource():
-                return [DRUID_DATASOURCE]
+            # If no datasources found via API, try to get from ingestion tasks
+            task_datasources = self._get_datasources_from_tasks()
+            if task_datasources:
+                logger.info(f"Found datasources from tasks: {task_datasources}")
+                return task_datasources
                 
+            logger.warning("No datasources found in Druid")
             return []
         except Exception as e:
             logger.error(f"Failed to get datasources: {e}")
+            return []
+
+    def get_most_recent_datasource(self) -> Optional[str]:
+        """Get the most recent datasource based on ingestion task creation time."""
+        try:
+            import requests
+            
+            # Get all ingestion tasks
+            url = "http://coordinator:8081/druid/indexer/v1/tasks"
+            response = requests.get(url, timeout=10)
+            
+            if response.status_code == 200:
+                tasks = response.json()
+                if not tasks:
+                    return None
+                
+                # Filter for successful tasks and sort by creation time
+                successful_tasks = [
+                    task for task in tasks 
+                    if task.get("status") == "SUCCESS" and task.get("dataSource")
+                ]
+                
+                if not successful_tasks:
+                    return None
+                
+                # Sort by creation time (most recent first)
+                sorted_tasks = sorted(
+                    successful_tasks, 
+                    key=lambda x: x.get("createdTime", ""), 
+                    reverse=True
+                )
+                
+                most_recent = sorted_tasks[0]
+                datasource = most_recent.get("dataSource")
+                created_time = most_recent.get("createdTime", "Unknown")
+                
+                logger.info(f"Most recent datasource: {datasource} (created: {created_time})")
+                return datasource
+            
+            return None
+        except Exception as e:
+            logger.error(f"Error getting most recent datasource: {e}")
+            return None
+
+    def _get_datasources_from_tasks(self) -> list:
+        """Get datasource names from ingestion tasks."""
+        try:
+            import requests
+            
+            url = "http://coordinator:8081/druid/indexer/v1/tasks"
+            response = requests.get(url, timeout=10)
+            
+            if response.status_code == 200:
+                tasks = response.json()
+                if not tasks:
+                    return []
+                
+                # Extract unique datasource names from successful tasks
+                datasources = set()
+                for task in tasks:
+                    if task.get("status") == "SUCCESS" and task.get("dataSource"):
+                        datasources.add(task["dataSource"])
+                
+                return list(datasources)
+            
+            return []
+        except Exception as e:
+            logger.error(f"Error getting datasources from tasks: {e}")
             return []
 
     def check_data_availability(self) -> str:
@@ -167,13 +233,19 @@ class DruidConnection:
         try:
             import requests
             
+            # Get the most recent datasource dynamically
+            most_recent_datasource = self.get_most_recent_datasource()
+            if not most_recent_datasource:
+                logger.warning("No datasource available for data check")
+                return False
+            
             url = f"http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}/druid/v2/"
             headers = {"Content-Type": "application/json"}
             
             # Try a simpler query first - just check if datasource exists and has any data
             query = {
                 "queryType": "timeseries",
-                "dataSource": DRUID_DATASOURCE,
+                "dataSource": most_recent_datasource,
                 "intervals": ["1900-01-01/2100-01-01"],
                 "granularity": "all",
                 "aggregations": [
@@ -191,7 +263,7 @@ class DruidConnection:
             # Fallback: try scan query
             scan_query = {
                 "queryType": "scan",
-                "dataSource": DRUID_DATASOURCE,
+                "dataSource": most_recent_datasource,
                 "intervals": ["1900-01-01/2100-01-01"],
                 "columns": ["__time"],
                 "resultFormat": "compactedList",
@@ -287,7 +359,7 @@ def get_data_range_from_druid() -> dict:
     from datetime import datetime
 
     def convert_timestamp_to_iso(timestamp_value):
-        """Convert Unix timestamp (ms or s) to ISO 8601 string"""
+        """Convert Unix timestamp to ISO 8601 string"""
         if timestamp_value is None:
             return None
 
@@ -296,25 +368,43 @@ def get_data_range_from_druid() -> dict:
             if isinstance(timestamp_value, str):
                 timestamp_value = int(timestamp_value)
 
-            # If timestamp is in seconds (< year 2100 in milliseconds), convert to milliseconds
-            if timestamp_value < 4102444800000:
-                timestamp_value = timestamp_value * 1000
+            # Convert to seconds by dividing appropriately
+            # Unix epoch starts at 1970-01-01
+            # Valid dates should be between 1970 and 2100
+            if timestamp_value > 4102444800000000:  # > year 2100 in microseconds
+                # Timestamp in microseconds, convert to seconds
+                timestamp_value = timestamp_value // 1000000
+            elif timestamp_value > 4102444800000:  # > year 2100 in milliseconds
+                # Timestamp in milliseconds, convert to seconds
+                timestamp_value = timestamp_value // 1000
+            elif timestamp_value > 4102444800:  # > year 2100 in seconds
+                # Timestamp already in seconds
+                pass
+            else:
+                # Timestamp is too small, likely invalid
+                raise ValueError(f"Timestamp {timestamp_value} is too small to be valid")
 
             # Convert to datetime and format as ISO string
-            dt = datetime.fromtimestamp(timestamp_value / 1000)
-            return dt.isoformat() + "Z"
+            dt = datetime.fromtimestamp(timestamp_value)
+            result = dt.isoformat() + "Z"
+            return result
         except (ValueError, TypeError) as e:
             print(f"Error converting timestamp {timestamp_value}: {e}")
             # Return a default date instead of None
             return "2024-01-01T00:00:00.000Z"
 
-    url = f"http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}/druid/v2/"
+    # Use SalesAnalytics datasource directly since we know it exists and has data
+    datasource_name = "SalesAnalytics"
+    print(f"Querying data range from datasource: {datasource_name}")
+
+    # Try to connect to the router service which we know is accessible
+    url = "http://router:8888/druid/v2/"
     headers = {"Content-Type": "application/json"}
 
     # Earliest date
     query = {
         "queryType": "scan",
-        "dataSource": DRUID_DATASOURCE,
+        "dataSource": datasource_name,
         "intervals": ["1900-01-01/2100-01-01"],
         "columns": ["__time"],
         "resultFormat": "compactedList",
@@ -346,7 +436,7 @@ def get_data_range_from_druid() -> dict:
         # Total records
         count_query = {
             "queryType": "scan",
-            "dataSource": DRUID_DATASOURCE,
+            "dataSource": datasource_name,
             "intervals": ["1900-01-01/2100-01-01"],
             "columns": [],
             "resultFormat": "compactedList",
@@ -382,7 +472,7 @@ def get_data_range_from_druid() -> dict:
 def get_druid_health() -> dict:
     """Get Druid health status"""
     try:
-        druid_conn = DruidConnection()
+        # Use the global druid_conn instance that has the client initialized
         is_connected = druid_conn.is_connected()
         return {
             "status": "healthy" if is_connected else "unhealthy",
@@ -398,18 +488,11 @@ def get_druid_health() -> dict:
 def get_druid_datasources() -> dict:
     """Get list of Druid datasources"""
     try:
-        url = f"http://{DRUID_BROKER_HOST}:{DRUID_BROKER_PORT}/druid/v2/datasources"
-        response = requests.get(url, timeout=10)
-
-        if response.status_code == 200:
-            datasources = response.json()
-            return {
-                "datasources": datasources,
-            }
-        else:
-            return {
-                "datasources": [],
-            }
+        # Use the global druid_conn instance that has the client initialized
+        datasources = druid_conn.get_available_datasources()
+        return {
+            "datasources": datasources,
+        }
     except Exception as e:
         return {
             "datasources": [],

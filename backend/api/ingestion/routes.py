@@ -80,11 +80,19 @@ def ingestion_background_task(task_id: str, file_uri: str, datasource_name: str,
                 print(f"❌ Validation failed after {validation_time:.3f}s")
                 raise Exception(f"File processing failed: {processing_result['error_message']}")
             
+            # Step 2.5: Copy file to shared directory for Druid access
+            copy_start = time.time()
+            shared_file_path = f"/opt/shared/{original_filename}"
+            import shutil
+            shutil.copy2(temp_file_path, shared_file_path)
+            copy_time = time.time() - copy_start
+            print(f"📁 File copied to shared directory in {copy_time:.3f}s: {shared_file_path}")
+            
             # Step 3: Generate Druid ingestion spec
             spec_start = time.time()
             ingestion_spec = druid_service.create_ingestion_spec(
                 datasource_name=datasource_name,
-                s3_uri=file_uri,
+                file_name=original_filename,
                 file_format=processing_result['file_format'],
                 row_count=processing_result['row_count']
             )
@@ -283,6 +291,9 @@ async def test_upload(
     """
     try:
         # Generate S3 filename
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="File must have a filename")
+        
         file_extension = os.path.splitext(file.filename)[1]
         base_filename = os.path.splitext(file.filename)[0]
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")

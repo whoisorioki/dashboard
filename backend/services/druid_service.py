@@ -28,7 +28,7 @@ class DruidService:
         
     def create_ingestion_spec(self, 
                             datasource_name: str, 
-                            s3_uri: str, 
+                            file_name: str, 
                             file_format: str,
                             row_count: int) -> Dict[str, Any]:
         """
@@ -36,7 +36,7 @@ class DruidService:
         
         Args:
             datasource_name: Name of the Druid datasource
-            s3_uri: S3 URI of the data file
+            file_name: Name of the file in the shared directory
             file_format: Format of the file (csv, xlsx, parquet)
             row_count: Number of rows in the dataset
             
@@ -72,8 +72,9 @@ class DruidService:
                 "ioConfig": {
                     "type": "index_parallel",
                     "inputSource": {
-                        "type": "s3",
-                        "uris": [s3_uri]
+                        "type": "local",
+                        "baseDir": "/opt/shared",
+                        "filter": file_name
                     },
                     "inputFormat": input_format,
                     "appendToExisting": False

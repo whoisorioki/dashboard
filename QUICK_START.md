@@ -2,17 +2,25 @@
 
 ## **🚀 Get Started in 3 Steps**
 
-### **Step 1: Start Services**
+### **Step 1: Export AWS credentials (dev only)**
+
+```bash
+export AWS_REGION=us-east-1
+export AWS_ACCESS_KEY_ID=YOUR_KEY
+export AWS_SECRET_ACCESS_KEY=YOUR_SECRET
+```
+
+### **Step 2: Start Services**
 
 ```bash
 docker-compose up -d
 ```
 
-### **Step 2: Access the Dashboard**
+### **Step 3: Access the Dashboard**
 
 Open your browser and go to: **http://localhost:5173**
 
-### **Step 3: Upload Data**
+### **Step 4: Upload Data**
 
 - Use the file upload interface in the dashboard
 - Or use the API: `curl -X POST http://localhost:8000/api/ingest/upload -F "file=@data.csv" -F "datasource_name=test"`

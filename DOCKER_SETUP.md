@@ -66,7 +66,9 @@ The Docker Compose setup includes:
 ```
 Frontend → Backend → PostgreSQL (healthy)
                 ↓
-              Druid Router → Coordinator → Zookeeper
+              Druid Router → Coordinator → Zookeeper (healthy)
+              ↓
+              Broker, Historical, MiddleManager → Coordinator (started)
 ```
 
 ## 📁 File Structure
@@ -99,6 +101,37 @@ docker-compose up -d
 docker-compose logs -f backend
 docker-compose logs -f frontend
 ```
+
+## ✅ Current Working Configuration
+
+### **Druid Services Configuration**
+
+All Druid services now use unified configuration through environment variables in `docker-compose.yml`:
+
+- **Metadata Storage**: PostgreSQL (sales_analytics database)
+- **Deep Storage**: Local storage (`/opt/shared/segments`)
+- **Extensions**: PostgreSQL metadata storage, histogram, datasketches, lookups, multi-stage query
+- **Memory Settings**: Properly configured Java memory (2GB for most services)
+
+### **Volume Mounts**
+
+- **Shared Storage**: `druid_shared:/opt/shared` (for segments and data files)
+- **Metadata**: `druid_metadata:/opt/druid/var` (for Druid metadata)
+- **Service-specific**: Individual service volumes for temporary data
+
+### **Health Checks**
+
+- **PostgreSQL**: `pg_isready` health check
+- **Zookeeper**: Custom health check for coordination service
+- **Backend**: HTTP health check endpoint
+
+### **Recent Fixes Applied**
+
+1. ✅ **Memory Configuration**: Fixed duplicate `-Xmx` prefixes in Java options
+2. ✅ **Service Dependencies**: Proper startup order with health checks
+3. ✅ **Volume Mounts**: Fixed Windows Bash volume mounting issues
+4. ✅ **Configuration Unification**: All services use consistent PostgreSQL metadata storage
+5. ✅ **Frontend Port**: Fixed to run on port 3000 as configured
 
 ### Production Mode
 

@@ -17,22 +17,26 @@ This guide explains how to start the Sales Analytics Dashboard with our refactor
 #### **1. Start Backend Server**
 
 **Windows Command Prompt:**
+
 ```cmd
 start-backend.bat
 ```
 
 **Windows PowerShell:**
+
 ```powershell
 .\start-backend.ps1
 ```
 
 **Windows Git Bash / Linux/Mac:**
+
 ```bash
 chmod +x start-backend.sh
 ./start-backend.sh
 ```
 
 **Manual:**
+
 ```bash
 # Activate virtual environment
 .venv\Scripts\activate  # Windows
@@ -46,6 +50,7 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 **Backend Endpoints:**
+
 - **API**: http://localhost:8000
 - **GraphQL**: http://localhost:8000/graphql
 - **Documentation**: http://localhost:8000/docs
@@ -54,22 +59,26 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 #### **2. Start Frontend Server**
 
 **Windows Command Prompt:**
+
 ```cmd
 start-frontend.bat
 ```
 
 **Windows PowerShell:**
+
 ```powershell
 .\start-frontend.ps1
 ```
 
 **Windows Git Bash / Linux/Mac:**
+
 ```bash
 chmod +x start-frontend.sh
 ./start-frontend.sh
 ```
 
 **Manual:**
+
 ```bash
 # Navigate to frontend
 cd frontend
@@ -85,8 +94,9 @@ npm run dev
 ```
 
 **Frontend Endpoints:**
-- **Application**: http://localhost:5173
-- **Data Ingestion**: http://localhost:5173/data-ingestion
+
+- **Application**: http://localhost:3000
+- **Data Ingestion**: http://localhost:3000/data-ingestion
 
 ### **Option 2: Docker Compose (Full Stack)**
 
@@ -102,6 +112,7 @@ docker-compose down
 ```
 
 **Docker Services:**
+
 - **Backend**: http://localhost:8000
 - **Frontend**: http://localhost:3000
 - **PostgreSQL**: localhost:5433
@@ -112,6 +123,7 @@ docker-compose down
 ### **Windows Users**
 
 **Command Prompt (Recommended):**
+
 ```cmd
 # Backend
 start-backend.bat
@@ -121,6 +133,7 @@ start-frontend.bat
 ```
 
 **PowerShell:**
+
 ```powershell
 # Backend
 .\start-backend.ps1
@@ -130,6 +143,7 @@ start-frontend.bat
 ```
 
 **Git Bash:**
+
 ```bash
 # Backend
 ./start-backend.sh
@@ -180,6 +194,7 @@ npm run codegen
 ### **3. GraphQL Development**
 
 **GraphQL Playground:**
+
 - Visit: http://localhost:8000/graphql
 - Test queries and mutations
 - View schema documentation
@@ -217,6 +232,7 @@ mutation UploadFile($file: Upload!, $dataSourceName: String!) {
 ### **Common Issues**
 
 #### **1. Backend Import Errors**
+
 ```bash
 # Ensure PYTHONPATH is set correctly
 export PYTHONPATH=/path/to/backend
@@ -227,6 +243,7 @@ python -m uvicorn main:app --reload
 ```
 
 #### **2. GraphQL Codegen Fails**
+
 ```bash
 # Ensure backend is running
 curl http://localhost:8000/graphql
@@ -237,6 +254,7 @@ npm run codegen
 ```
 
 #### **3. Virtual Environment Issues**
+
 ```bash
 # Recreate virtual environment
 rm -rf .venv
@@ -247,6 +265,7 @@ pip install -r backend/requirements.txt
 ```
 
 #### **4. Frontend Dependencies**
+
 ```bash
 # Clear and reinstall
 cd frontend
@@ -255,6 +274,7 @@ npm install
 ```
 
 #### **5. Windows Git Bash Issues**
+
 If you're using Git Bash on Windows and encounter path issues:
 
 ```bash
@@ -286,6 +306,7 @@ npm run dev -- --port 5174              # Frontend
 ### **Backend Environment Variables**
 
 Create `backend/.env`:
+
 ```env
 # Database
 DATABASE_URL=postgresql://postgres:password@localhost:5433/sales_analytics
@@ -307,6 +328,7 @@ ENV=development
 ### **Frontend Environment Variables**
 
 Create `frontend/.env`:
+
 ```env
 VITE_API_URL=http://localhost:8000
 VITE_GRAPHQL_URL=http://localhost:8000/graphql
@@ -315,6 +337,7 @@ VITE_GRAPHQL_URL=http://localhost:8000/graphql
 ## **Production Deployment**
 
 ### **Docker Deployment**
+
 ```bash
 # Build and run production containers
 docker-compose -f docker-compose.prod.yml up -d
@@ -324,6 +347,7 @@ docker-compose up -d --scale backend=3
 ```
 
 ### **Manual Deployment**
+
 ```bash
 # Backend
 cd backend
@@ -339,6 +363,7 @@ npx serve -s dist -l 3000
 ## **Monitoring & Logs**
 
 ### **Backend Logs**
+
 ```bash
 # View backend logs
 tail -f backend/logs/app.log
@@ -348,6 +373,7 @@ docker-compose logs -f backend
 ```
 
 ### **Frontend Logs**
+
 ```bash
 # Browser developer tools
 # Network tab for API calls
@@ -357,18 +383,21 @@ docker-compose logs -f backend
 ## **Testing**
 
 ### **Backend Tests**
+
 ```bash
 cd backend
 python -m pytest tests/
 ```
 
 ### **Frontend Tests**
+
 ```bash
 cd frontend
 npm test
 ```
 
 ### **End-to-End Tests**
+
 ```bash
 # Start both services
 ./start-backend.sh &
@@ -381,6 +410,7 @@ npm run test:e2e
 ## **Support**
 
 For issues and questions:
+
 1. Check the troubleshooting section above
 2. Review the logs for error messages
 3. Test individual components

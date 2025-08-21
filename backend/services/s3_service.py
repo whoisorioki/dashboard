@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "sales-analytics-01")
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-AWS_REGION = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
+AWS_REGION = os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION", "us-east-1")
 
 def upload_file_to_s3(file, object_name: str) -> bool:
     """
@@ -35,17 +35,17 @@ def upload_file_to_s3(file, object_name: str) -> bool:
     start_time = time.time()
     
     try:
-        # Create S3 client with credentials
+        # Create S3 client with explicit region and optional credentials
+        session = boto3.session.Session()
         if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
-            s3_client = boto3.client(
+            s3_client = session.client(
                 's3',
+                region_name=AWS_REGION,
                 aws_access_key_id=AWS_ACCESS_KEY_ID,
                 aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-                region_name=AWS_REGION
             )
         else:
-            # Fallback to default credentials (IAM roles, etc.)
-            s3_client = boto3.client('s3', region_name=AWS_REGION)
+            s3_client = session.client('s3', region_name=AWS_REGION)
         
         # Upload file
         s3_client.upload_fileobj(file.file, S3_BUCKET_NAME, object_name)
@@ -73,17 +73,16 @@ def upload_file_to_s3_from_bytes(file_obj, object_name: str) -> bool:
     start_time = time.time()
     
     try:
-        # Create S3 client with credentials
+        session = boto3.session.Session()
         if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
-            s3_client = boto3.client(
+            s3_client = session.client(
                 's3',
+                region_name=AWS_REGION,
                 aws_access_key_id=AWS_ACCESS_KEY_ID,
                 aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-                region_name=AWS_REGION
             )
         else:
-            # Fallback to default credentials (IAM roles, etc.)
-            s3_client = boto3.client('s3', region_name=AWS_REGION)
+            s3_client = session.client('s3', region_name=AWS_REGION)
         
         # Reset file pointer to beginning
         file_obj.seek(0)
@@ -114,17 +113,16 @@ def upload_file_to_s3_from_path(file_path: str, object_name: str) -> bool:
     start_time = time.time()
     
     try:
-        # Create S3 client with credentials
+        session = boto3.session.Session()
         if AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY:
-            s3_client = boto3.client(
+            s3_client = session.client(
                 's3',
+                region_name=AWS_REGION,
                 aws_access_key_id=AWS_ACCESS_KEY_ID,
                 aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
-                region_name=AWS_REGION
             )
         else:
-            # Fallback to default credentials (IAM roles, etc.)
-            s3_client = boto3.client('s3', region_name=AWS_REGION)
+            s3_client = session.client('s3', region_name=AWS_REGION)
         
         # Upload file
         s3_client.upload_file(file_path, S3_BUCKET_NAME, object_name)

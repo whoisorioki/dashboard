@@ -20,7 +20,7 @@ config = context.config
 # Set the database URL from the environment variable with proper URL encoding
 # Add fallback values to prevent None values
 db_user = os.getenv('DB_USER', 'postgres')
-db_password = os.getenv('DB_PASSWORD', 'Enter@321')
+db_password = os.getenv('POSTGRES_PASSWORD', 'Enter@321')
 db_host = os.getenv('DB_HOST', 'localhost')
 db_port = os.getenv('DB_PORT', '5433')
 db_name = os.getenv('DB_NAME', 'sales_analytics')

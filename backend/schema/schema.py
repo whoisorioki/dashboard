@@ -642,33 +642,57 @@ class Query:
     async def data_range(self) -> DataRange:
         """Get the available data range from Druid"""
         try:
-            result = get_data_range_from_druid()
-            earliest_date = result.get("earliest_date", "2024-04-26T00:00:00.000Z")
-            latest_date = result.get("latest_date", "2025-06-30T00:00:00.000Z")
-            total_records = result.get("total_records", 461949)
+            # Check data availability status first
+            from core.druid_client import druid_conn
+            data_status = druid_conn.check_data_availability()
+            
+            # If using mock data, return mock data range
+            if data_status in ["FORCED_MOCK_DATA", "MOCK_DATA_FALLBACK"]:
+                logging.info(f"Using mock data range due to status: {data_status}")
+                return DataRange(
+                    earliest_date="2024-01-01T00:00:00.000Z",
+                    latest_date="2024-12-31T23:59:59.999Z",
+                    total_records=1000,  # Mock record count
+                )
+            
+            # If real data is available, query Druid
+            if data_status == "REAL_DATA_AVAILABLE":
+                from core.druid_client import get_data_range_from_druid
+                result = get_data_range_from_druid()
+                earliest_date = result.get("earliest_date", "2024-01-01T00:00:00.000Z")
+                latest_date = result.get("latest_date", "2024-12-31T23:59:59.999Z")
+                total_records = result.get("total_records", 0)
 
-            def to_iso8601(date_val):
-                if isinstance(date_val, str):
-                    return date_val
-                elif hasattr(date_val, "isoformat"):
-                    return date_val.isoformat() + "Z"
-                else:
-                    return str(date_val)
+                def to_iso8601(date_val):
+                    if isinstance(date_val, str):
+                        return date_val
+                    elif hasattr(date_val, "isoformat"):
+                        return date_val.isoformat() + "Z"
+                    else:
+                        return str(date_val)
 
-            earliest_date = to_iso8601(earliest_date)
-            latest_date = to_iso8601(latest_date)
+                earliest_date = to_iso8601(earliest_date)
+                latest_date = to_iso8601(latest_date)
+                return DataRange(
+                    earliest_date=earliest_date,
+                    latest_date=latest_date,
+                    total_records=total_records,
+                )
+            
+            # Fallback to default values
+            logging.warning(f"No data available, status: {data_status}")
             return DataRange(
-                earliest_date=earliest_date,
-                latest_date=latest_date,
-                total_records=total_records,
+                earliest_date="2024-01-01T00:00:00.000Z",
+                latest_date="2024-12-31T23:59:59.999Z",
+                total_records=0,
             )
         except Exception as e:
             logging.error(f"Error getting data range: {e}")
             # Fallback to hardcoded values if Druid query fails
             return DataRange(
-                earliest_date="2024-04-26T00:00:00.000Z",
-                latest_date="2025-06-30T00:00:00.000Z",
-                total_records=461949,
+                earliest_date="2024-01-01T00:00:00.000Z",
+                latest_date="2024-12-31T23:59:59.999Z",
+                total_records=0,
             )
 
     @strawberry.field(name="dashboardData")
@@ -2319,7 +2343,7 @@ class Query:
         """Get system health status"""
         try:
             # Basic health check - you can expand this with more detailed checks
-            return SystemHealth(status="healthy")
+            return SystemHealth(status="ok")
         except Exception as e:
             logging.error(f"Error in system_health: {e}")
             return SystemHealth(status="unhealthy")
