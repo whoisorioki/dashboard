@@ -1,8 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
+import { ApolloProvider } from '@apollo/client'
 import App from './App.tsx'
 import { fetchAndLogDataRange } from './lib/fetchDataRange';
+import client from './lib/apolloClient';
 
 // Expose for browser console debugging
 // @ts-ignore
@@ -19,9 +21,11 @@ window.fetchAndLogDataRange = fetchAndLogDataRange;
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     {/* <Sentry.ErrorBoundary fallback={<p>An error has occurred</p>}> */}
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
+    <ApolloProvider client={client}>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </ApolloProvider>
     {/* </Sentry.ErrorBoundary> */}
   </React.StrictMode>,
 )

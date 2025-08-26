@@ -21,7 +21,7 @@ import ReactECharts from "echarts-for-react";
 import type { EChartsOption } from "echarts";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
 import ChartEmptyState from "./states/ChartEmptyState";
-import { TargetAttainment } from "../types/graphql";
+import { TargetAttainment } from "../types/dashboard";
 import { formatKshAbbreviated } from "../lib/numberFormat";
 import ExpandableCard from "./ExpandableCard";
 

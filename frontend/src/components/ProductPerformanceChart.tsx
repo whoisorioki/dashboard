@@ -1,25 +1,16 @@
 import { useState } from "react";
 import {
-  Card,
-  CardContent,
-  Typography,
   ToggleButtonGroup,
   ToggleButton,
   Box,
-  Tooltip,
-  IconButton,
 } from "@mui/material";
-import { HelpOutline as HelpOutlineIcon } from "@mui/icons-material";
-import ChartSkeleton from "./skeletons/ChartSkeleton";
-import ChartEmptyState from "./states/ChartEmptyState";
-import { ProductPerformanceQuery } from "../queries/productPerformance.generated";
+import { useDashboardData } from "../queries/dashboardDataWrapper";
 import ChartCard from "./ChartCard";
 import ReactECharts from "echarts-for-react";
 import { formatKshAbbreviated } from "../lib/numberFormat";
-import ExpandableCard from "./ExpandableCard";
 
 interface ProductPerformanceChartProps {
-  data: ProductPerformanceQuery["productPerformance"] | undefined;
+  data: any[] | undefined;
   isLoading: boolean;
 }
 
@@ -41,20 +32,17 @@ const ProductPerformanceChart: React.FC<ProductPerformanceChartProps> = ({
 
   if (isLoading) {
     return (
-      <ExpandableCard title="Product Performance" minHeight={300}>
-        <ChartSkeleton />
-      </ExpandableCard>
+      <ChartCard title="Product Performance" isLoading={true}>
+        <Box sx={{ height: 300, width: '100%' }} />
+      </ChartCard>
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <ExpandableCard title="Product Performance" minHeight={300}>
-        <ChartEmptyState
-          message="No Product Performance Data"
-          subtitle="There are no product performance records for the selected time period. Try adjusting your date range or check if data has been properly recorded."
-        />
-      </ExpandableCard>
+      <ChartCard title="Product Performance" isLoading={false} empty={true}>
+        <Box sx={{ height: 300, width: '100%' }} />
+      </ChartCard>
     );
   }
 
@@ -105,19 +93,25 @@ const ProductPerformanceChart: React.FC<ProductPerformanceChartProps> = ({
     ],
   };
 
-  // Info content for modal
-  const infoContent = (
-    <>
-      <Typography gutterBottom>
-        This bar chart shows the top and bottom performing products by sales. Hover over bars to see detailed values.
-      </Typography>
-    </>
-  );
-
   return (
-    <ExpandableCard title="Product Performance" infoContent={infoContent} minHeight={300}>
+    <ChartCard title="Product Performance" isLoading={false}>
+      <Box sx={{ mb: 2 }}>
+        <ToggleButtonGroup
+          value={viewType}
+          exclusive
+          onChange={handleViewTypeChange}
+          aria-label="view type"
+        >
+          <ToggleButton value="top" aria-label="top performers">
+            Top {n} Performers
+          </ToggleButton>
+          <ToggleButton value="bottom" aria-label="bottom performers">
+            Bottom {n} Performers
+          </ToggleButton>
+        </ToggleButtonGroup>
+      </Box>
       <ReactECharts option={option} style={{ height: 300, width: "100%" }} />
-    </ExpandableCard>
+    </ChartCard>
   );
 };
 

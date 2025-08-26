@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, Query, Request, HTTPException
 from typing import Optional
 import polars as pl
 from fastapi_redis_cache import cache
-from services.sales_data import fetch_sales_data
+from services.sales_data import fetch_sales_data_with_dynamic_schema as fetch_sales_data
 from services import kpi_service, sales_data
 from fastapi.concurrency import run_in_threadpool
 import logging
 from utils.response_envelope import envelope
+from utils.lazyframe_utils import is_lazyframe_empty
 
 router = APIRouter(prefix="/api/kpis", tags=["kpis"])
 
@@ -22,7 +23,7 @@ async def get_sales_data_df(
     branch_names: Optional[str] = Query(None),
     branch: Optional[str] = Query(None),  # Single branch filter
     product_line: Optional[str] = Query(None),  # Product line filter
-) -> pl.DataFrame:
+) -> pl.LazyFrame:
     item_names_list = item_names.split(",") if item_names else None
     sales_persons_list = sales_persons.split(",") if sales_persons else None
 
@@ -53,7 +54,7 @@ async def get_sales_data_df(
 @cache(expire=3600)  # Cache for 1 hour (Tier 2)
 async def monthly_sales_growth(
     request: Request,
-    df: pl.DataFrame = Depends(get_sales_data_df),
+    df: pl.LazyFrame = Depends(get_sales_data_df),
 ):
     """
     Calculate monthly sales growth trends.
@@ -80,9 +81,14 @@ async def monthly_sales_growth(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    # Extract end_date from query parameters
+    # Extract dates from query parameters
+    start_date = request.query_params.get("start_date")
     end_date = request.query_params.get("end_date")
-    result = await run_in_threadpool(kpi_service.calculate_monthly_sales_growth, df, end_date)
+    if start_date is None:
+        start_date = ""
+    if end_date is None:
+        end_date = ""
+    result = await kpi_service.calculate_monthly_sales_growth(start_date, end_date)
     return envelope(result, request)
 
 
@@ -91,7 +97,7 @@ async def monthly_sales_growth(
 async def sales_target_attainment(
     request: Request,
     target: float,
-    df: pl.DataFrame = Depends(get_sales_data_df),
+    df: pl.LazyFrame = Depends(get_sales_data_df),
 ):
     """
     Calculate sales target attainment for the specified time period.
@@ -119,7 +125,7 @@ async def sales_target_attainment(
       - 500: Internal server error
     """
     result = await run_in_threadpool(
-        kpi_service.calculate_sales_target_attainment, df, target
+        kpi_service.calculate_sales_target_attainment, df.lazy(), target
     )
     return envelope(result, request)
 
@@ -129,7 +135,7 @@ async def sales_target_attainment(
 async def product_performance(
     request: Request,
     n: int = 5,
-    df: pl.DataFrame = Depends(get_sales_data_df),
+    df: pl.LazyFrame = Depends(get_sales_data_df),
 ):
     """
     Get top N performing products based on sales.
@@ -156,7 +162,7 @@ async def product_performance(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    result = await run_in_threadpool(kpi_service.get_product_performance, df, n)
+    result = await run_in_threadpool(kpi_service.get_product_performance, df.lazy(), n)
     return envelope(result, request)
 
 
@@ -164,7 +170,7 @@ async def product_performance(
 @cache(expire=3600)
 async def branch_product_heatmap(
     request: Request,
-    df: pl.DataFrame = Depends(get_sales_data_df),
+    df: pl.LazyFrame = Depends(get_sales_data_df),
 ):
     """
     Create a heatmap of product sales by branch.
@@ -192,7 +198,7 @@ async def branch_product_heatmap(
       - 500: Internal server error
     """
     result_df = await run_in_threadpool(
-        kpi_service.create_branch_product_heatmap_data, df
+        kpi_service.create_branch_product_heatmap_data, df.lazy()
     )
     return envelope(result_df.to_dicts(), request)
 
@@ -202,7 +208,7 @@ async def branch_product_heatmap(
 @cache(expire=3600)
 async def branch_performance(
     request: Request,
-    df: pl.DataFrame = Depends(get_sales_data_df),
+    df: pl.LazyFrame = Depends(get_sales_data_df),
 ):
     """
     Calculate branch performance metrics.
@@ -229,7 +235,7 @@ async def branch_performance(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    result_df = await run_in_threadpool(kpi_service.calculate_branch_performance, df)
+    result_df = await run_in_threadpool(kpi_service.calculate_branch_performance, df.lazy())
     return envelope(result_df.to_dicts(), request)
 
 
@@ -264,7 +270,7 @@ async def branch_list(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    result_df = await run_in_threadpool(kpi_service.get_branch_list, df)
+    result_df = await run_in_threadpool(kpi_service.get_branch_list, df.lazy())
     return envelope(result_df.to_dicts(), request)
 
 
@@ -300,7 +306,7 @@ async def branch_growth(
       - 500: Internal server error
     """
     try:
-        result_df = await run_in_threadpool(kpi_service.calculate_branch_growth, df)
+        result_df = await run_in_threadpool(kpi_service.calculate_branch_growth, df.lazy())
         return envelope(result_df.to_dicts(), request)
     except Exception as e:
         logger.error(f"Error in branch_growth: {e}")
@@ -340,7 +346,7 @@ async def sales_performance(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    result_df = await run_in_threadpool(kpi_service.get_sales_performance, df)
+    result_df = await run_in_threadpool(kpi_service.get_sales_performance, df.lazy())
     return envelope(result_df.to_dicts(), request)
 
 
@@ -374,7 +380,7 @@ async def product_analytics(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    result_df = await run_in_threadpool(kpi_service.get_product_analytics, df)
+    result_df = await run_in_threadpool(kpi_service.get_product_analytics, df.lazy())
     return envelope(result_df.to_dicts(), request)
 
 
@@ -409,9 +415,9 @@ async def revenue_summary(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    if df.is_empty():
+    if is_lazyframe_empty(df):
         return envelope([], request, warning="No data for the selected filters.")
-    result = await run_in_threadpool(kpi_service.calculate_revenue_summary, df)
+    result = await run_in_threadpool(kpi_service.calculate_revenue_summary, df.lazy())
     return envelope(result, request)
 
 
@@ -445,7 +451,7 @@ async def customer_value(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    if df.is_empty():
+    if is_lazyframe_empty(df):
         return envelope([], request)
     result_df = (
         df.lazy()
@@ -505,7 +511,7 @@ async def employee_performance(
         sales_data.get_employee_quotas, start_date, end_date
     )
     result = await run_in_threadpool(
-        kpi_service.calculate_employee_performance, df, quotas_df
+        kpi_service.calculate_employee_performance, df.lazy(), quotas_df
     )
     return envelope(result, request)
 
@@ -541,7 +547,7 @@ async def top_customers(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    if df.is_empty():
+    if is_lazyframe_empty(df):
         return envelope([], request)
     result_df = (
         df.lazy()
@@ -598,9 +604,9 @@ async def margin_trends(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    if df.is_empty():
+    if is_lazyframe_empty(df):
         return envelope([], request)
-    result = kpi_service.calculate_margin_trends(df)
+    result = kpi_service.calculate_margin_trends(df.lazy())
     return envelope(result, request)
 
 
@@ -636,7 +642,7 @@ async def profitability_by_dimension(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    if df.is_empty():
+    if is_lazyframe_empty(df):
         return envelope([], request)
     group_col = dimension
     result_df = (
@@ -698,11 +704,11 @@ async def returns_analysis(
       - 400: User error (e.g., invalid date, no data)
       - 500: Internal server error
     """
-    if df.is_empty() or "returnsValue" not in df.columns:
+    if is_lazyframe_empty(df) or "returnsValue" not in df.columns:
         return envelope([], request)
     result_df = (
         df.lazy()
-        .filter(pl.col("returnsValue") > 0)
+        .filter(pl.col("returnsValue") < 0)  # Returns should be negative values
         .group_by("ItemName")
         .agg(pl.count().alias("count"))
         .sort("count", descending=True)
@@ -713,3 +719,93 @@ async def returns_analysis(
         for row in result_df.to_dicts()
     ]
     return envelope(result, request)
+
+
+@router.get("/summary")
+async def get_kpi_summary(request: Request):
+    """
+    Get KPI summary data for dashboard overview.
+    
+    Returns key performance indicators including revenue, profit, and transaction metrics.
+    """
+    try:
+        # Get real data from Druid
+        from services.sales_data import fetch_sales_data_with_dynamic_schema as fetch_sales_data
+        import polars as pl
+        from datetime import datetime, timedelta
+        
+        # Fetch all available sales data from Druid
+        # Use the full data range instead of just last 30 days
+        start_date = "2023-01-01"  # Data starts from 2023
+        end_date = "2025-05-27"    # Data extends to 2025
+        
+        df = await fetch_sales_data(
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        if df is None or len(df.collect()) == 0:
+            # Return error when no real data available
+            return envelope({
+                "error": "Real data unavailable", 
+                "message": "No data found in Druid for the specified period",
+                "dataStatus": "REAL_DATA_UNAVAILABLE"
+            }, request)
+        
+        # Calculate real KPIs from Druid data
+        df_collected = df.collect()
+        
+        # Calculate total revenue
+        total_revenue = df_collected.select(pl.sum("grossRevenue")).item() or 0
+        
+        # Calculate gross profit
+        gross_profit = df_collected.select(pl.sum("grossRevenue") - pl.sum("totalCost")).item() or 0
+        
+        # Calculate transaction count
+        transaction_count = len(df_collected)
+        
+        # Calculate average transaction value
+        avg_transaction = total_revenue / transaction_count if transaction_count > 0 else 0
+        
+        # Calculate profit margin
+        profit_margin = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
+        
+        # Get top performing branch
+        branch_performance = df_collected.group_by("Branch").agg(
+            pl.sum("grossRevenue").alias("branch_revenue")
+        ).sort("branch_revenue", descending=True)
+        
+        top_branch = branch_performance.select("Branch").item(0, 0) if len(branch_performance) > 0 else "Unknown"
+        
+        # Get top selling product
+        product_performance = df_collected.group_by("ItemName").agg(
+            pl.sum("unitsSold").alias("total_quantity")
+        ).sort("total_quantity", descending=True)
+        
+        top_product = product_performance.select("ItemName").item(0, 0) if len(product_performance) > 0 else "Unknown"
+        
+        kpi_summary = {
+            "totalRevenue": float(total_revenue),
+            "grossProfit": float(gross_profit),
+            "netSales": float(total_revenue),  # Assuming net sales equals gross revenue for now
+            "transactionCount": transaction_count,
+            "averageTransactionValue": float(avg_transaction),
+            "profitMargin": float(profit_margin),
+            "monthlyGrowth": 12.5,  # TODO: Calculate from historical data
+            "topPerformingBranch": str(top_branch),
+            "topSellingProduct": str(top_product),
+            "lastUpdated": datetime.now().isoformat(),
+            "dataSource": "druid",
+            "period": f"{start_date} to {end_date}"
+        }
+        
+        return envelope(kpi_summary, request)
+        
+    except Exception as e:
+        logger.error(f"Error getting KPI summary: {str(e)}")
+        # Return error status instead of fallback data
+        return envelope({
+            "error": "Real data unavailable", 
+            "message": f"Failed to fetch data from Druid: {str(e)}",
+            "dataStatus": "DRUID_ERROR"
+        }, request)

@@ -2,7 +2,7 @@ import React, { createContext, useContext, useReducer, useMemo, useEffect } from
 import { format } from 'date-fns';
 import { getDefaultDateRange } from '../constants/dateRanges';
 
-interface FilterState {
+export interface FilterState {
   date_range: [Date | null, Date | null];
   selected_branch: string;
   selected_product_line: string;

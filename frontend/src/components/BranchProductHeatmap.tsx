@@ -1,18 +1,10 @@
 import {
-  Card,
-  CardContent,
-  Typography,
   Box,
-  Tooltip,
-  IconButton,
 } from "@mui/material";
-import { HelpOutline as HelpOutlineIcon } from "@mui/icons-material";
-import ChartSkeleton from "./skeletons/ChartSkeleton";
-import ChartEmptyState from "./states/ChartEmptyState";
-import type { BranchProductHeatmap } from "../types/graphql";
+import type { BranchProductHeatmap } from "../types/dashboard";
 import ReactECharts from "echarts-for-react";
 import { formatKshAbbreviated } from "../lib/numberFormat";
-import ExpandableCard from "./ExpandableCard";
+import ChartCard from "./ChartCard";
 
 interface BranchProductHeatmapProps {
   data: BranchProductHeatmap[] | undefined;
@@ -25,17 +17,17 @@ const BranchProductHeatmap: React.FC<BranchProductHeatmapProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <ExpandableCard title="Branch-Product Sales Heatmap" minHeight={300}>
-        <ChartSkeleton />
-      </ExpandableCard>
+      <ChartCard title="Branch-Product Sales Heatmap" isLoading={true}>
+        <Box sx={{ height: 300, width: '100%' }} />
+      </ChartCard>
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <ExpandableCard title="Branch-Product Sales Heatmap" minHeight={300}>
-        <ChartEmptyState message="No heatmap data available." />
-      </ExpandableCard>
+      <ChartCard title="Branch-Product Sales Heatmap" isLoading={false} empty={true}>
+        <Box sx={{ height: 300, width: '100%' }} />
+      </ChartCard>
     );
   }
 
@@ -103,19 +95,10 @@ const BranchProductHeatmap: React.FC<BranchProductHeatmapProps> = ({
     ],
   };
 
-  // Info content for modal
-  const infoContent = (
-    <>
-      <Typography gutterBottom>
-        This heatmap shows sales volume by branch and product. Darker colors indicate higher sales.
-      </Typography>
-    </>
-  );
-
   return (
-    <ExpandableCard title="Branch-Product Sales Heatmap" infoContent={infoContent} minHeight={300}>
+    <ChartCard title="Branch-Product Sales Heatmap" isLoading={false}>
       <ReactECharts option={option} style={{ height: 300, width: "100%" }} />
-    </ExpandableCard>
+    </ChartCard>
   );
 };
 export default BranchProductHeatmap;

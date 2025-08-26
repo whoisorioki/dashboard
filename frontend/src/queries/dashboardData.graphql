@@ -81,5 +81,64 @@ query DashboardData(
       uniqueBranches
       averagePrice
     }
+    dataAvailabilityStatus {
+      status
+      isMockData
+      isFallback
+      druidConnected
+      message
+    }
+  }
+
+  # System health and data range info
+  systemHealth {
+    status
+  }
+  druidHealth {
+    druidStatus
+    isAvailable
+  }
+  druidDatasources {
+    datasources
+    count
+  }
+  dataRange {
+    earliestDate
+    latestDate
+    totalRecords
+  }
+
+  # Additional data for different pages
+  salesPerformance {
+    salesPerson
+    totalSales
+    grossProfit
+    transactionCount
+    averageSale
+    uniqueBranches
+    uniqueProducts
+    avgMargin
+  }
+
+  salespersonProductMix {
+    salesperson
+    productLine
+    avgProfitMargin
+  }
+
+  branchPerformance {
+    branch
+    totalSales
+    transactionCount
+    averageSale
+    uniqueCustomers
+    uniqueProducts
+  }
+
+  branchGrowth {
+    branch
+    monthYear
+    monthlySales
+    growthPct
   }
 }

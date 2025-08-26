@@ -12,8 +12,8 @@ import {
   TableBody,
   CircularProgress,
 } from "@mui/material";
-import { useSalesPageDataQuery } from "../queries/salesPageData.generated";
-import { SalesPerformance } from "../types/graphql";
+import { useDashboardData } from "../queries/dashboardDataWrapper";
+import { SalesPerformance } from "../types/dashboard";
 import { graphqlClient } from "../lib/graphqlClient";
 import { formatKshAbbreviated } from "../lib/numberFormat";
 import { useFilterStore } from "../store/filterStore";
@@ -41,7 +41,7 @@ const SalespersonLeaderboard: React.FC = () => {
     itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
   }), [start_date, end_date, selected_branch, selected_product_line, selectedItemGroups]);
 
-  const { data, isLoading, error } = useSalesPageDataQuery(
+  const { data, isLoading, error } = useDashboardData(
     graphqlClient,
     {
       startDate: start_date!,
@@ -57,8 +57,8 @@ const SalespersonLeaderboard: React.FC = () => {
   const [sortMetric, setSortMetric] = useState<'totalSales' | 'grossProfit'>(
     'grossProfit'
   );
-  const salespeople = Array.isArray(data?.salesPerformance)
-    ? [...data.salesPerformance]
+  const salespeople = Array.isArray((data as any)?.salesPerformance)
+    ? [...(data as any).salesPerformance]
     : [];
   const sorted = salespeople.sort((a, b) => {
     const aValue = a[sortMetric] ?? 0;

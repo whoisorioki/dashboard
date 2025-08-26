@@ -1,17 +1,10 @@
 import {
-  Card,
-  CardContent,
-  Typography,
   Box,
-  Tooltip,
-  IconButton,
+  Typography,
 } from "@mui/material";
-import { HelpOutline as HelpOutlineIcon } from "@mui/icons-material";
-import ChartSkeleton from "./skeletons/ChartSkeleton";
-import ChartEmptyState from "./states/ChartEmptyState";
-import { MonthlySalesGrowth } from "../types/graphql";
+import { MonthlySalesGrowth } from "../types/dashboard";
 import { formatKshAbbreviated } from "../lib/numberFormat";
-import ExpandableCard from "./ExpandableCard";
+import ChartCard from "./ChartCard";
 import { ResponsiveBar } from '@nivo/bar';
 import { ResponsiveLine } from '@nivo/line';
 import { useNivoTheme } from '../hooks/useNivoTheme';
@@ -28,20 +21,17 @@ const MonthlySalesTrendChart: React.FC<MonthlySalesTrendChartProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <ExpandableCard title="Monthly Sales Trend" minHeight={300}>
-        <ChartSkeleton />
-      </ExpandableCard>
+      <ChartCard title="Monthly Sales Trend" isLoading={true}>
+        <Box sx={{ height: 300, width: '100%' }} />
+      </ChartCard>
     );
   }
 
   if (!data || data.length === 0) {
     return (
-      <ExpandableCard title="Monthly Sales Trend" minHeight={300}>
-        <ChartEmptyState
-          message="No Sales Data Available"
-          subtitle="There are no sales records for the selected time period. Try adjusting your date range or check if data has been properly recorded."
-        />
-      </ExpandableCard>
+      <ChartCard title="Monthly Sales Trend" isLoading={false} empty={true}>
+        <Box sx={{ height: 300, width: '100%' }} />
+      </ChartCard>
     );
   }
 
@@ -77,7 +67,7 @@ const MonthlySalesTrendChart: React.FC<MonthlySalesTrendChartProps> = ({
   );
 
   return (
-    <ExpandableCard title="Sales vs. Profit Trend" infoContent={infoContent} minHeight={500}>
+    <ChartCard title="Sales vs. Profit Trend" isLoading={false}>
       <Box sx={{ height: 500, width: '100%', position: 'relative' }}>
         {/* Bar chart for total sales */}
         <ResponsiveBar
@@ -236,7 +226,7 @@ const MonthlySalesTrendChart: React.FC<MonthlySalesTrendChartProps> = ({
           />
         </Box>
       </Box>
-    </ExpandableCard>
+    </ChartCard>
   );
 };
 

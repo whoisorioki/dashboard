@@ -1,3 +1,4 @@
+import React from "react";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -8,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Sales from "./pages/Sales";
 import Products from "./pages/Products";
 import Branches from "./pages/Branches";
+import DataIngestion from "./pages/DataIngestion";
 import MainLayout from "./components/layout/MainLayout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { graphqlClient } from "./lib/graphqlClient";
@@ -17,8 +19,8 @@ import ProfitabilityAnalysis from "./pages/ProfitabilityAnalysis";
 import AlertsDiagnostics from "./pages/AlertsDiagnostics";
 import { LocalFilterResetProvider } from "./context/LocalFilterResetContext";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { queryClient, localStoragePersister } from "./lib/queryClient";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/queryClient";
 import { useDataVersionPoll } from "./lib/useDataVersionPoll";
 
 // Create a client
@@ -38,13 +40,7 @@ function LayoutWithReset({ children }: { children: React.ReactNode }) {
 function App() {
   useDataVersionPoll(); // Enable monthly data version polling
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{ persister: localStoragePersister }}
-      onSuccess={() => {
-        queryClient.resumePausedMutations();
-      }}
-    >
+    <QueryClientProvider client={queryClient}>
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <ThemeContextProvider>
           <NotificationProvider>
@@ -111,6 +107,14 @@ function App() {
                               </ErrorBoundary>
                             }
                           />
+                          <Route
+                            path="/data-ingestion"
+                            element={
+                              <ErrorBoundary>
+                                <DataIngestion />
+                              </ErrorBoundary>
+                            }
+                          />
                         </Routes>
                       </ProtectedRoute>
                     }
@@ -121,7 +125,7 @@ function App() {
           </NotificationProvider>
         </ThemeContextProvider>
       </LocalizationProvider>
-    </PersistQueryClientProvider>
+    </QueryClientProvider>
   );
 }
 

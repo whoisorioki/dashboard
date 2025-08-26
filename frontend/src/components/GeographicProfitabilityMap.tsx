@@ -2,12 +2,12 @@ import React, { useMemo } from 'react';
 import { ResponsiveChoropleth } from '@nivo/geo';
 import { Box, useTheme, CircularProgress } from '@mui/material';
 import ChartCard from './ChartCard';
-import type { DashboardDataQuery } from '../types/graphql';
+import type { DashboardData } from '../types/dashboard';
 import { useKenyaGeoJson } from '../hooks/useKenyaGeoJson';
 import { enhancedBranchMapping, getBranchCounty, isBranchMapped } from '../utils/locationMapping';
 
 interface GeographicProfitabilityMapProps {
-    data?: DashboardDataQuery['dashboardData']['profitabilityByDimension'];
+    data?: any[];
     isLoading?: boolean;
     error?: Error | null;
 }const GeographicProfitabilityMap: React.FC<GeographicProfitabilityMapProps> = ({

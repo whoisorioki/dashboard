@@ -20,29 +20,23 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
-  Button,
-  CircularProgress,
 } from "@mui/material";
+// Removed centralized layout imports - using Dashboard-style layout
 import {
   Public as RegionIcon,
   TrendingUp as GrowthIcon,
   People as PeopleIcon,
   Store as StoreIcon,
   LocationOn as LocationIcon,
-  RotateLeft as RotateLeftIcon,
 } from "@mui/icons-material";
 import { format } from "date-fns";
 import PageHeader from "../components/PageHeader";
 import KpiCard from "../components/KpiCard";
 import BranchProductHeatmap from "../components/BranchProductHeatmap";
 import { useFilterStore } from "../store/filterStore";
-import { useBranchesPageDataQuery } from "../queries/branchesPageData.generated";
-import { graphqlClient } from "../lib/graphqlClient";
-import ChartEmptyState from "../components/states/ChartEmptyState";
 import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
-import { queryKeys } from "../lib/queryKeys";
-import { useMemo } from "react";
-import DataStateWrapper from "../components/DataStateWrapper";
+import { branchesService } from "../services/branchesService";
+import { useQuery } from '@tanstack/react-query';
 
 const Branches = () => {
   const filterStore = useFilterStore();
@@ -57,12 +51,12 @@ const Branches = () => {
   const end_date = endDate ? format(endDate, 'yyyy-MM-dd') : null;
   const selected_branch = selectedBranches.length === 1 ? selectedBranches[0] : "all";
   const selected_product_line = selectedProductLines.length === 1 ? selectedProductLines[0] : "all";
-  const filters = useMemo(() => ({
-    dateRange: { start: start_date, end: end_date },
-    branch: selected_branch !== "all" ? selected_branch : undefined,
+  const filters = {
+    startDate: format(startDate, 'yyyy-MM-dd'),
+    endDate: format(endDate, 'yyyy-MM-dd'),
     productLine: selected_product_line !== "all" ? selected_product_line : undefined,
-    itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
-  }), [start_date, end_date, selected_branch, selected_product_line, selectedItemGroups]);
+  };
+
   const [selectedMetric, setSelectedMetric] = useState<string>("sales");
   const [sortBy, setSortBy] = useState<string>("sales");
 
@@ -71,23 +65,18 @@ const Branches = () => {
     setSortBy("sales");
   };
 
-  const { data, error, isLoading } = useBranchesPageDataQuery(
-    graphqlClient,
-    {
-      startDate: start_date,
-      endDate: end_date,
-      branch: selected_branch !== "all" ? selected_branch : undefined,
-      productLine: selected_product_line !== "all" ? selected_product_line : undefined,
-      itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
-    },
-    {
-      queryKey: queryKeys.branchPerformance ? queryKeys.branchPerformance(filters) : ["branchPerformance", filters],
-    }
-  );
-  const safeBranchPerformanceData =
-    data?.branchPerformance || [];
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['branchData', filters],
+    queryFn: () => branchesService.getBranchData(
+      start_date || '2023-01-01',
+      end_date || '2025-05-27',
+      selected_branch !== "all" ? selected_branch : undefined,
+      selected_product_line !== "all" ? selected_product_line : undefined
+    ),
+  });
 
-  const safeBranchGrowthData = data?.branchGrowth || [];
+  const safeBranchPerformanceData = (data as any)?.branchPerformance || [];
+  const safeBranchGrowthData = (data as any)?.branchGrowth || [];
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat("en-US").format(value);
@@ -107,26 +96,21 @@ const Branches = () => {
   };
 
   // Calculate aggregate metrics from real data
-  const totalSales =
-    safeBranchPerformanceData?.reduce(
-      (sum, branch) => sum + branch.totalSales,
-      0
-    ) || 0;
-  const totalTransactions =
-    safeBranchPerformanceData?.reduce(
-      (sum, branch) => sum + branch.transactionCount,
-      0
-    ) || 0;
-  const totalCustomers =
-    safeBranchPerformanceData?.reduce(
-      (sum, branch) => sum + branch.uniqueCustomers,
-      0
-    ) || 0;
-  const totalProducts =
-    safeBranchPerformanceData?.reduce(
-      (sum, branch) => sum + branch.uniqueProducts,
-      0
-    ) || 0;
+  const totalSales = safeBranchPerformanceData?.reduce(
+    (sum, branch) => sum + branch.totalSales, 0
+  ) || 0;
+
+  const totalTransactions = safeBranchPerformanceData?.reduce(
+    (sum, branch) => sum + branch.transactionCount, 0
+  ) || 0;
+
+  const totalCustomers = safeBranchPerformanceData?.reduce(
+    (sum, branch) => sum + branch.uniqueCustomers, 0
+  ) || 0;
+
+  const totalProducts = safeBranchPerformanceData?.reduce(
+    (sum, branch) => sum + branch.uniqueProducts, 0
+  ) || 0;
 
   // Calculate average growth from growth data
   const latestGrowthData = safeBranchGrowthData?.reduce(
@@ -139,13 +123,11 @@ const Branches = () => {
     {}
   );
 
-  const averageGrowth =
-    latestGrowthData && Object.values(latestGrowthData).length > 0
-      ? Object.values(latestGrowthData).reduce(
-        (sum, item) => sum + (item.growthPct || 0),
-        0
-      ) / Object.values(latestGrowthData).length
-      : 0;
+  const averageGrowth = latestGrowthData && Object.values(latestGrowthData).length > 0
+    ? (Object.values(latestGrowthData).reduce(
+      (sum, item: any) => sum + (item.growthPct || 0), 0
+    ) as number) / Object.values(latestGrowthData).length
+    : 0;
 
   // Sort branches based on selected criteria
   const sortedBranches = safeBranchPerformanceData
@@ -192,12 +174,14 @@ const Branches = () => {
         subtitle="Kenya branch analysis and location insights"
         icon={<LocationIcon />}
       />
-      <Grid container spacing={{ xs: 2, sm: 3 }}>
+
+      {/* Branch Overview */}
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: 3 }}>
         {/* Summary KPI Cards */}
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
             title="Total Sales"
-            value={totalSales}
+            value={formatKshAbbreviated(totalSales)}
             icon={<StoreIcon />}
             tooltipText="Combined revenue across all branches for the selected period"
             isLoading={isLoading}
@@ -206,7 +190,7 @@ const Branches = () => {
             sparklineData={totalSalesSparkline}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
             title="Total Transactions"
             value={formatNumber(totalTransactions)}
@@ -217,7 +201,7 @@ const Branches = () => {
             sparklineData={totalTransactionsSparkline}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
             title="Unique Customers"
             value={formatNumber(totalCustomers)}
@@ -228,7 +212,7 @@ const Branches = () => {
             sparklineData={totalCustomersSparkline}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} lg={3}>
           <KpiCard
             title="Products Sold"
             value={formatNumber(totalProducts)}
@@ -239,8 +223,13 @@ const Branches = () => {
             sparklineData={totalProductsSparkline}
           />
         </Grid>
+      </Grid>
+
+      {/* Branch Performance Details */}
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mt: 2 }}>
         {/* Branch Performance Table */}
         <Grid item xs={12} lg={8}>
+          {/* Branch Performance Table */}
           <Card>
             <CardContent>
               <Box
@@ -283,7 +272,7 @@ const Branches = () => {
                   </FormControl>
                 </Stack>
               </Box>
-              <DataStateWrapper isLoading={isLoading} error={error} data={safeBranchPerformanceData} emptyMessage="No branch performance data available.">
+              {sortedBranches.length > 0 ? (
                 <TableContainer component={Paper} variant="outlined">
                   <Table size="small">
                     <TableHead>
@@ -294,7 +283,7 @@ const Branches = () => {
                         <TableCell align="right">Avg. Sale</TableCell>
                         <TableCell align="right">Customers</TableCell>
                         <TableCell align="right">Growth</TableCell>
-                        <TableCell align="right">Performance</TableCell>
+                        <TableCell align="center">Performance</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -364,14 +353,13 @@ const Branches = () => {
                             </TableCell>
                             <TableCell align="right">
                               <Chip
-                                label={`${growth >= 0 ? "+" : ""
-                                  }${formatPercentage(growth)}`}
+                                label={`${growth >= 0 ? "+" : ""}${formatPercentage(growth)}`}
                                 color={getGrowthColor(growth)}
                                 size="small"
                                 variant="filled"
                               />
                             </TableCell>
-                            <TableCell align="right">
+                            <TableCell align="center">
                               <Box sx={{ width: "100%", mr: 1 }}>
                                 <LinearProgress
                                   variant="determinate"
@@ -392,7 +380,6 @@ const Branches = () => {
                                   {formatPercentage(
                                     (branch.totalSales / target) * 100
                                   )}
-                                  %
                                 </Typography>
                               </Box>
                             </TableCell>
@@ -402,34 +389,38 @@ const Branches = () => {
                     </TableBody>
                   </Table>
                 </TableContainer>
-              </DataStateWrapper>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 3 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No branch performance data available
+                  </Typography>
+                </Box>
+              )}
             </CardContent>
           </Card>
-        </Grid>
-        {/* Branch Product Heatmap */}
-        <Grid item xs={12} lg={4}>
+
+          {/* Branch Product Heatmap */}
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Product Performance by Branch
               </Typography>
-              <DataStateWrapper isLoading={isLoading} error={error} data={heatmapData} emptyMessage="No branch-product heatmap data available.">
-                <BranchProductHeatmap
-                  data={heatmapData}
-                  isLoading={false}
-                />
-              </DataStateWrapper>
+              <BranchProductHeatmap
+                data={heatmapData}
+                isLoading={isLoading}
+              />
             </CardContent>
           </Card>
         </Grid>
-        {/* Additional Analytics Cards */}
+
+        {/* Branch Analytics */}
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Top Performing Branches
               </Typography>
-              <DataStateWrapper isLoading={isLoading} error={error} data={sortedBranches} emptyMessage="No branch data available.">
+              {sortedBranches.length > 0 ? (
                 <Stack spacing={2}>
                   {sortedBranches.slice(0, 5).map((branch, index) => (
                     <Box
@@ -455,17 +446,25 @@ const Branches = () => {
                     </Box>
                   ))}
                 </Stack>
-              </DataStateWrapper>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 3 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No branch data available
+                  </Typography>
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Grid>
+
+        {/* Branch Growth Summary */}
         <Grid item xs={12} md={6}>
           <Card>
             <CardContent>
               <Typography variant="h6" gutterBottom>
                 Branch Growth Summary
               </Typography>
-              <DataStateWrapper isLoading={isLoading} error={error} data={sortedBranches} emptyMessage="No branch data available.">
+              {sortedBranches.length > 0 ? (
                 <Stack spacing={2}>
                   {sortedBranches.slice(0, 5).map((branch, index) => {
                     const growth = getBranchGrowth(branch.branch);
@@ -497,7 +496,13 @@ const Branches = () => {
                     );
                   })}
                 </Stack>
-              </DataStateWrapper>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 3 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No branch data available
+                  </Typography>
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Grid>

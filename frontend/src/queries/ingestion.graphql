@@ -1,0 +1,116 @@
+scalar Upload
+scalar DateTime
+scalar Date
+scalar Currency
+scalar JSON
+
+type IngestionTaskStatus {
+  taskId: String!
+  status: String!
+  datasourceName: String!
+  originalFilename: String!
+  fileSize: Int
+  createdAt: String!
+}
+
+type RevenueSummary {
+  totalRevenue: Float!
+  totalSales: Int!
+  averageOrderValue: Float!
+  revenueGrowth: Float!
+  salesGrowth: Float!
+}
+
+type TopCustomerEntry {
+  customerName: String!
+  totalRevenue: Float!
+  orderCount: Int!
+  averageOrderValue: Float!
+}
+
+type MonthlySalesGrowth {
+  month: String!
+  revenue: Float!
+  growth: Float!
+  previousMonthRevenue: Float!
+}
+
+type SystemHealth {
+  status: String!
+  timestamp: String!
+  version: String!
+}
+
+type DruidHealth {
+  status: String!
+  broker: String!
+  coordinator: String!
+  historical: String!
+  middleManager: String!
+}
+
+type DruidDatasource {
+  name: String!
+  segmentCount: Int!
+  size: String!
+  lastUpdated: String!
+}
+
+type DataRange {
+  earliestDate: String!
+  latestDate: String!
+  totalDays: Int!
+}
+
+type SalesPerformance {
+  revenueSummary: RevenueSummary!
+  topCustomers: [TopCustomerEntry!]!
+  monthlyGrowth: [MonthlySalesGrowth!]!
+}
+
+type SalespersonProductMix {
+  salespersonName: String!
+  productName: String!
+  quantity: Int!
+  revenue: Float!
+  percentage: Float!
+}
+
+type BranchPerformance {
+  branchName: String!
+  revenue: Float!
+  sales: Int!
+  growth: Float!
+}
+
+type BranchGrowth {
+  branchName: String!
+  currentPeriod: Float!
+  previousPeriod: Float!
+  growth: Float!
+}
+
+type DataVersion {
+  lastIngestionTime: String!
+}
+
+type Query {
+  getIngestionTaskStatus(taskId: String!): IngestionTaskStatus
+  listIngestionTasks(limit: Int = 10, offset: Int = 0): [IngestionTaskStatus!]!
+
+  # Dashboard queries
+  dashboardData: SalesPerformance
+  systemHealth: SystemHealth
+  druidHealth: DruidHealth
+  druidDatasources: [DruidDatasource!]!
+  dataRange: DataRange
+  salesPerformance: SalesPerformance
+  salespersonProductMix: [SalespersonProductMix!]!
+  branchPerformance: [BranchPerformance!]!
+  branchGrowth: [BranchGrowth!]!
+  dataVersion: DataVersion
+}
+
+type Mutation {
+  uploadSalesData(file: Upload!, dataSourceName: String!): IngestionTaskStatus!
+}

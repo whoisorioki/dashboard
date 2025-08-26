@@ -13,8 +13,8 @@ import {
   CircularProgress,
 } from "@mui/material";
 import ExpandableCard from "./ExpandableCard";
-import { useProductAnalyticsQuery } from "../queries/productAnalytics.generated";
-import { ProductAnalytics } from "../types/graphql";
+import { useDashboardData } from "../queries/dashboardDataWrapper";
+import { ProductAnalytics } from "../types/dashboard";
 import { graphqlClient } from "../lib/graphqlClient";
 import { formatKshAbbreviated } from "../lib/numberFormat";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
@@ -30,7 +30,7 @@ const ProductPerformanceTable: React.FC = () => {
     productLine: selected_product_line !== "all" ? selected_product_line : undefined,
     branch: selected_branch !== "all" ? selected_branch : undefined,
   }), [start_date, end_date, selected_product_line, selected_branch]);
-  const { data, isLoading, error } = useProductAnalyticsQuery(
+  const { data, isLoading, error } = useDashboardData(
     graphqlClient,
     {
       startDate: start_date!,
@@ -114,7 +114,7 @@ const ProductPerformanceTable: React.FC = () => {
           </TableHead>
           <TableBody>
             {topProducts.map((row, index) => (
-              <TableRow key={`${row.itemName}-${index}`}> 
+              <TableRow key={`${row.itemName}-${index}`}>
                 <TableCell>{row.itemName}</TableCell>
                 <TableCell>{row.productLine}</TableCell>
                 <TableCell>{row.itemGroup}</TableCell>

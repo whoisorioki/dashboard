@@ -5,16 +5,16 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy package files
-COPY frontend/package*.json ./
+COPY package*.json ./
 
-# Install dependencies (including dev dependencies)
+# Install dependencies
 RUN npm ci
 
-# Copy frontend code
-COPY frontend/ ./
+# Copy source code
+COPY . .
 
 # Expose port
 EXPOSE 3000
 
 # Start development server
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+CMD ["npm", "run", "dev"]

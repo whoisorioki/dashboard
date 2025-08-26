@@ -1,5 +1,5 @@
 import { Card, CardContent, Typography } from "@mui/material";
-import { useProductsPageDataQuery } from "../queries/productsPageData.generated";
+import { useDashboardData } from "../queries/dashboardDataWrapper";
 import { graphqlClient } from "../lib/graphqlClient";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
 import ChartEmptyState from "./states/ChartEmptyState";
@@ -29,7 +29,7 @@ const ReturnsAnalysis: React.FC = () => {
     productLine: selected_product_line !== "all" ? selected_product_line : undefined,
     itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
   }), [start_date, end_date, selected_branch, selected_product_line, selectedItemGroups]);
-  const { data, error, isLoading } = useProductsPageDataQuery(
+  const { data, error, isLoading } = useDashboardData(
     graphqlClient,
     {
       startDate: start_date ?? undefined,

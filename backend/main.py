@@ -1,16 +1,22 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import UploadFile, File
 import os
 from dotenv import load_dotenv
 from api.routes import router
 from api.kpi_routes import router as kpi_router
+from api.ingestion.routes import router as ingestion_router
+from api.chart_routes import router as chart_router
+from api.table_routes import router as table_router
+from api.filter_routes import router as filter_router
+from api.ingestion_routes import router as ingestion_api_router
 from core.druid_client import lifespan, druid_conn
 from schema import schema
 import strawberry.fastapi
 from schema import Query
 import strawberry
-from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
+from strawberry.file_uploads import Upload
 from fastapi import Request, Response
 from fastapi_redis_cache import FastApiRedisCache
 
@@ -57,6 +63,10 @@ app = FastAPI(
             "name": "health",
             "description": "System health checks and connectivity monitoring",
         },
+        {
+            "name": "ingestion",
+            "description": "Data ingestion and file upload endpoints",
+        },
     ],
 )
 
@@ -89,12 +99,56 @@ app.add_middleware(
 app.include_router(router)
 app.include_router(kpi_router)
 
-# Add the Strawberry GraphQL router
-graphql_app = strawberry.fastapi.GraphQLRouter(schema)
-app.include_router(graphql_app, prefix="/graphql")
+# Add redirect for legacy KPI endpoint
+@app.get("/api/kpi/summary")
+async def redirect_kpi_summary():
+    """Redirect legacy /api/kpi/summary to /api/kpis/summary"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/api/kpis/summary", status_code=307)
+
+# Include the new route files
+app.include_router(chart_router)
+app.include_router(table_router)
+app.include_router(filter_router)
+app.include_router(ingestion_api_router)
+
+# Include the ingestion router with a prefix and tags for organization
+app.include_router(ingestion_router, prefix="/api/ingest", tags=["ingestion"])
+
+# Add the Strawberry GraphQL router with file upload support
+graphql_app = strawberry.fastapi.GraphQLRouter(
+    schema,
+    path="/graphql",
+    graphiql=True,
+    allow_queries_via_get=True,
+)
+app.include_router(graphql_app)
 
 
 @app.get("/")
 async def health_check():
     """Root health check endpoint."""
     return {"status": "ok"}
+
+
+@app.get("/health")
+async def health_endpoint():
+    """Health check endpoint for frontend monitoring."""
+    return {"status": "ok"}
+
+
+@app.get("/api/health")
+async def api_health_endpoint():
+    """API health check endpoint for frontend monitoring."""
+    return {"status": "ok"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "backend.main:app",
+        host=API_HOST,
+        port=API_PORT,
+        reload=DEBUG,
+        log_level="info"
+    )

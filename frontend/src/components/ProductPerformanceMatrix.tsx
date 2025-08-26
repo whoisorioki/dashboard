@@ -1,5 +1,5 @@
 import { Card, CardContent, Typography } from "@mui/material";
-import { useMarginTrendsQuery } from "../queries/marginTrends.generated";
+import { useDashboardData } from "../queries/dashboardDataWrapper";
 import { graphqlClient } from "../lib/graphqlClient";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
 import ChartEmptyState from "./states/ChartEmptyState";
@@ -15,7 +15,7 @@ const ProductPerformanceMatrix: React.FC<ProductPerformanceMatrixProps> = ({
   startDate,
   endDate,
 }) => {
-  const { data, error, isLoading } = useMarginTrendsQuery(graphqlClient, { startDate, endDate });
+  const { data, error, isLoading } = useDashboardData(graphqlClient, { startDate, endDate });
 
   const chartData = data?.marginTrends ?? [];
 

@@ -20,14 +20,7 @@ const ControlBar: React.FC<ControlBarProps> = ({ branchOptions, productLineOptio
 
   return (
     <FilterBar
-      startDate={date_range[0] ? dayjs(date_range[0]) : null}
-      endDate={date_range[1] ? dayjs(date_range[1]) : null}
-      onDateRangeChange={setDateRange}
-      branch={selected_branch || "all"}
-      onBranchChange={setSelectedBranch}
       branchOptions={branchOptions}
-      productLine={selected_product_line || "all"}
-      onProductLineChange={setSelectedProductLine}
       productLineOptions={productLineOptions}
     />
   );
