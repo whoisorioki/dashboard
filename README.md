@@ -10,6 +10,14 @@ A modern, scalable analytics dashboard built with React, FastAPI, and Apache Dru
 - ✅ **Clean Architecture**: Streamlined, maintainable codebase
 - ✅ **Comprehensive Documentation**: Streamlined setup and operation guides
 
+## **📚 Quick Documentation Navigation**
+
+**🚀 Getting Started**: [docs/QUICK_START.md](docs/QUICK_START.md)  
+**📊 System Status**: [docs/COMPREHENSIVE_SYSTEM_REPORT.md](docs/COMPREHENSIVE_SYSTEM_REPORT.md)  
+**🏗️ Architecture**: [docs/ARCHITECTURE_GUIDE.md](docs/ARCHITECTURE_GUIDE.md)  
+**⚙️ Configuration**: [docs/CONFIGURATION_GUIDE.md](docs/CONFIGURATION_GUIDE.md)  
+**📁 All Documentation**: [docs/MASTER_INDEX.md](docs/MASTER_INDEX.md)
+
 ## **🏗️ Architecture**
 
 ```
@@ -83,10 +91,22 @@ docker-compose -f config/docker-compose.yml logs -f
 
 ```
 dashboard/
+├── README.md          # 🎯 MAIN NAVIGATION HUB (this file)
 ├── frontend/          # React dashboard (TypeScript + Material-UI)
 ├── backend/           # FastAPI server (Python + Strawberry GraphQL)
 ├── config/            # Configuration files (Docker, environment)
-├── docs/              # Documentation
+├── docs/              # 📚 CONSOLIDATED DOCUMENTATION (12 essential files)
+│   ├── COMPREHENSIVE_SYSTEM_REPORT.md  # ⭐ Main system report
+│   ├── QUICK_START.md                  # 🚀 Getting started guide
+│   ├── ARCHITECTURE_GUIDE.md           # 🏗️ System architecture
+│   ├── CONFIGURATION_GUIDE.md          # ⚙️ Setup & configuration
+│   ├── TECHNICAL_REFERENCE.md          # 📚 API & technical details
+│   ├── DATA_INGESTION_GUIDE.md         # 🚀 Data ingestion (add-on)
+│   ├── METRICS_AND_KPIS.md             # 📊 Metrics & KPIs
+│   ├── DEPLOYMENT_GUIDE.md             # 🚀 Production deployment
+│   ├── TROUBLESHOOTING_GUIDE.md        # 🔧 Problem resolution
+│   ├── MASTER_INDEX.md                 # 📁 Navigation guide
+│   └── ARCHITECTURE_DIAGRAM.md         # 🏗️ Detailed diagrams
 ├── scripts/           # Utility and testing scripts
 ├── data/              # Sample data files
 └── alembic/           # Database migrations
@@ -96,42 +116,41 @@ dashboard/
 
 ### **🎯 Essential Documents**
 
-1. **[COMPREHENSIVE_SYSTEM_REPORT.md](COMPREHENSIVE_SYSTEM_REPORT.md)** ⭐ **MAIN SYSTEM REPORT**
+1. **[docs/COMPREHENSIVE_SYSTEM_REPORT.md](docs/COMPREHENSIVE_SYSTEM_REPORT.md)** ⭐ **MAIN SYSTEM REPORT**
 
    - Complete system status and technical details
    - Component consistency audit results
    - Implementation phases and current status
    - Performance metrics and system health
 
-2. **[QUICK_START.md](QUICK_START.md)** 🚀 **Getting Started**
+2. **[docs/QUICK_START.md](docs/QUICK_START.md)** 🚀 **Getting Started**
 
    - Essential setup instructions
    - Environment configuration
    - First-time user guide
 
-3. **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** 🚀 **Production Deployment**
+3. **[docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)** 🚀 **Production Deployment**
 
    - Production environment setup
    - Docker configuration
    - Monitoring and maintenance
 
-4. **[TROUBLESHOOTING_GUIDE.md](TROUBLESHOOTING_GUIDE.md)** 🔧 **Problem Resolution**
+4. **[docs/TROUBLESHOOTING_GUIDE.md](docs/TROUBLESHOOTING_GUIDE.md)** 🔧 **Problem Resolution**
    - Common issues and solutions
    - System maintenance
    - Performance optimization
 
 ### **🔧 Technical Reference**
 
-- **[API_DOCUMENTATION.md](API_DOCUMENTATION.md)** - GraphQL API reference
-- **[ARCHITECTURE_DIAGRAM.md](ARCHITECTURE_DIAGRAM.md)** - System architecture details
-- **[DOCKER_SETUP.md](DOCKER_SETUP.md)** - Docker configuration guide
-- **[DRUID_CONFIGURATION.md](DRUID_CONFIGURATION.md)** - Druid setup and configuration
+- **[docs/TECHNICAL_REFERENCE.md](docs/TECHNICAL_REFERENCE.md)** - **CONSOLIDATED** API, contracts, and component mapping
+- **[docs/ARCHITECTURE_GUIDE.md](docs/ARCHITECTURE_GUIDE.md)** - **CONSOLIDATED** System architecture and data pipeline
+- **[docs/CONFIGURATION_GUIDE.md](docs/CONFIGURATION_GUIDE.md)** - **CONSOLIDATED** Docker, Druid, AWS, and environment setup
+- **[docs/METRICS_AND_KPIS.md](docs/METRICS_AND_KPIS.md)** - **CONSOLIDATED** Metrics standardization and KPIs
 
 ### **📊 Data & Analytics**
 
-- **[DATA_PIPELINE.md](DATA_PIPELINE.md)** - Data flow and processing
-- **[METRICS_STANDARDIZATION.md](METRICS_STANDARDIZATION.md)** - KPIs and metrics guide
-- **[FRONTEND_BACKEND_MAPPING.md](FRONTEND_BACKEND_MAPPING.md)** - Component mapping
+- **[docs/DATA_INGESTION_GUIDE.md](docs/DATA_INGESTION_GUIDE.md)** - **CONSOLIDATED** Data ingestion (add-on feature)
+- **[docs/MASTER_INDEX.md](docs/MASTER_INDEX.md)** - **Navigation Guide** to all documentation
 
 ## **🔧 Development**
 
@@ -202,5 +221,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 **Last Updated**: 2025-08-26  
-**Status**: **PRODUCTION READY** 🚀  
-**Documentation**: **CONSOLIDATED & STREAMLINED** 📚
+**Status**: **PRODUCTION READY**
