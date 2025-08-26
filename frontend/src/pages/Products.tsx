@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Box,
   Grid,
@@ -36,13 +35,10 @@ import PageHeader from "../components/PageHeader";
 import KpiCard from "../components/KpiCard";
 import ProductPerformanceChart from "../components/ProductPerformanceChart";
 import { useFilterStore } from "../store/filterStore";
-import { useDashboardData } from "../queries/dashboardData.generated";
-import { graphqlClient } from "../lib/graphqlClient";
 import ChartEmptyState from "../components/states/ChartEmptyState";
 import { formatKshAbbreviated, formatPercentage } from "../lib/numberFormat";
-import { queryKeys } from "../lib/queryKeys";
-import { useMemo } from "react";
-import DataStateWrapper from "../components/DataStateWrapper";
+import { useMemo, useState } from "react";
+import { useQuery } from '@tanstack/react-query';
 
 const Products = () => {
   const filterStore = useFilterStore();
@@ -71,22 +67,52 @@ const Products = () => {
     setSortBy("totalSales");
   };
 
-  const { data, error, isLoading } = useDashboardData(
-    graphqlClient,
-    {
-      startDate: start_date,
-      endDate: end_date,
-      branch: selected_branch !== "all" ? selected_branch : undefined,
-      productLine: selected_product_line !== "all" ? selected_product_line : undefined,
-      itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
-    },
-    {
-      queryKey: queryKeys.productAnalytics(filters),
-    }
-  );
-  const safeProductData = data?.productAnalytics || [];
+  // Fetch data using React Query - call the detailed product analytics endpoint directly
+  const { data: productAnalyticsData, isLoading: isProductAnalyticsLoading } = useQuery({
+    queryKey: ['productAnalytics', filters],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        start_date: start_date || '2023-01-01',
+        end_date: end_date || '2025-05-27',
+        ...(selected_branch !== "all" && { branch: selected_branch }),
+        ...(selected_product_line !== "all" && { product_line: selected_product_line })
+      });
 
-  const safeRevenueSummary = data?.revenueSummary;
+      const response = await fetch(`/api/kpis/product-analytics?${params}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result = await response.json();
+      return result.data || [];
+    },
+  });
+
+  // Fetch basic product performance for charts
+  const { data: productPerformanceData, isLoading: isProductPerformanceLoading } = useQuery({
+    queryKey: ['productPerformance', filters],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        start_date: start_date || '2023-01-01',
+        end_date: end_date || '2025-05-27',
+        ...(selected_branch !== "all" && { branch: selected_branch }),
+        ...(selected_product_line !== "all" && { product_line: selected_product_line })
+      });
+
+      const response = await fetch(`/kpis/product-performance?${params}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result = await response.json();
+      return result.data || [];
+    },
+  });
+
+  const productData = productAnalyticsData || [];
+  const productPerformance = productPerformanceData || [];
+
+  const safeProductData = productData || [];
+  const safeRevenueSummary = { uniqueProducts: safeProductData.length };
+  const isLoading = isProductAnalyticsLoading || isProductPerformanceLoading;
 
   const formatNumber = (value: number) => {
     return new Intl.NumberFormat("en-US").format(value);
@@ -101,25 +127,25 @@ const Products = () => {
 
   // Filter and sort product data
   const filteredData =
-    safeProductData.filter((product) => {
+    safeProductData.filter((product: any) => {
       const categoryMatch =
-        selectedCategory === "all" || product.itemGroup === selectedCategory;
+        selectedCategory === "all" || product.ProductLine === selectedCategory;
       // Note: selectedProductLine is now applied globally at API level
       return categoryMatch;
     }) || [];
 
-  const sortedProductData = [...filteredData].sort((a, b) => {
+  const sortedProductData = [...filteredData].sort((a: any, b: any) => {
     switch (sortBy) {
       case "totalSales":
-        return b.totalSales - a.totalSales;
+        return b.total_sales - a.total_sales;
       case "grossProfit":
         return b.grossProfit - a.grossProfit;
       case "totalQty":
-        return b.totalQty - a.totalQty;
+        return b.total_qty - a.total_qty;
       case "transactionCount":
-        return b.transactionCount - a.transactionCount;
+        return b.transaction_count - a.transaction_count;
       case "averagePrice":
-        return b.averagePrice - a.averagePrice;
+        return b.average_price - a.average_price;
       default:
         return 0;
     }
@@ -127,24 +153,24 @@ const Products = () => {
 
   // Calculate metrics
   const totalProductSales = filteredData.reduce(
-    (sum, product) => sum + product.totalSales,
+    (sum, product: any) => sum + product.total_sales,
     0
   );
   const totalQuantitySold = filteredData.reduce(
-    (sum, product) => sum + product.totalQty,
+    (sum, product: any) => sum + product.total_qty,
     0
   );
   const avgProductSales =
     filteredData.length > 0 ? totalProductSales / filteredData.length : 0;
 
   // Get unique categories for filters
-  const uniqueCategories = [
-    ...new Set((safeProductData || []).map((p) => p.itemGroup).filter(Boolean)),
+  const uniqueCategories: string[] = [
+    ...new Set((safeProductData as any[] || []).map((p: any) => p.ProductLine as string).filter(Boolean)),
   ];
 
   // Prepare placeholder sparkline data for the last 12 periods (flat line)
-  const makeFlatSparkline = (value) => Array(12).fill(0).map((_, i) => ({ x: `P${i + 1}`, y: value }));
-  const totalProductsValue = safeRevenueSummary?.uniqueProducts || 0;
+  const makeFlatSparkline = (value: number) => Array(12).fill(0).map((_, i) => ({ x: `P${i + 1}`, y: value }));
+  const totalProductsValue = safeProductData.length || 0;
   const totalProductSalesValue = totalProductSales;
   const totalQuantitySoldValue = totalQuantitySold;
   const avgProductSalesValue = avgProductSales;
@@ -164,58 +190,50 @@ const Products = () => {
       <Grid container spacing={{ xs: 2, sm: 3 }}>
         {/* KPI Cards */}
         <Grid item xs={12} sm={6} md={3}>
-          <DataStateWrapper isLoading={isLoading} error={error} data={safeProductData} emptyMessage="No product data available.">
-            <KpiCard
-              title="Total Products"
-              value={formatNumber(safeRevenueSummary?.uniqueProducts || 0)}
-              icon={<InventoryIcon />}
-              tooltipText="Total number of unique products"
-              isLoading={false}
-              color="primary"
-              sparklineData={totalProductsSparkline}
-            />
-          </DataStateWrapper>
+          <KpiCard
+            title="Total Products"
+            value={formatNumber(safeRevenueSummary?.uniqueProducts || 0)}
+            icon={<InventoryIcon />}
+            tooltipText="Total number of unique products"
+            isLoading={isLoading}
+            color="primary"
+            sparklineData={totalProductsSparkline}
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <DataStateWrapper isLoading={isLoading} error={error} data={safeProductData} emptyMessage="No product data available.">
-            <KpiCard
-              title="Product Revenue"
-              value={totalProductSales}
-              icon={<PriceIcon />}
-              tooltipText="Total revenue from selected products"
-              isLoading={false}
-              color="success"
-              metricKey="totalSales"
-              sparklineData={productRevenueSparkline}
-            />
-          </DataStateWrapper>
+          <KpiCard
+            title="Product Revenue"
+            value={totalProductSales}
+            icon={<PriceIcon />}
+            tooltipText="Total revenue from selected products"
+            isLoading={isLoading}
+            color="success"
+            metricKey="totalSales"
+            sparklineData={productRevenueSparkline}
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <DataStateWrapper isLoading={isLoading} error={error} data={safeProductData} emptyMessage="No product data available.">
-            <KpiCard
-              title="Units Sold"
-              value={formatNumber(totalQuantitySold)}
-              icon={<CartIcon />}
-              tooltipText="Total quantity of products sold"
-              isLoading={false}
-              color="info"
-              sparklineData={unitsSoldSparkline}
-            />
-          </DataStateWrapper>
+          <KpiCard
+            title="Units Sold"
+            value={formatNumber(totalQuantitySold)}
+            icon={<CartIcon />}
+            tooltipText="Total quantity of products sold"
+            isLoading={isLoading}
+            color="info"
+            sparklineData={unitsSoldSparkline}
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <DataStateWrapper isLoading={isLoading} error={error} data={safeProductData} emptyMessage="No product data available.">
-            <KpiCard
-              title="Avg Product Value"
-              value={avgProductSales}
-              icon={<TrendingUpIcon />}
-              tooltipText="Average sales value per product"
-              isLoading={false}
-              color="warning"
-              metricKey="avgDealSize"
-              sparklineData={avgProductValueSparkline}
-            />
-          </DataStateWrapper>
+          <KpiCard
+            title="Avg Product Value"
+            value={avgProductSales}
+            icon={<TrendingUpIcon />}
+            tooltipText="Average sales value per product"
+            isLoading={isLoading}
+            color="warning"
+            metricKey="avgDealSize"
+            sparklineData={avgProductValueSparkline}
+          />
         </Grid>
 
         {/* Product Performance Chart */}
@@ -225,17 +243,15 @@ const Products = () => {
               <Typography variant="h6" gutterBottom>
                 Product Performance Chart
               </Typography>
-              <DataStateWrapper isLoading={isLoading} error={error} data={safeProductData} emptyMessage="No product data available.">
-                <ProductPerformanceChart
-                  data={
-                    safeProductData.map((p) => ({
-                      product: p.itemName,
-                      sales: p.totalSales,
-                    })) ?? []
-                  }
-                  isLoading={false}
-                />
-              </DataStateWrapper>
+              <ProductPerformanceChart
+                data={
+                  productPerformance.map((p: any) => ({
+                    product: p.product,
+                    sales: p.sales,
+                  })) ?? []
+                }
+                isLoading={isLoading}
+              />
             </CardContent>
           </Card>
         </Grid>
@@ -247,32 +263,39 @@ const Products = () => {
               <Typography variant="h6" gutterBottom>
                 Top Selling Products
               </Typography>
-              <Stack spacing={2}>
-                {sortedProductData.slice(0, 5).map((product, index) => (
-                  <Box
-                    key={`${product.itemName}-${product.productLine}-${index}`}
-                    sx={{ display: "flex", alignItems: "center", gap: 2 }}
-                  >
-                    <Avatar
-                      sx={{ width: 32, height: 32, bgcolor: "primary.main" }}
+              {sortedProductData.length > 0 ? (
+                <Stack spacing={2}>
+                  {sortedProductData.slice(0, 5).map((product: any, index) => (
+                    <Box
+                      key={`${product.ItemName}-${index}`}
+                      sx={{ display: "flex", alignItems: "center", gap: 2 }}
                     >
-                      {index + 1}
-                    </Avatar>
-                    <Box sx={{ flexGrow: 1 }}>
-                      <Typography variant="body2" fontWeight="medium" noWrap>
-                        {product.itemName}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {product.productLine} • {formatNumber(product.totalQty)}{" "}
-                        units
+                      <Avatar
+                        sx={{ width: 32, height: 32, bgcolor: "primary.main" }}
+                      >
+                        {index + 1}
+                      </Avatar>
+                      <Box sx={{ flexGrow: 1 }}>
+                        <Typography variant="body2" fontWeight="medium" noWrap>
+                          {product.ItemName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {formatNumber(product.total_qty)} units
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2" fontWeight="medium">
+                        {formatKshAbbreviated(product.total_sales)}
                       </Typography>
                     </Box>
-                    <Typography variant="body2" fontWeight="medium">
-                      {formatKshAbbreviated(product.totalSales)}
-                    </Typography>
-                  </Box>
-                ))}
-              </Stack>
+                  ))}
+                </Stack>
+              ) : (
+                <Box sx={{ textAlign: 'center', py: 3 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No product data available
+                  </Typography>
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -354,9 +377,9 @@ const Products = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {sortedProductData.slice(0, 20).map((product, index) => (
+                    {sortedProductData.slice(0, 20).map((product: any, index) => (
                       <TableRow
-                        key={`${product.itemName}-${product.productLine}-${index}`}
+                        key={`${product.ItemName}-${index}`}
                         sx={{
                           "&:nth-of-type(odd)": {
                             backgroundColor: "action.hover",
@@ -370,19 +393,19 @@ const Products = () => {
                               fontWeight="medium"
                               noWrap
                             >
-                              {product.itemName}
+                              {product.ItemName}
                             </Typography>
                             <Typography
                               variant="caption"
                               color="text.secondary"
                             >
-                              {product.itemName}
+                              {product.ProductLine}
                             </Typography>
                           </Box>
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={product.itemGroup}
+                            label={product.ProductLine}
                             size="small"
                             color="secondary"
                             variant="outlined"
@@ -391,7 +414,7 @@ const Products = () => {
                         </TableCell>
                         <TableCell>
                           <Chip
-                            label={product.productLine}
+                            label={product.ItemGroup}
                             size="small"
                             color="primary"
                             variant="filled"
@@ -399,37 +422,37 @@ const Products = () => {
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2" fontWeight="medium">
-                            {formatKshAbbreviated(product.totalSales)}
+                            {formatKshAbbreviated(product.total_sales)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2" color="success.main">
-                            {formatKshAbbreviated(product.grossProfit)}
+                            {formatKshAbbreviated(product.grossProfit || 0)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2">
-                            {formatPercentage(product.margin || 0)}
+                            {formatPercentage(product.grossProfit || 0)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2">
-                            {formatNumber(product.totalQty)}
+                            {formatNumber(product.total_qty)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2">
-                            {formatKshAbbreviated(product.averagePrice)}
+                            {formatKshAbbreviated(product.average_price)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Typography variant="body2">
-                            {formatNumber(product.transactionCount)}
+                            {formatNumber(product.transaction_count)}
                           </Typography>
                         </TableCell>
                         <TableCell align="right">
                           <Chip
-                            label={product.uniqueBranches}
+                            label={product.unique_branches}
                             size="small"
                             color="info"
                             variant="outlined"
@@ -439,13 +462,13 @@ const Products = () => {
                           <Chip
                             label={
                               (
-                                (product.totalSales / (avgProductSales || 1)) *
+                                (product.total_sales / (avgProductSales || 1)) *
                                 100
                               ).toFixed(0) + "%"
                             }
                             size="small"
                             color={getPerformanceColor(
-                              product.totalSales,
+                              product.total_sales,
                               avgProductSales
                             )}
                             variant="filled"

@@ -1,8 +1,5 @@
 import React, { useMemo } from "react";
 import {
-  Card,
-  CardContent,
-  Typography,
   TableContainer,
   Paper,
   Table,
@@ -11,14 +8,13 @@ import {
   TableCell,
   TableBody,
 } from "@mui/material";
-import ChartSkeleton from "./skeletons/ChartSkeleton";
-import { useDashboardData } from "../queries/dashboardData.generated";
+import { useDashboardData } from "../queries/dashboardDataWrapper";
 import { graphqlClient } from "../lib/graphqlClient";
-import ChartEmptyState from "./states/ChartEmptyState";
 import { formatKshAbbreviated } from "../lib/numberFormat";
 import { useFilterStore } from "../store/filterStore";
 import { queryKeys } from "../lib/queryKeys";
 import { format } from "date-fns";
+import ChartCard from "./ChartCard";
 
 const TopCustomerAnalysis: React.FC = () => {
   const filterStore = useFilterStore();
@@ -55,51 +51,53 @@ const TopCustomerAnalysis: React.FC = () => {
 
   const customers = data?.topCustomers ?? [];
 
-  if (isLoading) return <ChartSkeleton />;
-  if (error)
+  if (isLoading) {
     return (
-      <ChartEmptyState
-        isError
-        message={
-          error instanceof Error
-            ? error.message
-            : "Failed to load top customer analysis."
-        }
-        subtitle="An error occurred while loading top customer analysis. Please try again."
-        onRetry={refetch}
-      />
+      <ChartCard title="Top Customer Analysis" isLoading={true}>
+        <div />
+      </ChartCard>
     );
-  if (!customers.length)
-    return <ChartEmptyState message="No customer data available." />;
+  }
+
+  if (error) {
+    return (
+      <ChartCard title="Top Customer Analysis" isLoading={false} error={error}>
+        <div />
+      </ChartCard>
+    );
+  }
+
+  if (!customers.length) {
+    return (
+      <ChartCard title="Top Customer Analysis" isLoading={false} empty={true}>
+        <div />
+      </ChartCard>
+    );
+  }
 
   return (
-    <Card>
-      <CardContent>
-        <Typography variant="h6" gutterBottom>
-          Top Customer Analysis
-        </Typography>
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Customer</TableCell>
-                <TableCell align="right">Total Sales</TableCell>
-                <TableCell align="right">Gross Profit</TableCell>
+    <ChartCard title="Top Customer Analysis" isLoading={false}>
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Customer</TableCell>
+              <TableCell align="right">Total Sales</TableCell>
+              <TableCell align="right">Gross Profit</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {customers.map((row, index) => (
+              <TableRow key={`${row.cardName}-${index}`}>
+                <TableCell>{row.cardName}</TableCell>
+                <TableCell align="right">{formatKshAbbreviated(row.salesAmount)}</TableCell>
+                <TableCell align="right">{formatKshAbbreviated(row.grossProfit)}</TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {customers.map((row, index) => (
-                <TableRow key={`${row.cardName}-${index}`}>
-                  <TableCell>{row.cardName}</TableCell>
-                  <TableCell align="right">{formatKshAbbreviated(row.salesAmount)}</TableCell>
-                  <TableCell align="right">{formatKshAbbreviated(row.grossProfit)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </CardContent>
-    </Card>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </ChartCard>
   );
 };
 

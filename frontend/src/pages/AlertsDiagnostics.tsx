@@ -2,7 +2,7 @@ import { Box, Typography, Paper } from '@mui/material';
 import PageHeader from '../components/PageHeader';
 import { NotificationImportant as NotificationImportantIcon } from '@mui/icons-material';
 import ConnectionStatus from '../components/ConnectionStatus';
-import { useDashboardData } from "../queries/dashboardData.generated";
+import { useDashboardData } from "../queries/dashboardDataWrapper";
 import { graphqlClient } from "../lib/graphqlClient";
 
 const AlertsDiagnostics = () => {

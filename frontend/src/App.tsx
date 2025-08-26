@@ -19,8 +19,8 @@ import ProfitabilityAnalysis from "./pages/ProfitabilityAnalysis";
 import AlertsDiagnostics from "./pages/AlertsDiagnostics";
 import { LocalFilterResetProvider } from "./context/LocalFilterResetContext";
 import ErrorBoundary from "./components/ErrorBoundary";
-import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
-import { queryClient, localStoragePersister } from "./lib/queryClient";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./lib/queryClient";
 import { useDataVersionPoll } from "./lib/useDataVersionPoll";
 
 // Create a client
@@ -40,13 +40,7 @@ function LayoutWithReset({ children }: { children: React.ReactNode }) {
 function App() {
   useDataVersionPoll(); // Enable monthly data version polling
   return (
-    <PersistQueryClientProvider
-      client={queryClient}
-      persistOptions={{ persister: localStoragePersister }}
-      onSuccess={() => {
-        queryClient.resumePausedMutations();
-      }}
-    >
+    <QueryClientProvider client={queryClient}>
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <ThemeContextProvider>
           <NotificationProvider>
@@ -131,7 +125,7 @@ function App() {
           </NotificationProvider>
         </ThemeContextProvider>
       </LocalizationProvider>
-    </PersistQueryClientProvider>
+    </QueryClientProvider>
   );
 }
 

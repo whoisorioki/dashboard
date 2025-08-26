@@ -17,18 +17,17 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Assume Druid is running on localhost. Use environment variables in production.
-DRUID_BROKER_HOST = os.getenv("DRUID_BROKER_HOST", "localhost")
+DRUID_BROKER_HOST = os.getenv("DRUID_BROKER_HOST", "router")
 DRUID_BROKER_PORT = int(os.getenv("DRUID_BROKER_PORT", 8888))
-DRUID_DATASOURCE = os.getenv("DRUID_DATASOURCE", "sales_analytics")
+DRUID_DATASOURCE = os.getenv("DRUID_DATASOURCE", "SalesAnalytics_Fixed")
 
 # Import mock data configuration
-from config.mock_data_config import USE_MOCK_DATA, FORCE_MOCK_DATA, MOCK_DATA_FALLBACK
+from config.mock_data_config import USE_MOCK_DATA, MOCK_DATA_FALLBACK
 
 class DataAvailabilityStatus:
     """Enum-like class for data availability status"""
     REAL_DATA_AVAILABLE = "real_data_available"
     MOCK_DATA_FALLBACK = "mock_data_fallback"
-    FORCED_MOCK_DATA = "forced_mock_data"
     NO_DATA_AVAILABLE = "no_data_available"
 
 class DruidConnection:
@@ -177,22 +176,10 @@ class DruidConnection:
     def check_data_availability(self) -> str:
         """
         Check data availability and return appropriate status.
-        This method determines whether to use real data, mock data, or fallback.
+        This method determines whether to use real data or mock data fallback.
         """
         import time
         
-        # If forced mock data is enabled, return immediately
-        if FORCE_MOCK_DATA:
-            self._connection_status = DataAvailabilityStatus.FORCED_MOCK_DATA
-            logger.info("Using forced mock data mode")
-            return self._connection_status
-
-        # If mock data is explicitly enabled, use it
-        if USE_MOCK_DATA:
-            self._connection_status = DataAvailabilityStatus.FORCED_MOCK_DATA
-            logger.info("Using explicit mock data mode")
-            return self._connection_status
-
         # Check if we need to perform a health check
         current_time = time.time()
         if current_time - self._last_health_check < self._health_check_interval:
@@ -291,7 +278,7 @@ class DruidConnection:
             "datasources": self.get_available_datasources(),
             "config": {
                 "use_mock_data": USE_MOCK_DATA,
-                "force_mock_data": FORCE_MOCK_DATA,
+                "force_mock_data": False, # FORCE_MOCK_DATA is removed
                 "mock_data_fallback": MOCK_DATA_FALLBACK,
                 "druid_host": DRUID_BROKER_HOST,
                 "druid_port": DRUID_BROKER_PORT,
@@ -318,7 +305,7 @@ async def lifespan(app: FastAPI):
         )
 
         # Skip connection test when forcing mock data
-        if FORCE_MOCK_DATA:
+        if False: # FORCE_MOCK_DATA is removed
             print("Skipping Druid connection test - using forced mock data")
         else:
             # Test the connection
@@ -374,7 +361,7 @@ def get_data_range_from_druid() -> dict:
             if timestamp_value > 4102444800000000:  # > year 2100 in microseconds
                 # Timestamp in microseconds, convert to seconds
                 timestamp_value = timestamp_value // 1000000
-            elif timestamp_value > 4102444800000:  # > year 2100 in milliseconds
+            elif timestamp_value > 1000000000000:  # > year 2001 in milliseconds
                 # Timestamp in milliseconds, convert to seconds
                 timestamp_value = timestamp_value // 1000
             elif timestamp_value > 4102444800:  # > year 2100 in seconds
@@ -433,21 +420,24 @@ def get_data_range_from_druid() -> dict:
                     raw_latest = result[0]["events"][0][0]
                     latest_date = convert_timestamp_to_iso(raw_latest)
 
-        # Total records
+        # Total records - Use a more reliable count method
         count_query = {
-            "queryType": "scan",
+            "queryType": "timeseries",
             "dataSource": datasource_name,
             "intervals": ["1900-01-01/2100-01-01"],
-            "columns": [],
-            "resultFormat": "compactedList",
+            "granularity": "all",
+            "aggregations": [
+                {"type": "count", "name": "total_records"}
+            ]
         }
         response = requests.post(url, json=count_query, headers=headers, timeout=30)
         total_records = 0
         if response.status_code == 200:
             count_result = response.json()
-            for segment in count_result:
-                if "events" in segment:
-                    total_records += len(segment["events"])
+            if count_result and len(count_result) > 0:
+                total_records = count_result[0].get("result", {}).get("total_records", 0)
+        else:
+            print(f"Count query failed with status {response.status_code}: {response.text}")
 
         # Ensure we have valid dates
         if not earliest_date or earliest_date == "1970-01-01T03:00:00Z":
@@ -497,3 +487,33 @@ def get_druid_datasources() -> dict:
         return {
             "datasources": [],
         }
+
+def get_primary_datasource_name() -> str:
+    """Get the primary datasource name for sales analytics"""
+    try:
+        # First try to get from available datasources
+        datasources = druid_conn.get_available_datasources()
+        
+        # Look for SalesAnalytics (case-insensitive)
+        for ds in datasources:
+            if ds.lower() == "salesanalytics":
+                return ds
+        
+        # If not found, check if we can query the coordinator directly
+        url = "http://router:8888/druid/coordinator/v1/datasources"
+        headers = {"Content-Type": "application/json"}
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            available_ds = response.json()
+            for ds in available_ds:
+                if ds.lower() == "salesanalytics":
+                    return ds
+        
+        # Fallback to the known name
+        return "SalesAnalytics"
+        
+    except Exception as e:
+        print(f"Error getting primary datasource name: {e}")
+        # Fallback to the known name
+        return "SalesAnalytics"

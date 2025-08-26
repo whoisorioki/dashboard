@@ -12,7 +12,7 @@ import {
   TableBody,
   CircularProgress,
 } from "@mui/material";
-import { useDashboardData } from "../queries/dashboardData.generated";
+import { useDashboardData } from "../queries/dashboardDataWrapper";
 import { graphqlClient } from "../lib/graphqlClient";
 import { formatKshAbbreviated } from "../lib/numberFormat";
 import { useFilters } from "../context/FilterContext";

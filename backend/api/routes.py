@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from typing import Optional
 import requests
 from datetime import datetime, timezone
-from services.sales_data import fetch_sales_data
+from services.sales_data import fetch_sales_data_with_dynamic_schema as fetch_sales_data
 from core.druid_client import druid_conn
 from utils.response_envelope import envelope
 import logging

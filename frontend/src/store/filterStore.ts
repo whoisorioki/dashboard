@@ -31,11 +31,11 @@ export type FilterStore = {
   resetToDefaults: () => void; // Development only
 };
 
-// Default dates for initial state - use December 2024 where we know data exists
+// Default dates for initial state - use full data range where we know data exists
 const getDefaultDates = () => {
-  // Use December 2024 where we know data exists from the logs
-  const startOfMonth = new Date(2024, 11, 1); // December 1, 2024
-  const endOfMonth = new Date(2024, 11, 31); // December 31, 2024
+  // Use full data range where we know data exists from the backend
+  const startOfMonth = new Date(2023, 0, 1); // January 1, 2023
+  const endOfMonth = new Date(2025, 4, 27); // May 27, 2025
   return { startOfMonth, endOfMonth };
 };
 

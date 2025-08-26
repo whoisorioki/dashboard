@@ -13,8 +13,8 @@ import {
   CircularProgress,
 } from "@mui/material";
 import ExpandableCard from "./ExpandableCard";
-import { useDashboardData } from "../queries/dashboardData.generated";
-import { ProductAnalytics } from "../types/graphql";
+import { useDashboardData } from "../queries/dashboardDataWrapper";
+import { ProductAnalytics } from "../types/dashboard";
 import { graphqlClient } from "../lib/graphqlClient";
 import { formatKshAbbreviated } from "../lib/numberFormat";
 import ChartSkeleton from "./skeletons/ChartSkeleton";

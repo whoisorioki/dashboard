@@ -6,6 +6,10 @@ from dotenv import load_dotenv
 from api.routes import router
 from api.kpi_routes import router as kpi_router
 from api.ingestion.routes import router as ingestion_router
+from api.chart_routes import router as chart_router
+from api.table_routes import router as table_router
+from api.filter_routes import router as filter_router
+from api.ingestion_routes import router as ingestion_api_router
 from core.druid_client import lifespan, druid_conn
 from schema import schema
 import strawberry.fastapi
@@ -94,6 +98,19 @@ app.add_middleware(
 # Include the regular API routes
 app.include_router(router)
 app.include_router(kpi_router)
+
+# Add redirect for legacy KPI endpoint
+@app.get("/api/kpi/summary")
+async def redirect_kpi_summary():
+    """Redirect legacy /api/kpi/summary to /api/kpis/summary"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/api/kpis/summary", status_code=307)
+
+# Include the new route files
+app.include_router(chart_router)
+app.include_router(table_router)
+app.include_router(filter_router)
+app.include_router(ingestion_api_router)
 
 # Include the ingestion router with a prefix and tags for organization
 app.include_router(ingestion_router, prefix="/api/ingest", tags=["ingestion"])

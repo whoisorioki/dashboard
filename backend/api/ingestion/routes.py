@@ -1,9 +1,10 @@
 import os
 import time
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Dict, Any
 from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
+from models.ingestion_task import IngestionTask
 from db.session import SessionLocal
 from services import s3_service
 from crud import crud_ingestion_task
@@ -53,14 +54,24 @@ def ingestion_background_task(task_id: str, file_uri: str, datasource_name: str,
         
         # Step 1: Download file from S3 for processing
         download_start = time.time()
-        temp_file_path = download_file_from_s3(file_uri, original_filename)
-        download_time = time.time() - download_start
         
-        if not temp_file_path:
-            print(f"❌ S3 download failed after {download_time:.3f}s")
-            raise Exception("Failed to download file from S3")
-        
-        print(f"⬇️  S3 file download completed in {download_time:.3f}s")
+        # Handle both S3 and local file URIs
+        if file_uri.startswith('file://'):
+            # Local file - use the path directly
+            temp_file_path = file_uri.replace('file://', '')
+            if not os.path.exists(temp_file_path):
+                print(f"❌ Local file not found: {temp_file_path}")
+                raise Exception("Local file not found")
+            print(f"📁 Using local file: {temp_file_path}")
+            download_time = 0.0  # No download time for local files
+        else:
+            # S3 file - download it
+            temp_file_path = download_file_from_s3(file_uri, original_filename)
+            if not temp_file_path:
+                print(f"❌ S3 download failed")
+                raise Exception("Failed to download file from S3")
+            print(f"⬇️  S3 file download completed")
+            download_time = time.time() - download_start
         
         try:
             # Step 2: Process and validate file using the downloaded file
@@ -172,6 +183,97 @@ def ingestion_background_task(task_id: str, file_uri: str, datasource_name: str,
         db.close()
         total_time = time.time() - total_start_time
         print(f"🏁 Background task {task_id} completed in {total_time:.3f}s total")
+
+def create_dynamic_druid_ingestion_spec(datasource_name: str, file_path: str) -> Dict[str, Any]:
+    """Create a truly dynamic Druid ingestion spec that automatically adapts to any CSV structure"""
+    
+    try:
+        # Import the dynamic schema service
+        from services.dynamic_schema_service import DynamicSchemaService
+        
+        # Create the service and generate dynamic schema
+        schema_service = DynamicSchemaService()
+        ingestion_spec = schema_service.generate_druid_ingestion_spec(file_path, datasource_name)
+        
+        print(f"🚀 Dynamic schema generated successfully for {datasource_name}")
+        print(f"   Timestamp Column: {ingestion_spec['spec']['dataSchema']['timestampSpec']['column']}")
+        print(f"   Dimensions: {len(ingestion_spec['spec']['dataSchema']['dimensionsSpec']['dimensions'])} columns")
+        print(f"   Metrics: {len(ingestion_spec['spec']['dataSchema']['metricsSpec'])} columns")
+        
+        return ingestion_spec
+        
+    except Exception as e:
+        print(f"❌ Dynamic schema generation failed: {e}")
+        print("🔄 Falling back to predefined schema...")
+        
+        # Fallback to predefined schema for known structure
+        return _create_fallback_ingestion_spec(datasource_name, file_path)
+
+def _create_fallback_ingestion_spec(datasource_name: str, file_path: str) -> Dict[str, Any]:
+    """Fallback ingestion spec for known CSV structures"""
+    
+    # Based on the known CSV structure from sales_analytics (1).csv
+    dimensions = [
+        "Branch", "ProductLine", "SalesPerson", "ItemGroup",
+        "AcctName", "ItemName", "CardName"
+    ]
+    
+    metrics = [
+        {"type": "doubleSum", "name": "grossRevenue", "fieldName": "grossRevenue"},
+        {"type": "longSum", "name": "lineItemCount", "fieldName": "lineItemCount"},
+        {"type": "doubleSum", "name": "returnsValue", "fieldName": "returnsValue"},
+        {"type": "doubleSum", "name": "totalCost", "fieldName": "totalCost"},
+        {"type": "doubleSum", "name": "unitsReturned", "fieldName": "unitsReturned"},
+        {"type": "doubleSum", "name": "unitsSold", "fieldName": "unitsSold"}
+    ]
+    
+    return {
+        "type": "index_parallel",
+        "spec": {
+            "dataSchema": {
+                "dataSource": datasource_name,
+                "timestampSpec": {
+                    "column": "__time",
+                    "format": "iso",
+                    "missingValue": None
+                },
+                "dimensionsSpec": {
+                    "dimensions": dimensions,
+                    "dimensionExclusions": ["__time"],
+                    "includeAllDimensions": False,
+                    "useSchemaDiscovery": False
+                },
+                "metricsSpec": metrics,
+                "granularitySpec": {
+                    "type": "uniform",
+                    "segmentGranularity": "DAY",
+                    "queryGranularity": "HOUR",
+                    "rollup": True,
+                    "intervals": []
+                }
+            },
+            "ioConfig": {
+                "type": "index_parallel",
+                "inputSource": {
+                    "type": "local",
+                    "baseDir": "/opt/shared",
+                    "filter": os.path.basename(file_path)
+                },
+                "inputFormat": {
+                    "type": "csv",
+                    "findColumnsFromHeader": True
+                },
+                "appendToExisting": False,
+                "dropExisting": True
+            },
+            "tuningConfig": {
+                "type": "index_parallel",
+                "maxRowsPerSegment": 5000000,
+                "maxRowsInMemory": 100000,
+                "maxTotalRows": 1000000
+            }
+        }
+    }
 
 def download_file_from_s3(s3_uri: str, filename: str) -> Optional[str]:
     """
@@ -341,3 +443,126 @@ async def get_task_status(task_id: str, db: Session = Depends(get_db)):
         "file_size": task.file_size,  # type: ignore
         "row_count": task.row_count  # type: ignore
     }
+
+@router.post("/local-upload", status_code=202)
+async def local_file_upload(
+    background_tasks: BackgroundTasks,
+    datasource_name: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Local file upload endpoint that bypasses S3 and processes files directly.
+    Useful for development/testing when S3 is not available.
+    """
+    upload_start_time = time.time()
+    temp_file_path = None
+    
+    # Validate file input
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="File must have a filename")
+    
+    if file.size is None:
+        raise HTTPException(status_code=400, detail="File size is required")
+    
+    try:
+        # Save file locally for processing
+        import tempfile
+        
+        # Create temporary file
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file.filename)[1])
+        temp_file_path = temp_file.name
+        temp_file.close()
+        
+        # Write uploaded content to temp file
+        content = await file.read()
+        with open(temp_file_path, 'wb') as f:
+            f.write(content)
+        
+        # Create a local file URI
+        local_file_uri = f"file://{temp_file_path}"
+        
+        # Create the initial task record in the operational database
+        db_create_start = time.time()
+        task = crud_ingestion_task.create_ingestion_task(
+            db=db,
+            datasource_name=datasource_name,
+            original_filename=file.filename,
+            file_uri=local_file_uri,
+            file_size=file.size
+        )
+        db_create_time = time.time() - db_create_start
+
+        # Add the long-running process to the background task queue
+        bg_task_start = time.time()
+        background_tasks.add_task(
+            ingestion_background_task, 
+            task.task_id,  # type: ignore
+            local_file_uri,
+            datasource_name,
+            file.filename
+        )  # type: ignore
+        bg_task_time = time.time() - bg_task_start
+
+        # Return an immediate response to the client
+        total_upload_time = time.time() - upload_start_time
+        
+        print(f"📤 Local file upload completed in {total_upload_time:.3f}s:")
+        print(f"   Local file save: {db_create_time:.3f}s")
+        print(f"   Database record creation: {db_create_time:.3f}s")
+        print(f"   Background task scheduling: {bg_task_time:.3f}s")
+        
+        return {"message": "Local file upload accepted and is being processed.", "task_id": task.task_id}  # type: ignore
+        
+    except Exception as e:
+        # Clean up temp file on error
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.unlink(temp_file_path)
+        raise HTTPException(status_code=500, detail=f"Local upload failed: {str(e)}")
+
+@router.post("/analyze-schema")
+async def analyze_csv_schema(
+    file: UploadFile = File(...),
+    datasource_name: str = Form("TestDatasource")
+):
+    """Analyze any CSV file and generate a dynamic Druid schema recommendation"""
+    try:
+        # Save uploaded file temporarily
+        temp_file_path = f"/tmp/{file.filename}"
+        with open(temp_file_path, "wb") as buffer:
+            content = await file.read()
+            buffer.write(content)
+        
+        try:
+            # Import and use the dynamic schema service
+            from services.dynamic_schema_service import DynamicSchemaService
+            
+            schema_service = DynamicSchemaService()
+            analysis = schema_service.analyze_csv_structure(temp_file_path)
+            
+            # Generate the ingestion spec
+            ingestion_spec = schema_service.generate_druid_ingestion_spec(temp_file_path, datasource_name)
+            
+            return {
+                "success": True,
+                "message": "Schema analysis completed successfully",
+                "analysis": analysis,
+                "ingestion_spec": ingestion_spec,
+                "recommendations": {
+                    "timestamp_column": analysis['timestamp_column'],
+                    "dimensions_count": len(analysis['recommended_dimensions']),
+                    "summary": f"Recommended {len(analysis['recommended_dimensions'])} dimensions and {len(analysis['recommended_metrics'])} metrics from {analysis['total_columns']} total columns"
+                }
+            }
+            
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_file_path):
+                os.remove(temp_file_path)
+                
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Schema analysis failed: {str(e)}",
+            "error": str(e)
+        }

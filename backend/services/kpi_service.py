@@ -93,26 +93,17 @@ async def calculate_monthly_sales_growth(
     item_groups: Optional[List[str]] = None,
 ) -> List[Dict[str, Union[str, float]]]:
     """
-    Fetches sales data from Druid (via sales_data.py) and aggregates by month, with optional branch and product_line filters.
-    
-    Args:
-        start_date: Start date in ISO format
-        end_date: End date in ISO format
-        branch: Optional branch filter
-        product_line: Optional product line filter
-        item_groups: Optional list of item groups to filter by
-        
-    Returns:
-        List[Dict[str, Union[str, float]]]: List of monthly sales growth data
-        
-    Raises:
-        ValueError: If required parameters are missing
+    Fetches sales data using dynamic LazyFrame schema and aggregates by month.
+    Automatically adapts to any data structure.
     """
     if not start_date or not end_date:
         raise ValueError("start_date and end_date are required")
     
     try:
-        df = await fetch_sales_data(
+        # Use the new dynamic schema function
+        from services.sales_data import fetch_sales_data_with_dynamic_schema
+        
+        df = await fetch_sales_data_with_dynamic_schema(
             start_date,
             end_date,
             branch_names=[branch] if branch else None,
@@ -124,36 +115,56 @@ async def calculate_monthly_sales_growth(
         if sample_df.is_empty():
             return []
         
-        # Apply product_line filter if needed
+        # Apply product_line filter if needed (dynamic column detection)
         if product_line and product_line != "all":
-            df = df.filter(pl.col("ProductLine") == product_line)
+            # Dynamically check if ProductLine column exists
+            if "ProductLine" in df.columns:
+                df = df.filter(pl.col("ProductLine") == product_line)
         
         # Ensure __time is datetime using the shared helper
         df = _ensure_time_is_datetime(df)
         
-        # Group by month
+        # Group by month using LazyFrame operations
         df = df.with_columns([pl.col("__time").dt.strftime("%Y-%m").alias("month")])
-        grouped = (
-            df
-            .group_by("month")
-            .agg(
-                [
-                    (pl.sum("grossRevenue") + pl.sum("returnsValue")).alias("totalSales"),
-                    (pl.sum("grossRevenue") - pl.sum("totalCost")).alias("grossProfit"),
-                ]
-            )
-            .sort("month")
-            .collect()
-        )
         
-        return [
-            {
-                "date": row["month"],
-                "totalSales": float(row["totalSales"]) if row["totalSales"] is not None else 0.0,
-                "grossProfit": float(row["grossProfit"]) if row["grossProfit"] is not None else 0.0,
-            }
-            for row in grouped.iter_rows(named=True)
-        ]
+        # Dynamically build aggregations based on available columns
+        aggregations = []
+        
+        # Check for revenue columns dynamically
+        if "grossRevenue" in df.columns:
+            if "returnsValue" in df.columns:
+                aggregations.append((pl.sum("grossRevenue") + pl.sum("returnsValue")).alias("totalSales"))
+            else:
+                aggregations.append(pl.sum("grossRevenue").alias("totalSales"))
+        
+        if "grossRevenue" in df.columns and "totalCost" in df.columns:
+            aggregations.append((pl.sum("grossRevenue") - pl.sum("totalCost")).alias("grossProfit"))
+        
+        if not aggregations:
+            # Fallback aggregations
+            aggregations = [
+                pl.count().alias("totalTransactions"),
+                pl.n_unique("Branch").alias("uniqueBranches")
+            ]
+        
+        # Execute LazyFrame aggregation
+        grouped = df.group_by("month").agg(aggregations).sort("month").collect()
+        
+        # Convert to response format dynamically
+        result = []
+        for row in grouped.iter_rows(named=True):
+            row_dict = {"date": row["month"]}
+            
+            # Dynamically add available metrics
+            if "totalSales" in row:
+                row_dict["totalSales"] = float(row["totalSales"]) if row["totalSales"] is not None else 0.0
+            if "grossProfit" in row:
+                row_dict["grossProfit"] = float(row["grossProfit"]) if row["grossProfit"] is not None else 0.0
+            
+            result.append(row_dict)
+        
+        return result
+        
     except Exception as e:
         logging.error(f"Error in calculate_monthly_sales_growth: {e}")
         return []

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useDashboardData } from '../queries/dashboardData.generated';
+import { useDashboardData } from '../queries/dashboardDataWrapper';
 import { graphqlClient } from '../lib/graphqlClient';
 
 /**

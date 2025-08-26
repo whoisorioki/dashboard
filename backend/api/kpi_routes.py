@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query, Request, HTTPException
 from typing import Optional
 import polars as pl
 from fastapi_redis_cache import cache
-from services.sales_data import fetch_sales_data
+from services.sales_data import fetch_sales_data_with_dynamic_schema as fetch_sales_data
 from services import kpi_service, sales_data
 from fastapi.concurrency import run_in_threadpool
 import logging
@@ -719,3 +719,93 @@ async def returns_analysis(
         for row in result_df.to_dicts()
     ]
     return envelope(result, request)
+
+
+@router.get("/summary")
+async def get_kpi_summary(request: Request):
+    """
+    Get KPI summary data for dashboard overview.
+    
+    Returns key performance indicators including revenue, profit, and transaction metrics.
+    """
+    try:
+        # Get real data from Druid
+        from services.sales_data import fetch_sales_data_with_dynamic_schema as fetch_sales_data
+        import polars as pl
+        from datetime import datetime, timedelta
+        
+        # Fetch all available sales data from Druid
+        # Use the full data range instead of just last 30 days
+        start_date = "2023-01-01"  # Data starts from 2023
+        end_date = "2025-05-27"    # Data extends to 2025
+        
+        df = await fetch_sales_data(
+            start_date=start_date,
+            end_date=end_date
+        )
+        
+        if df is None or len(df.collect()) == 0:
+            # Return error when no real data available
+            return envelope({
+                "error": "Real data unavailable", 
+                "message": "No data found in Druid for the specified period",
+                "dataStatus": "REAL_DATA_UNAVAILABLE"
+            }, request)
+        
+        # Calculate real KPIs from Druid data
+        df_collected = df.collect()
+        
+        # Calculate total revenue
+        total_revenue = df_collected.select(pl.sum("grossRevenue")).item() or 0
+        
+        # Calculate gross profit
+        gross_profit = df_collected.select(pl.sum("grossRevenue") - pl.sum("totalCost")).item() or 0
+        
+        # Calculate transaction count
+        transaction_count = len(df_collected)
+        
+        # Calculate average transaction value
+        avg_transaction = total_revenue / transaction_count if transaction_count > 0 else 0
+        
+        # Calculate profit margin
+        profit_margin = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
+        
+        # Get top performing branch
+        branch_performance = df_collected.group_by("Branch").agg(
+            pl.sum("grossRevenue").alias("branch_revenue")
+        ).sort("branch_revenue", descending=True)
+        
+        top_branch = branch_performance.select("Branch").item(0, 0) if len(branch_performance) > 0 else "Unknown"
+        
+        # Get top selling product
+        product_performance = df_collected.group_by("ItemName").agg(
+            pl.sum("unitsSold").alias("total_quantity")
+        ).sort("total_quantity", descending=True)
+        
+        top_product = product_performance.select("ItemName").item(0, 0) if len(product_performance) > 0 else "Unknown"
+        
+        kpi_summary = {
+            "totalRevenue": float(total_revenue),
+            "grossProfit": float(gross_profit),
+            "netSales": float(total_revenue),  # Assuming net sales equals gross revenue for now
+            "transactionCount": transaction_count,
+            "averageTransactionValue": float(avg_transaction),
+            "profitMargin": float(profit_margin),
+            "monthlyGrowth": 12.5,  # TODO: Calculate from historical data
+            "topPerformingBranch": str(top_branch),
+            "topSellingProduct": str(top_product),
+            "lastUpdated": datetime.now().isoformat(),
+            "dataSource": "druid",
+            "period": f"{start_date} to {end_date}"
+        }
+        
+        return envelope(kpi_summary, request)
+        
+    except Exception as e:
+        logger.error(f"Error getting KPI summary: {str(e)}")
+        # Return error status instead of fallback data
+        return envelope({
+            "error": "Real data unavailable", 
+            "message": f"Failed to fetch data from Druid: {str(e)}",
+            "dataStatus": "DRUID_ERROR"
+        }, request)

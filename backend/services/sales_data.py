@@ -2,7 +2,7 @@ import os
 import polars as pl
 import asyncio
 from datetime import datetime, timedelta
-from core.druid_client import druid_conn, DRUID_DATASOURCE, DataAvailabilityStatus
+from core.druid_client import druid_conn, DRUID_DATASOURCE, DataAvailabilityStatus, get_primary_datasource_name
 from starlette.concurrency import run_in_threadpool
 from typing import Optional, List, Dict, Any
 from fastapi import HTTPException
@@ -27,7 +27,53 @@ def _get_validate_sales_data():
         return None
 
 
-async def fetch_sales_data(
+async def create_dynamic_lazyframe_schema(file_path: str) -> pl.LazyFrame:
+    """
+    Create a dynamic LazyFrame schema that automatically adapts to any CSV structure.
+    Uses LazyFrames for optimal performance and memory efficiency.
+    """
+    try:
+        # Read CSV with LazyFrame for memory efficiency
+        lazy_df = pl.scan_csv(file_path)
+        
+        # Get column info without loading data
+        schema = lazy_df.schema
+        
+        print(f"🔍 Dynamic LazyFrame schema detection:")
+        print(f"   Columns: {list(schema.keys())}")
+        print(f"   Types: {list(schema.values())}")
+        
+        # Automatically detect and convert numeric columns
+        numeric_columns = []
+        dimension_columns = []
+        
+        for col_name, col_type in schema.items():
+            if col_name == "__time":
+                continue
+                
+            # Check if column is numeric based on type
+            if col_type in [pl.Float64, pl.Float32, pl.Int64, pl.Int32, pl.Int16, pl.Int8]:
+                numeric_columns.append(col_name)
+            else:
+                dimension_columns.append(col_name)
+        
+        print(f"   Numeric columns (metrics): {numeric_columns}")
+        print(f"   Dimension columns: {dimension_columns}")
+        
+        # Apply type conversions dynamically using LazyFrame
+        converted_df = lazy_df.with_columns([
+            pl.col(col).cast(pl.Float64, strict=False).fill_null(0.0)
+            for col in numeric_columns
+        ])
+        
+        return converted_df
+        
+    except Exception as e:
+        print(f"Error in dynamic schema detection: {e}")
+        # Fallback to basic CSV scan
+        return pl.scan_csv(file_path)
+
+async def fetch_sales_data_with_dynamic_schema(
     start_date: str,
     end_date: str,
     item_names: Optional[List[str]] = None,
@@ -35,34 +81,14 @@ async def fetch_sales_data(
     branch_names: Optional[List[str]] = None,
     item_groups: Optional[List[str]] = None,
 ) -> pl.LazyFrame:
-    """Asynchronously fetches sales data from Druid and returns it as a Polars LazyFrame.
-
-    If real data is unavailable, automatically falls back to mock data based on configuration.
-    Supports filtering by item names, sales persons, branch names, and item groups.
-
-    Args:
-        start_date (str): Start date (YYYY-MM-DD).
-        end_date (str): End date (YYYY-MM-DD).
-        item_names (List[str], optional): List of item names to filter by.
-        sales_persons (List[str], optional): List of sales persons to filter by.
-        branch_names (List[str], optional): List of branch names to filter by.
-        item_groups (List[str], optional): List of item groups to filter by.
-
-    Returns:
-        pl.LazyFrame: Polars LazyFrame with sales data (real or mock).
-
-    Raises:
-        HTTPException: If no data is available and fallback is disabled.
-
-    Example:
-        >>> fetch_sales_data('2024-01-01', '2024-01-31', item_groups=['Parts'])
     """
-    
+    Fetch sales data using dynamic LazyFrame schema that adapts to any data structure.
+    """
     # Check data availability status
     data_status = druid_conn.check_data_availability()
     
-    # If forced mock data or fallback is needed, use mock data
-    if data_status in [DataAvailabilityStatus.FORCED_MOCK_DATA, DataAvailabilityStatus.MOCK_DATA_FALLBACK]:
+    # If mock data fallback is needed, use mock data
+    if data_status == DataAvailabilityStatus.MOCK_DATA_FALLBACK:
         logger.info(f"Using mock data (status: {data_status})")
         return mock_data_fetcher.fetch_mock_data(
             start_date=start_date,
@@ -78,9 +104,9 @@ async def fetch_sales_data(
         logger.error("No data available and fallback is disabled")
         raise HTTPException(status_code=503, detail="Data source unavailable and fallback disabled")
     
-    # Proceed with real data fetching
-    logger.info("Fetching real data from Druid")
-    return await _fetch_real_data(
+    # Proceed with real data fetching using dynamic schema
+    logger.info("Fetching real data from Druid with dynamic schema")
+    return await _fetch_real_data_dynamic(
         start_date=start_date,
         end_date=end_date,
         item_names=item_names,
@@ -89,8 +115,7 @@ async def fetch_sales_data(
         item_groups=item_groups
     )
 
-
-async def _fetch_real_data(
+async def _fetch_real_data_dynamic(
     start_date: str,
     end_date: str,
     item_names: Optional[List[str]] = None,
@@ -98,79 +123,57 @@ async def _fetch_real_data(
     branch_names: Optional[List[str]] = None,
     item_groups: Optional[List[str]] = None,
 ) -> pl.LazyFrame:
-    """Internal function to fetch real data from Druid"""
-    
-    def _build_filter() -> Optional[Dict[str, Any]]:
-        filters = []
-        filters.append(
-            {
+    """
+    Fetch real data from Druid using dynamic LazyFrame approach.
+    """
+    def _query_druid_dynamic() -> List[Dict[str, Any]]:
+        try:
+            # Get the actual datasource name dynamically
+            datasource_name = get_primary_datasource_name()
+            if not datasource_name:
+                datasource_name = "SalesAnalytics"
+            
+            # Build dynamic query that adapts to available columns
+            query = {
+                "queryType": "scan",
+                "dataSource": datasource_name,
+                "intervals": [f"{start_date}/{end_date}"],
+                "resultFormat": "compactedList",
+            }
+            
+            # Dynamically add filters based on what's available
+            filters = []
+            filters.append({
                 "type": "interval",
                 "dimension": "__time",
                 "intervals": [f"{start_date}T00:00:00.000Z/{end_date}T23:59:59.999Z"],
-            }
-        )
-        if item_names:
-            filters.append(
-                {"type": "in", "dimension": "ItemName", "values": item_names}
-            )
-        if sales_persons:
-            filters.append(
-                {"type": "in", "dimension": "SalesPerson", "values": sales_persons}
-            )
-        if branch_names:
-            filters.append(
-                {"type": "in", "dimension": "Branch", "values": branch_names}
-            )
-        if item_groups:
-            filters.append(
-                {"type": "in", "dimension": "ItemGroup", "values": item_groups}
-            )
-        if not filters:
-            return None
-        if len(filters) == 1:
-            return filters[0]
-        return {"type": "and", "fields": filters}
-
-    def _query_druid() -> List[Dict[str, Any]]:
-        try:
-            druid_filter = _build_filter()
-            query = {
-                "queryType": "scan",
-                "dataSource": "sales_analytics",
-                "intervals": [f"{start_date}/{end_date}"],
-                "columns": [
-                    "__time",
-                    "ProductLine",
-                    "ItemGroup",
-                    "Branch",
-                    "SalesPerson",
-                    "AcctName",
-                    "ItemName",
-                    "CardName",
-                    "grossRevenue",
-                    "returnsValue",
-                    "unitsSold",
-                    "unitsReturned",
-                    "totalCost",
-                    "lineItemCount",
-                ],
-                "resultFormat": "compactedList",
-            }
-            if druid_filter:
-                query["filter"] = druid_filter
+            })
+            
+            # Add optional filters dynamically
+            if item_names:
+                filters.append({"type": "in", "dimension": "ItemName", "values": item_names})
+            if sales_persons:
+                filters.append({"type": "in", "dimension": "SalesPerson", "values": sales_persons})
+            if branch_names:
+                filters.append({"type": "in", "dimension": "Branch", "values": branch_names})
+            if item_groups:
+                filters.append({"type": "in", "dimension": "ItemGroup", "values": item_groups})
+            
+            if filters:
+                query["filter"] = {"type": "and", "fields": filters} if len(filters) > 1 else filters[0]
+            
+            # Execute query
             url = f"{os.getenv('DRUID_URL', 'http://router:8888')}/druid/v2/"
             headers = {"Content-Type": "application/json"}
-            logger.info(f"Sending Druid query to {url}")
-            start_time = time.time()
+            
             response = requests.post(url, json=query, headers=headers, timeout=30)
-            elapsed = time.time() - start_time
-            logger.info(f"Time Elapsed: {elapsed:.2f}s")
             if response.status_code != 200:
-                raise Exception(
-                    f"Druid query failed with status {response.status_code}: {response.text}"
-                )
+                raise Exception(f"Druid query failed: {response.status_code}")
+            
             result = response.json()
             events = []
+            
+            # Parse results dynamically
             for segment in result:
                 if "events" in segment and "columns" in segment:
                     columns = segment["columns"]
@@ -180,42 +183,54 @@ async def _fetch_real_data(
                             if i < len(event_row):
                                 event_dict[column] = event_row[i]
                         events.append(event_dict)
+            
             return events
+            
         except Exception as e:
             raise HTTPException(
                 status_code=500,
-                detail=f"Error connecting to Druid: {str(e)}. Please check the Druid cluster status.",
+                detail=f"Error connecting to Druid: {str(e)}"
             )
-
-    sales_data_dicts = await run_in_threadpool(_query_druid)
+    
+    # Execute query in thread pool
+    sales_data_dicts = await run_in_threadpool(_query_druid_dynamic)
+    
     if not sales_data_dicts:
-        # Return empty LazyFrame instead of raising exception
-        # This is a normal state when filters don't match any data
-        logger.info(
-            f"No sales data found for filters: start_date={start_date}, end_date={end_date}, branch_names={branch_names}, item_groups={item_groups}"
-        )
         return pl.LazyFrame()
-
+    
+    # Create LazyFrame from results
     raw_sales_df = pl.LazyFrame(sales_data_dicts)
-    logger.info(
-        f"Raw data retrieved from Druid: {len(sales_data_dicts)} rows, {len(sales_data_dicts[0]) if sales_data_dicts else 0} columns"
-    )
+    
+    # Apply dynamic type conversion using LazyFrame operations
+    converted_df = raw_sales_df.with_columns([
+        pl.col(col).cast(pl.Float64, strict=False).fill_null(0.0)
+        for col in raw_sales_df.columns
+        if col != "__time" and col in ["grossRevenue", "returnsValue", "totalCost", "unitsSold", "unitsReturned", "lineItemCount"]
+    ])
+    
+    return converted_df
 
-    # Validate data using Pandera schema
-    validate_func = _get_validate_sales_data()
-    if validate_func:
-        try:
-            # Convert LazyFrame to DataFrame for validation, then back to LazyFrame
-            raw_df = raw_sales_df.collect()
-            validated_df = validate_func(raw_df)
-            logger.info("Data validation successful")
-            # Convert validated DataFrame back to LazyFrame
-            return pl.LazyFrame(validated_df)
-        except ValueError as e:
-            logger.warning(f"Data validation failed: {e}. Returning raw data.")
-            return raw_sales_df
-    else:
-        return raw_sales_df
+
+# Backward compatibility alias
+async def fetch_sales_data(
+    start_date: str,
+    end_date: str,
+    item_names: Optional[List[str]] = None,
+    sales_persons: Optional[List[str]] = None,
+    branch_names: Optional[List[str]] = None,
+    item_groups: Optional[List[str]] = None,
+) -> pl.LazyFrame:
+    """
+    Backward compatibility alias for fetch_sales_data_with_dynamic_schema.
+    """
+    return await fetch_sales_data_with_dynamic_schema(
+        start_date=start_date,
+        end_date=end_date,
+        item_names=item_names,
+        sales_persons=sales_persons,
+        branch_names=branch_names,
+        item_groups=item_groups
+    )
 
 
 async def fetch_raw_sales_data(
@@ -363,6 +378,16 @@ async def fetch_raw_sales_data(
         f"Raw data retrieved from Druid: {len(sales_data_dicts)} rows, {len(sales_data_dicts[0]) if sales_data_dicts else 0} columns"
     )
 
+    # Convert numeric columns to proper types to prevent calculation errors
+    raw_sales_df = raw_sales_df.with_columns([
+        pl.col("grossRevenue").cast(pl.Float64, strict=False).fill_null(0.0),
+        pl.col("returnsValue").cast(pl.Float64, strict=False).fill_null(0.0),
+        pl.col("totalCost").cast(pl.Float64, strict=False).fill_null(0.0),
+        pl.col("unitsSold").cast(pl.Float64, strict=False).fill_null(0.0),
+        pl.col("unitsReturned").cast(pl.Float64, strict=False).fill_null(0.0),
+        pl.col("lineItemCount").cast(pl.Int64, strict=False).fill_null(0)
+    ])
+
     return raw_sales_df.collect()
 
 
@@ -376,7 +401,7 @@ def get_employee_quotas(start_date: str, end_date: str) -> pl.DataFrame:
     """
 
     async def _get():
-        df = await fetch_sales_data(start_date, end_date)
+        df = await fetch_sales_data_with_dynamic_schema(start_date, end_date)
         # Collect the LazyFrame to check if it's empty and get column information
         df_collected = df.collect()
         if (

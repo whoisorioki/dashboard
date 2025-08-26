@@ -8,6 +8,7 @@ psycopg2-binary>=2.9.0
 alembic>=1.12.0
 shortuuid>=1.0.0
 polars>=0.20.0
+pandas>=2.0.0
 pandera>=0.18.0
 openpyxl>=3.1.0
 fastapi_redis_cache>=0.0.1

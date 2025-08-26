@@ -12,8 +12,17 @@ export default defineConfig({
   server: {
     port: 3000,
     host: '0.0.0.0',
+    // Fix HMR configuration for Docker development
+    hmr: {
+      host: 'localhost',
+      port: 3000
+    },
+    // Allow requests from Docker containers
+    cors: true,
+    // Allow all hosts for Docker development
+    allowedHosts: true,
     proxy: {
-      '/api': 'http://localhost:8000', // or your backend port
+      '/api': 'http://localhost:8000', // Use localhost for development
     }
   },
   optimizeDeps: {

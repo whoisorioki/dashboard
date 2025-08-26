@@ -34,6 +34,7 @@ import { useTheme } from "../../context/ThemeContext";
 import FloatingActionMenu from "../FloatingActionMenu";
 import WelcomeTour from "../WelcomeTour";
 import { DataModeProvider } from "../../context/DataModeContext";
+import { FilterProvider } from "../../context/FilterContext";
 import MergedHeader from "./MergedHeader";
 import { useLocalFilterReset } from "../../context/LocalFilterResetContext";
 
@@ -256,108 +257,110 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
   return (
     <DataModeProvider>
-      <Box sx={{ display: "flex" }}>
-        {/* Mobile Menu Button */}
-        <Box
-          sx={{
-            position: "fixed",
-            top: 16,
-            left: 16,
-            zIndex: 1300,
-            display: { xs: "block", md: "none" },
-          }}
-        >
-          <IconButton
-            color="inherit"
-            onClick={handleDrawerToggle}
+      <FilterProvider>
+        <Box sx={{ display: "flex" }}>
+          {/* Mobile Menu Button */}
+          <Box
             sx={{
-              bgcolor: "background.paper",
-              boxShadow: 2,
-              "&:hover": {
-                bgcolor: "action.hover",
-              },
-            }}
-          >
-            <MenuIcon />
-          </IconButton>
-        </Box>
-
-        {/* Global Filter Header - Topmost Component */}
-        <Box
-          sx={{
-            width: { md: `calc(100% - ${drawerWidth}px)` },
-            ml: { md: `${drawerWidth}px` },
-            position: "fixed",
-            top: 0,
-            zIndex: 1200,
-          }}
-        >
-          <MergedHeader />
-        </Box>
-
-        <Box
-          component="nav"
-          sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
-        >
-          {/* Mobile drawer */}
-          <Drawer
-            variant="temporary"
-            open={mobileOpen}
-            onClose={handleDrawerToggle}
-            ModalProps={{
-              keepMounted: true, // Better open performance on mobile
-            }}
-            sx={{
+              position: "fixed",
+              top: 16,
+              left: 16,
+              zIndex: 1300,
               display: { xs: "block", md: "none" },
-              "& .MuiDrawer-paper": {
-                boxSizing: "border-box",
-                width: drawerWidth,
-              },
             }}
           >
-            {drawer}
-          </Drawer>
-          {/* Desktop drawer */}
-          <Drawer
-            variant="permanent"
-            sx={{
-              display: { xs: "none", md: "block" },
-              "& .MuiDrawer-paper": {
-                boxSizing: "border-box",
-                width: drawerWidth,
-                borderRight: (theme) =>
-                  `1px solid ${theme.palette.mode === "dark"
-                    ? "rgba(255, 255, 255, 0.12)"
-                    : "rgba(0, 0, 0, 0.12)"
-                  }`,
-              },
-            }}
-            open
-          >
-            {drawer}
-          </Drawer>
-        </Box>
+            <IconButton
+              color="inherit"
+              onClick={handleDrawerToggle}
+              sx={{
+                bgcolor: "background.paper",
+                boxShadow: 2,
+                "&:hover": {
+                  bgcolor: "action.hover",
+                },
+              }}
+            >
+              <MenuIcon />
+            </IconButton>
+          </Box>
 
-        <Box
-          component="main"
-          sx={{
-            flexGrow: 1,
-            minWidth: 0, // Ensure flex item can shrink
-            mt: { xs: "60px", sm: "70px" }, // Reduced margin to match actual header height
-            position: "relative",
-          }}
-        >
-          {children}
-          <FloatingActionMenu
-            onRefresh={() => window.location.reload()}
-            onExport={() => console.log("Export data")}
-            onShare={() => console.log("Share dashboard")}
-            onSettings={() => console.log("Open settings")}
-            onGenerateReport={() => console.log("Generate report")}
-          />
-          <WelcomeTour open={showTour} onClose={handleTourClose} />
+          {/* Global Filter Header - Topmost Component */}
+          <Box
+            sx={{
+              width: { md: `calc(100% - ${drawerWidth}px)` },
+              ml: { md: `${drawerWidth}px` },
+              position: "fixed",
+              top: 0,
+              zIndex: 1200,
+            }}
+          >
+            <MergedHeader />
+          </Box>
+
+          <Box
+            component="nav"
+            sx={{ width: { md: drawerWidth }, flexShrink: { md: 0 } }}
+          >
+            {/* Mobile drawer */}
+            <Drawer
+              variant="temporary"
+              open={mobileOpen}
+              onClose={handleDrawerToggle}
+              ModalProps={{
+                keepMounted: true, // Better open performance on mobile
+              }}
+              sx={{
+                display: { xs: "block", md: "none" },
+                "& .MuiDrawer-paper": {
+                  boxSizing: "border-box",
+                  width: drawerWidth,
+                },
+              }}
+            >
+              {drawer}
+            </Drawer>
+            {/* Desktop drawer */}
+            <Drawer
+              variant="permanent"
+              sx={{
+                display: { xs: "none", md: "block" },
+                "& .MuiDrawer-paper": {
+                  boxSizing: "border-box",
+                  width: drawerWidth,
+                  borderRight: (theme) =>
+                    `1px solid ${theme.palette.mode === "dark"
+                      ? "rgba(255, 255, 255, 0.12)"
+                      : "rgba(0, 0, 0, 0.12)"
+                    }`,
+                },
+              }}
+              open
+            >
+              {drawer}
+            </Drawer>
+          </Box>
+
+          <Box
+            component="main"
+            sx={{
+              flexGrow: 1,
+              minWidth: 0, // Ensure flex item can shrink
+              mt: { xs: "60px", sm: "70px" }, // Reduced margin to match actual header height
+              position: "relative",
+            }}
+          >
+            {children}
+            <FloatingActionMenu
+              onRefresh={() => window.location.reload()}
+              onExport={() => console.log("Export data")}
+              onShare={() => console.log("Share dashboard")}
+              onSettings={() => console.log("Open settings")}
+              onGenerateReport={() => console.log("Generate report")}
+            />
+            <WelcomeTour open={showTour} onClose={handleTourClose} />
+          </Box>
         </Box>
-      </Box>
+      </FilterProvider>
     </DataModeProvider>
   );
 };

@@ -121,9 +121,9 @@ export default function SimpleDateRangePicker({
                 end = new Date(today.getFullYear(), today.getMonth(), 0);
                 break;
             case 'dec2024':
-                // Default to December 2024 where we know data exists
-                start = new Date(2024, 11, 1); // December 1, 2024
-                end = new Date(2024, 11, 31); // December 31, 2024
+                // Default to full data range where we know data exists
+                start = new Date(2023, 0, 1); // January 1, 2023
+                end = new Date(2025, 4, 27); // May 27, 2025
                 break;
             default:
                 return;

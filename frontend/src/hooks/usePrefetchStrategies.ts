@@ -13,13 +13,13 @@ export const usePrefetchStrategies = () => {
       const [start, end] = date_range;
 
       // Prefetch product analytics if on the main dashboard
+      const productFilters = {
+        dateRange: { start, end },
+        productLine: selected_product_line,
+      };
+
       queryClient.prefetchQuery({
-        queryKey: queryKeys.productsPage({
-          start_date: start.toISOString(),
-          end_date: end.toISOString(),
-          selected_branch,
-          selected_product_line,
-        }),
+        queryKey: queryKeys.productAnalytics(productFilters),
         queryFn: () => Promise.resolve({}), // Placeholder since we can't use the document property
       });
 
@@ -27,8 +27,17 @@ export const usePrefetchStrategies = () => {
       const nextMonthStart = addMonths(start, 1);
       const nextMonthEnd = endOfMonth(nextMonthStart);
 
+      const nextMonthFilters = {
+        startDate: nextMonthStart.toISOString().split('T')[0],
+        endDate: nextMonthEnd.toISOString().split('T')[0],
+        branch: selected_branch,
+        productLine: selected_product_line,
+        itemGroups: [],
+        target: 0,
+      };
+
       queryClient.prefetchQuery({
-        queryKey: queryKeys.dashboard({ date_range: [nextMonthStart, nextMonthEnd], selected_branch, selected_product_line, sales_target: "0" }),
+        queryKey: queryKeys.dashboard(nextMonthFilters),
         queryFn: () => Promise.resolve({}), // Placeholder since we can't use the document property
       });
     }, 3000); // Prefetch after 3 seconds of inactivity

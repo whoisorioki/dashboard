@@ -4,7 +4,7 @@ import { MonetizationOn as MonetizationOnIcon } from '@mui/icons-material';
 import TrendChart from '../components/TrendChart';
 import ProfitabilityByDimensionChart from '../components/ProfitabilityByDimensionChart';
 import { useFilterStore } from "../store/filterStore";
-import { useDashboardData } from '../queries/dashboardData.generated';
+import { useDashboardData } from '../queries/dashboardDataWrapper';
 import { graphqlClient } from '../lib/graphqlClient';
 import DataStateWrapper from "../components/DataStateWrapper";
 import { format } from "date-fns";

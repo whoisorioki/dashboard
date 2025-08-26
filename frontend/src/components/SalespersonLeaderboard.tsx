@@ -12,8 +12,8 @@ import {
   TableBody,
   CircularProgress,
 } from "@mui/material";
-import { useDashboardData } from "../queries/dashboardData.generated";
-import { SalesPerformance } from "../types/graphql";
+import { useDashboardData } from "../queries/dashboardDataWrapper";
+import { SalesPerformance } from "../types/dashboard";
 import { graphqlClient } from "../lib/graphqlClient";
 import { formatKshAbbreviated } from "../lib/numberFormat";
 import { useFilterStore } from "../store/filterStore";

@@ -1,7 +1,5 @@
 import React, { useMemo, useState } from "react";
 import {
-    Card,
-    CardContent,
     Typography,
     Box,
     Table,
@@ -26,9 +24,7 @@ import {
     TrendingUp as TrendingUpIcon,
     TrendingDown as TrendingDownIcon,
 } from "@mui/icons-material";
-import ChartSkeleton from "./skeletons/ChartSkeleton";
-import ChartEmptyState from "./states/ChartEmptyState";
-import ExpandableCard from "./ExpandableCard";
+import ChartCard from "./ChartCard";
 import { ResponsiveLine } from '@nivo/line';
 import { useNivoTheme } from '../hooks/useNivoTheme';
 import { useTheme } from '@mui/material/styles';
@@ -60,6 +56,23 @@ const EnhancedTopCustomersTable: React.FC<EnhancedTopCustomersTableProps> = ({
 }) => {
     const theme = useTheme();
     const nivoTheme = useNivoTheme();
+
+    // Handle loading and empty states
+    if (isLoading) {
+        return (
+            <ChartCard title="Top Customers Analysis" isLoading={true}>
+                <div />
+            </ChartCard>
+        );
+    }
+
+    if (!customers || customers.length === 0) {
+        return (
+            <ChartCard title="Top Customers Analysis" isLoading={false} empty={true}>
+                <div />
+            </ChartCard>
+        );
+    }
 
     // State for pagination and search
     const [page, setPage] = useState(0);
@@ -136,37 +149,10 @@ const EnhancedTopCustomersTable: React.FC<EnhancedTopCustomersTableProps> = ({
         setPage(0);
     };
 
-    if (isLoading) {
-        return (
-            <ExpandableCard title="Top Customers by Profitability" minHeight={400}>
-                <ChartSkeleton />
-            </ExpandableCard>
-        );
-    }
 
-    if (!customers || customers.length === 0) {
-        return (
-            <ExpandableCard title="Top Customers by Profitability" minHeight={400}>
-                <ChartEmptyState
-                    message="No Customer Data Available"
-                    subtitle="There are no customer records for the selected time period. Try adjusting your date range or check if data has been properly recorded."
-                />
-            </ExpandableCard>
-        );
-    }
-
-    // Info content for modal
-    const infoContent = (
-        <>
-            <Typography gutterBottom>
-                This table shows the most profitable customers ranked by gross profit. Each customer includes a sparkline showing their sales trend over time.
-                The profit margin percentage indicates the profitability of each customer relationship. Use the search and pagination controls to explore the data.
-            </Typography>
-        </>
-    );
 
     return (
-        <ExpandableCard title="Top Customers by Profitability" infoContent={infoContent} minHeight={600}>
+        <ChartCard title="Top Customers by Profitability" isLoading={false}>
             {/* Search and Sort Controls */}
             <Box sx={{
                 mb: 3,
@@ -373,7 +359,7 @@ const EnhancedTopCustomersTable: React.FC<EnhancedTopCustomersTableProps> = ({
                     }}
                 />
             </Box>
-        </ExpandableCard>
+        </ChartCard>
     );
 };
 

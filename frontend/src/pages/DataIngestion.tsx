@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Typography, Container, Paper, Tabs, Tab, Alert } from '@mui/material';
 import { CloudUpload as UploadIcon, Timeline as StatusIcon } from '@mui/icons-material';
+import PageHeader from '../components/PageHeader';
 import DataUploader from '../components/DataUploader';
 import TaskStatusTracker from '../components/TaskStatusTracker';
 
@@ -107,16 +108,12 @@ const DataIngestion: React.FC = () => {
     };
 
     return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-            {/* Page Header */}
-            <Box sx={{ mb: 4 }}>
-                <Typography variant="h4" gutterBottom>
-                    Data Ingestion
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                    Upload and process sales data files for analytics. Monitor ingestion progress in real-time.
-                </Typography>
-            </Box>
+        <Box sx={{ mt: { xs: 2, sm: 3 }, p: { xs: 1, sm: 2 } }}>
+            <PageHeader
+                title="Data Ingestion"
+                subtitle="Upload and process sales data files for analytics. Monitor ingestion progress in real-time."
+                icon={<UploadIcon />}
+            />
 
             {/* Notification */}
             {notification && (
@@ -265,7 +262,7 @@ const DataIngestion: React.FC = () => {
                     <strong>Processing Time:</strong> Typically 2-5 minutes for files under 100MB
                 </Typography>
             </Paper>
-        </Container>
+        </Box>
     );
 };
 

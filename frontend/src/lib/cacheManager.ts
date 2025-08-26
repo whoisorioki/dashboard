@@ -25,7 +25,7 @@ export class CacheManager {
       case "product":
         // Invalidate product analytics and any dashboard view that shows products
         await this.queryClient.invalidateQueries({
-          queryKey: queryKeys.productsPage({} as any), // Invalidate all product queries
+          queryKey: queryKeys.productAnalytics({} as any),
         });
         await this.queryClient.invalidateQueries({
           queryKey: queryKeys.dashboard({} as any),
@@ -34,13 +34,13 @@ export class CacheManager {
 
       case "salesperson":
         await this.queryClient.invalidateQueries({
-          queryKey: queryKeys.salesPage({} as any),
+          queryKey: queryKeys.salesPerformance({} as any),
         });
         break;
 
       case "branch":
         await this.queryClient.invalidateQueries({
-          queryKey: queryKeys.branchesPage({} as any),
+          queryKey: queryKeys.branchPerformance({} as any),
         });
         break;
     }
@@ -51,18 +51,21 @@ export class CacheManager {
    * @param filters The current filters to prefetch data for.
    */
   async warmCache(filters: FilterState) {
+    // Convert FilterState to DashboardFilters format
+    const dashboardFilters = {
+      startDate: filters.date_range?.[0]?.toISOString() || new Date().toISOString(),
+      endDate: filters.date_range?.[1]?.toISOString() || new Date().toISOString(),
+      branch: filters.selected_branch,
+      productLine: filters.selected_product_line,
+      itemGroups: [], // FilterState doesn't have selected_item_groups
+      target: filters.sales_target ? parseFloat(filters.sales_target) : undefined,
+    };
+
     await this.queryClient.prefetchQuery({
-      queryKey: queryKeys.dashboard(filters),
-      queryFn: () =>
-        this.queryClient.fetchQuery({
-          queryKey: queryKeys.dashboard(filters),
-          // This assumes you have a fetcher function defined elsewhere
-          // queryFn: () => fetchDashboardData(filters),
-        }),
+      queryKey: queryKeys.dashboard(dashboardFilters),
+      queryFn: () => Promise.resolve({}), // Placeholder - actual implementation needed
     });
   }
 }
 
-import { queryClient } from "./queryClient";
-
-export const cacheManager = new CacheManager(queryClient);
+export default CacheManager;

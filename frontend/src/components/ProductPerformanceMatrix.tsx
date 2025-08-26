@@ -1,5 +1,5 @@
 import { Card, CardContent, Typography } from "@mui/material";
-import { useDashboardData } from "../queries/dashboardData.generated";
+import { useDashboardData } from "../queries/dashboardDataWrapper";
 import { graphqlClient } from "../lib/graphqlClient";
 import ChartSkeleton from "./skeletons/ChartSkeleton";
 import ChartEmptyState from "./states/ChartEmptyState";

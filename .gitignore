@@ -63,3 +63,8 @@ backend/core/__pycache__/
 backend/schema/__pycache__/
 backend/services/__pycache__/
 backend/utils/__pycache__/
+
+# Build Artifacts
+*.db
+*.pyc
+*.jar

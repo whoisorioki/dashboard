@@ -36,8 +36,7 @@ import { useNavigate } from 'react-router-dom';
 import { format, differenceInCalendarDays, subDays, parseISO } from 'date-fns';
 
 import { useFilterStore } from '../store/filterStore';
-import { useDashboardData } from '../queries/dashboardData.generated';
-import { graphqlClient } from '../lib/graphqlClient';
+import { dashboardService } from '../services/dashboardService';
 import { useDataRange } from '../hooks/useDataRange';
 import { formatKshAbbreviated, formatPercentage } from '../lib/numberFormat';
 import { METRIC_NAMES, KPI_TITLES, TOOLTIP_DESCRIPTIONS } from '../constants/metricNames';
@@ -46,9 +45,7 @@ import KpiCard from '../components/KpiCard';
 import MonthlySalesTrendChart from '../components/MonthlySalesTrendChart';
 import EnhancedGeographicMap from '../components/EnhancedGeographicMap';
 import GeographicProfitabilityMap from '../components/GeographicProfitabilityMap';
-import PreciseGoogleMaps from '../components/PreciseGoogleMaps';
-import SimpleGoogleMaps from '../components/SimpleGoogleMaps';
-import GoogleMapsBranchView from '../components/GoogleMapsBranchView';
+import UnifiedGoogleMaps from '../components/UnifiedGoogleMaps';
 import BranchProductHeatmap from '../components/BranchProductHeatmap';
 import ProductPerformanceTable from '../components/ProductPerformanceTable';
 import TopCustomerAnalysis from '../components/TopCustomerAnalysis';
@@ -88,8 +85,8 @@ const Dashboard = () => {
   const { minDate, maxDate, isLoading: dataRangeLoading } = useDataRange();
 
   // Set default dates if none are selected - ensure we use dates where data exists
-  const effectiveStartDate = startDate || minDate || new Date('2025-01-01');
-  const effectiveEndDate = endDate || maxDate || new Date('2025-01-31');
+  const effectiveStartDate = startDate || minDate || new Date('2023-01-01');
+  const effectiveEndDate = endDate || maxDate || new Date('2025-05-27');
 
   // Ensure we don't query beyond the available data range
   const finalStartDate = maxDate && effectiveStartDate > maxDate ? maxDate : effectiveStartDate;
@@ -147,15 +144,18 @@ const Dashboard = () => {
     target: salesTarget ? parseFloat(salesTarget) : undefined,
   };
 
-  console.log('🚀 Dashboard Query Params:', queryParams);
 
-  const { data: dashboardDataResult, isLoading: loadingDashboard, error: dashboardError } = useDashboardData(
-    graphqlClient,
-    queryParams,
-    {
-      queryKey: ['dashboardData', queryParams], // Use params as query key
-    }
-  );
+
+  const { data: dashboardDataResult, isLoading: loadingDashboard, error: dashboardError } = useQuery({
+    queryKey: ['dashboardData', queryParams],
+    queryFn: () => dashboardService.getDashboardData(
+      format(finalStartDate, 'yyyy-MM-dd'),
+      format(finalEndDate, 'yyyy-MM-dd'),
+      selectedBranches.length === 1 ? selectedBranches[0] : undefined,
+      selectedProductLines.length === 1 ? selectedProductLines[0] : undefined,
+      selectedItemGroups.length > 0 ? selectedItemGroups : undefined
+    ),
+  });
   const dashboardData = dashboardDataResult;
 
   // Effect: update dateRangeHasData based on dashboardData
@@ -173,24 +173,20 @@ const Dashboard = () => {
     if (dashboardError) {
       // Log the error object for debugging
       // eslint-disable-next-line no-console
-      console.error('Dashboard Query Error:', dashboardError);
+
     }
   }, [dashboardError]);
 
-  const { data: prevDashboardDataResult, isLoading: loadingPrevDashboard } = useDashboardData(
-    graphqlClient,
-    {
-      startDate: prevStartStr,
-      endDate: prevEndStr,
-      branch: selectedBranches.length === 1 ? selectedBranches[0] : undefined,
-      productLine: selectedProductLines.length === 1 ? selectedProductLines[0] : undefined,
-      itemGroups: selectedItemGroups.length > 0 ? selectedItemGroups : undefined,
-      target: salesTarget ? parseFloat(salesTarget) : undefined,
-    },
-    {
-      queryKey: ["dashboardData", prevFilters],
-    }
-  );
+  const { data: prevDashboardDataResult, isLoading: loadingPrevDashboard } = useQuery({
+    queryKey: ["dashboardData", prevFilters],
+    queryFn: () => dashboardService.getDashboardData(
+      prevStartStr || format(subDays(finalStartDate, 30), 'yyyy-MM-dd'),
+      prevEndStr || format(subDays(finalEndDate, 30), 'yyyy-MM-dd'),
+      selectedBranches.length === 1 ? selectedBranches[0] : undefined,
+      selectedProductLines.length === 1 ? selectedProductLines[0] : undefined,
+      selectedItemGroups.length > 0 ? selectedItemGroups : undefined
+    ),
+  });
   const prevDashboardData = prevDashboardDataResult;
 
   // Extract options for filter bar (fallback to static if no data)
@@ -215,6 +211,12 @@ const Dashboard = () => {
 
   // Use all fields from backend output directly
   const safeMonthlySalesGrowth = dashboardData?.monthlySalesGrowth ?? [];
+  // Transform monthly sales growth data to match component expectations
+  const transformedMonthlySalesGrowth = safeMonthlySalesGrowth.map(item => ({
+    date: item.month || 'Unknown',
+    totalSales: item.sales || 0,
+    grossProfit: item.growth || 0
+  }));
   const safePrevMonthlySalesGrowth = prevDashboardData?.monthlySalesGrowth ?? [];
   const safeRevenueSummary = dashboardData?.revenueSummary || null;
   const safePrevRevenueSummary = prevDashboardData?.revenueSummary || null;
@@ -222,10 +224,27 @@ const Dashboard = () => {
   const safePrevTargetAttainment = prevDashboardData?.targetAttainment || null;
   const safeProductPerformance = dashboardData?.productPerformance ?? [];
   const safeHeatmapData = dashboardData?.branchProductHeatmap ?? [];
+  // Transform heatmap data to match component expectations
+  const transformedHeatmapData = safeHeatmapData.map(item => ({
+    branch: item.branch || 'Unknown',
+    product: item.productLine || 'Unknown',
+    sales: item.sales || 0
+  }));
   const safeTopCustomers = dashboardData?.topCustomers ?? [];
+  // Transform top customers data to match component expectations
+  const transformedTopCustomers = safeTopCustomers.map(item => ({
+    cardName: item.customer || 'Unknown',
+    salesAmount: item.sales || 0,
+    grossProfit: item.margin || 0
+  }));
   const safeMarginTrends = dashboardData?.marginTrends ?? [];
   const safeReturns = dashboardData?.returnsAnalysis ?? [];
   const safeProfitability = dashboardData?.profitabilityByDimension ?? [];
+  // Transform profitability data to match component expectations
+  const transformedProfitability = safeProfitability.map(item => ({
+    branch: item.dimension || 'Unknown',
+    grossProfit: item.margin || 0
+  }));
 
   // TODO: Add and display all other KPIs as needed
 
@@ -247,12 +266,12 @@ const Dashboard = () => {
   const grossProfitMarginChange = grossProfitMargin - prevGrossProfitMargin;
   const grossProfitMarginDirection = grossProfitMarginChange > 0 ? 'up' : grossProfitMarginChange < 0 ? 'down' : 'neutral';
 
-  // Average Profit per Transaction (using lineItemCount for transaction count)
-  const avgProfitPerTransaction = safeRevenueSummary?.lineItemCount && safeRevenueSummary.lineItemCount > 0
-    ? grossProfit / safeRevenueSummary.lineItemCount
+  // Average Profit per Transaction (using transactionCount for transaction count)
+  const avgProfitPerTransaction = safeRevenueSummary?.transactionCount && safeRevenueSummary.transactionCount > 0
+    ? grossProfit / safeRevenueSummary.transactionCount
     : null;
-  const prevAvgProfitPerTransaction = safePrevRevenueSummary?.lineItemCount && safePrevRevenueSummary.lineItemCount > 0
-    ? prevGrossProfit / safePrevRevenueSummary.lineItemCount
+  const prevAvgProfitPerTransaction = safePrevRevenueSummary?.transactionCount && safePrevRevenueSummary.transactionCount > 0
+    ? prevGrossProfit / safePrevRevenueSummary.transactionCount
     : null;
   const avgProfitPerTransactionChange = (avgProfitPerTransaction ?? 0) - (prevAvgProfitPerTransaction ?? 0);
   const avgProfitPerTransactionDirection = avgProfitPerTransactionChange > 0 ? 'up' : avgProfitPerTransactionChange < 0 ? 'down' : 'neutral';
@@ -260,11 +279,7 @@ const Dashboard = () => {
   // Prepare sparkline data for the last 12 periods
   const getLastN = (arr, n) => arr.slice(-n);
 
-  console.log('🔍 Sparkline Debug:', {
-    safeMonthlySalesGrowth: safeMonthlySalesGrowth,
-    length: safeMonthlySalesGrowth.length,
-    sample: safeMonthlySalesGrowth.slice(0, 2)
-  });
+
 
   // Create sparkline data with fallback
   const createSparklineData = (dataArray, valueExtractor, fallbackValue = 0) => {
@@ -282,7 +297,7 @@ const Dashboard = () => {
     }
 
     const extractedData = getLastN(dataArray, 12).map(d => ({
-      x: d.month || d.date || '',
+      x: d.date || d.month || '',
       y: valueExtractor(d)
     }));
 
@@ -301,13 +316,13 @@ const Dashboard = () => {
   };
 
   const salesSparkline = createSparklineData(
-    safeMonthlySalesGrowth,
+    transformedMonthlySalesGrowth,
     d => d.totalSales || 0,
     1000000 // 1M fallback
   );
 
   const grossProfitSparkline = createSparklineData(
-    safeMonthlySalesGrowth,
+    transformedMonthlySalesGrowth,
     d => d.grossProfit || 0,
     500000 // 500K fallback
   );
@@ -324,40 +339,20 @@ const Dashboard = () => {
     25 // 25% fallback
   );
 
-  console.log('📊 Generated Sparklines:', {
-    sales: salesSparkline.length,
-    grossProfit: grossProfitSparkline.length,
-    avgProfit: avgProfitPerTransactionSparkline.length,
-    margin: grossProfitMarginSparkline.length
-  });
+
 
   // Add a warning message if no data is returned
   const noDataWarning = (dashboardData as any)?.warning || (Array.isArray(safeMonthlySalesGrowth) && safeMonthlySalesGrowth.length === 0);
 
-  // Enhanced data availability logic
-  const dataAvailabilityStatus = dashboardData?.dataAvailabilityStatus;
-  const isUsingMockData = dataAvailabilityStatus?.isMockData || false;
-  const isFallbackMode = dataAvailabilityStatus?.isFallback || false;
+  // Data availability logic
   const hasNoData = !dashboardData || Object.keys(dashboardData).length === 0 || totalSales === 0;
 
-  // Show mock data banner when using mock data
-  const showMockDataBanner = isUsingMockData;
-
-  // Show no data warning when there's no data and not using mock data
-  const showNoDataWarning = hasNoData && !isUsingMockData;
+  // Show no data warning when there's no data
+  const showNoDataWarning = hasNoData;
 
   return (
     <Box sx={{ mt: { xs: 2, sm: 3 }, p: { xs: 1, sm: 2 } }}>
-      {/* Mock Data Banner - shows when using mock data */}
-      {showMockDataBanner && (
-        <MockDataBanner
-          isVisible={true}
-          dataStatus={dataAvailabilityStatus?.status || 'MOCK_DATA'}
-          message="🎭 Mock Data Mode - This dashboard is displaying mock data for development purposes. All metrics and charts show realistic sample data."
-        />
-      )}
-
-      {/* No Data Warning - shows when no data available and not using mock data */}
+      {/* No Data Warning - shows when no data available */}
       {showNoDataWarning && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           No data found for the selected date range. Please adjust your filters.
@@ -446,7 +441,7 @@ const Dashboard = () => {
         {/* Sales vs. Profit Trend Chart (Primary - Top Left) */}
         <Grid item xs={12} md={8}>
           <MonthlySalesTrendChart
-            data={safeMonthlySalesGrowth}
+            data={transformedMonthlySalesGrowth}
             isLoading={loadingDashboard}
           />
         </Grid>
@@ -500,33 +495,36 @@ const Dashboard = () => {
 
             {/* Render Selected Map View */}
             {mapView === 'simple' && (
-              <SimpleGoogleMaps
-                data={safeProfitability}
+              <UnifiedGoogleMaps
+                data={transformedProfitability}
                 isLoading={loadingDashboard}
+                mode="simple"
               />
             )}
             {mapView === 'enhanced' && (
               <EnhancedGeographicMap
-                data={safeProfitability}
+                data={transformedProfitability}
                 isLoading={loadingDashboard}
               />
             )}
             {mapView === 'choropleth' && (
               <GeographicProfitabilityMap
-                data={safeProfitability}
+                data={transformedProfitability}
                 isLoading={loadingDashboard}
               />
             )}
             {mapView === 'precise' && (
-              <PreciseGoogleMaps
-                data={safeProfitability}
+              <UnifiedGoogleMaps
+                data={transformedProfitability}
                 isLoading={loadingDashboard}
+                mode="enhanced"
               />
             )}
             {mapView === 'google' && (
-              <GoogleMapsBranchView
-                data={safeProfitability}
+              <UnifiedGoogleMaps
+                data={transformedProfitability}
                 isLoading={loadingDashboard}
+                mode="enhanced"
               />
             )}
           </Box>
@@ -537,7 +535,7 @@ const Dashboard = () => {
       <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mt: 2 }}>
         <Grid item xs={12}>
           <BranchProductHeatmap
-            data={safeHeatmapData}
+            data={transformedHeatmapData}
             isLoading={loadingDashboard}
           />
         </Grid>
@@ -547,8 +545,8 @@ const Dashboard = () => {
       <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mt: 2 }}>
         <Grid item xs={12}>
           <EnhancedTopCustomersTable
-            customers={safeTopCustomers}
-            monthlyData={safeMonthlySalesGrowth}
+            customers={transformedTopCustomers}
+            monthlyData={transformedMonthlySalesGrowth}
             isLoading={loadingDashboard}
           />
         </Grid>

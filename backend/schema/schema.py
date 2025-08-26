@@ -3,7 +3,7 @@ import logging
 import math
 import polars as pl
 from typing import List, Optional, Any
-from services.sales_data import fetch_sales_data
+from services.sales_data import fetch_sales_data_with_dynamic_schema as fetch_sales_data
 from core.druid_client import get_data_range_from_druid
 from services.mock_data_service import mock_data_fetcher
 from services.kpi_service import (
@@ -125,15 +125,14 @@ def get_data_availability_status() -> "DataAvailabilityStatus":
     from core.druid_client import druid_conn, DataAvailabilityStatus as Status
     
     status = druid_conn.check_data_availability()
-    is_mock_data = status in [Status.FORCED_MOCK_DATA, Status.MOCK_DATA_FALLBACK]
-    is_fallback = status == Status.MOCK_DATA_FALLBACK
+    is_mock_data = status in ["mock_data_fallback"]
+    is_fallback = status == "mock_data_fallback"
     druid_connected = druid_conn.is_connected()
     
     messages = {
-        Status.REAL_DATA_AVAILABLE: "Real data is available",
-        Status.MOCK_DATA_FALLBACK: "Using mock data due to data source unavailability",
-        Status.FORCED_MOCK_DATA: "Using forced mock data mode",
-        Status.NO_DATA_AVAILABLE: "No data available"
+        "real_data_available": "Real data is available",
+        "mock_data_fallback": "Using mock data due to data source unavailability",
+        "no_data_available": "No data available"
     }
     
     return DataAvailabilityStatus(
@@ -656,7 +655,7 @@ class Query:
                 )
             
             # If real data is available, query Druid
-            if data_status == "REAL_DATA_AVAILABLE":
+            if data_status == "real_data_available":
                 from core.druid_client import get_data_range_from_druid
                 result = get_data_range_from_druid()
                 earliest_date = result.get("earliest_date", "2024-01-01T00:00:00.000Z")
